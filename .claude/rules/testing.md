@@ -7,4 +7,4 @@
 - **Every personal-data table gets a retention test** proving the deletion job removes or anonymises rows at the end of their period.
 - **Security behaviour is tested:** headers, role checks (including a denied case), Turnstile verification failure, rate limiting.
 - **A bug fix starts with a failing test** that reproduces it.
-- Run `bun run typecheck`, `bun run lint` and `bun run test` before opening a PR.
+- Run `bun run format:check`, `bun run lint`, `bun run typecheck`, `bun run check:copy` and `bun run test` before opening a PR. These are the same steps CI runs.

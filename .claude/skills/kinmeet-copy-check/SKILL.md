@@ -20,10 +20,10 @@ Collect every user-facing string the change adds or edits: `i18n/locales/` entri
 
 Never name or compare other communities or organisations.
 
-You can search quickly with:
+Run `bun run check:copy` (CI runs it on the translation files). For text outside `i18n/locales/`, search as well:
 
 ```sh
-grep -rniE '\b(n?sfw|chapters?|moots?)\b' app i18n server content 2>/dev/null
+grep -rniE '\b(n?sfw|chapters?|moots?)\b' app server content 2>/dev/null
 ```
 
 ## 3. British English (must fix)

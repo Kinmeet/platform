@@ -33,7 +33,8 @@ See [ADR-0002](docs/adr/0002-project-structure.md). In short:
 | `server/` | Nitro: API routes, middleware, utilities, scheduled jobs |
 | `shared/` | Types and pure helpers used by both `app/` and `server/` |
 | `i18n/locales/` | All user-facing text, keyed; no hard-coded copy in components |
-| `public/` | Static files, including self-hosted fonts |
+| `public/` | Static files served as-is (fonts are bundled from packages and served from our own origin) |
+| `scripts/` | Repository scripts run by CI, such as the copy check |
 | `migrations/<binding>/` | Versioned D1 migrations, one folder per database binding |
 | `tests/unit/` | Vitest with the Cloudflare Workers pool |
 | `tests/e2e/` | Playwright, including the no-third-party and accessibility tests |
@@ -42,9 +43,9 @@ See [ADR-0002](docs/adr/0002-project-structure.md). In short:
 
 ## Commands
 
-- `bun install`, `bun run dev`
-- `bun run lint`, `bun run format`, `bun run typecheck`, `bun run test`
-- Bun is the package manager and script runner. Do not add npm, pnpm or yarn lockfiles.
+- `bun install`, `bun run dev`, `bun run build`
+- `bun run lint` (or `bun run lint:fix`), `bun run format` (check with `bun run format:check`), `bun run typecheck`, `bun run test`, `bun run check:copy`
+- Bun 1.4.4 installs packages and runs scripts; `bun.lock` is the only lockfile. The Nuxt build, Vitest and Wrangler still run on Node 24 through `bun run` ([ADR-0003](docs/adr/0003-bun-for-installs-and-scripts.md)). Do not add npm, pnpm or yarn lockfiles.
 - Always write `bun run test`, never `bun test`: `bun test` starts Bun's own test runner instead of our Vitest suite.
 
 ## Team and attribution

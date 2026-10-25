@@ -34,7 +34,8 @@ shared/                 Types and pure functions used by app/ and server/
 i18n/
   locales/              All user-facing text, one file per locale (en-GB first)
 content/                Published policies (Nuxt Content), from M1
-public/                 Static files served as-is, including self-hosted fonts
+public/                 Static files served as-is
+scripts/                Repository scripts run by CI (for example check-copy.ts)
 migrations/
   <binding>/            One folder per D1 binding, numbered SQL files
 tests/
@@ -61,7 +62,8 @@ Conventions that go with the layout:
 - **One D1 binding per database, one migrations folder per binding.** The main database starts as `migrations/db/`. Safeguarding and vault databases get their own folders when M2c begins. Each binding's `migrations_dir` in the `wrangler` config points at its folder.
 - **Tests mirror the source path:** `server/utils/headers.ts` is tested in `tests/unit/server/utils/headers.test.ts`.
 - **Scheduled jobs start in `server/tasks/`.** P2 suggests separate small Workers for jobs so a slow job never affects the site; if we split them out, that is a new ADR and they go in `workers/<name>/`.
-- **Bun** is the package manager and script runner (handbook, fixed facts). Scripts are run with `bun run <script>`.
+- **Bun** is the package manager and script runner ([ADR-0003](0003-bun-for-installs-and-scripts.md)). Scripts are run with `bun run <script>`.
+- **Repository scripts** (for example the copy check) live in `scripts/`.
 
 ## Options considered
 
