@@ -18,3 +18,9 @@ The main D1 database, bound to the Worker as `DB`. Its migrations live in `migra
 | `email_log`      | Email sending log: an HMAC of the address (never the address), template id, `sent_at`                                                                                        | 30 days after sending                                                                                           |
 
 `submission_id` is the form's idempotency key ([forms contract](api/forms.md)). It is unique and lives on the row, so it is deleted with the row.
+
+## Deletion job
+
+`server/tasks/retention/delete-expired.ts` runs daily at 03:17 UTC (the cron is in both `nuxt.config.ts` and `wrangler.jsonc`, and a test checks they match). It deletes every row in the three tables whose `delete_after` has passed, in one batch, and logs counts only (`{"code":"deletion_done","deleted":{...}}`). A row is deleted at most about a day after its date.
+
+To run it locally: `bun run build`, then `bunx wrangler dev --test-scheduled` and open `/__scheduled?cron=17+3+*+*+*`.
