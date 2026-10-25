@@ -14,4 +14,4 @@ if ! compgen -G "migrations/*.sql" > /dev/null; then
   exit 0
 fi
 
-npx wrangler d1 migrations apply "kinmeet-$env" --env "$env" --remote
+bunx wrangler d1 migrations apply "kinmeet-$env" --env "$env" --remote
