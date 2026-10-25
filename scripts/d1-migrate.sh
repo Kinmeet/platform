@@ -9,7 +9,7 @@ case "$env" in
   *) echo "Unknown environment: $env" >&2; exit 2 ;;
 esac
 
-if ! compgen -G "migrations/*.sql" > /dev/null; then
+if ! compgen -G "migrations/db/*.sql" > /dev/null; then
   echo "No D1 migrations yet, nothing to apply."
   exit 0
 fi
