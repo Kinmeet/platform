@@ -6,5 +6,40 @@
     "title": "Kinmeet is coming soon",
     "lead": "Small, free, all-ages meets in parks and public spaces, run by volunteers in local groups across the UK.",
     "status": "We are getting ready. Please check back soon."
+  },
+  "admin": {
+    "title": "Admin",
+    "lead": "Messages and applications sent through the website. Each one is deleted automatically on its deletion date.",
+    "loading": "Loading…",
+    "loadFailed": "This list could not be loaded. Please reload the page.",
+    "actionFailed": "That did not work. Please reload the page and try again.",
+    "email": "Email",
+    "received": "Received",
+    "deleteAfter": "Deleted after",
+    "forName": "for {name}",
+    "hello": {
+      "heading": "Say hello messages",
+      "empty": "There are no messages.",
+      "replied": "Last reply",
+      "notReplied": "Not replied yet",
+      "markReplied": "Mark replied",
+      "repliedDone": "Marked as replied to {name}. The deletion date has moved on."
+    },
+    "applications": {
+      "heading": "Applications",
+      "empty": "There are no applications.",
+      "role": "Role",
+      "connection": "Knows a founder",
+      "connectionAnswers": {
+        "friend_or_acquaintance": "Friend or acquaintance",
+        "no": "No",
+        "not_sure": "Not sure"
+      },
+      "conflict": "Conflict to declare: this applicant may know a founder.",
+      "outcomeTold": "Outcome told",
+      "outcomeNotTold": "Not told yet",
+      "markOutcomeTold": "Mark outcome told",
+      "outcomeToldDone": "Marked the outcome as told to {name}. The deletion date has changed."
+    }
   }
 }
