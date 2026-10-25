@@ -40,7 +40,7 @@ const captureTransport = createCaptureTransport()
 /**
  * Picks the transport named by `EMAIL_TRANSPORT`. Only `capture` exists
  * until a Kinmeet domain is registered; the Cloudflare Email Service
- * transport is added with the domain (ADR-0005). An unknown name fails
+ * transport is added with the domain (ADR-0006). An unknown name fails
  * loudly rather than silently dropping mail.
  */
 export function transportFor(name: string | undefined): EmailTransport {

@@ -10,6 +10,7 @@ export default defineConfig({
         compatibilityDate: '2026-10-20',
         compatibilityFlags: ['nodejs_compat'],
         d1Databases: ['DB'],
+        kvNamespaces: ['KV'],
       },
     }),
   ],

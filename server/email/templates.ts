@@ -34,7 +34,6 @@ export function escapeHtml(value: string): string {
 
 interface Body {
   subject: string
-  heading: string
   paragraphs: string[]
   signOff: string
 }
@@ -45,7 +44,6 @@ function bodyFor(template: EmailTemplateId, copy: Messages): Body {
       const receipt = copy.applicationReceipt
       return {
         subject: receipt.subject,
-        heading: receipt.heading,
         paragraphs: [receipt.received, receipt.next, receipt.notYou],
         signOff: receipt.signOff,
       }
@@ -53,9 +51,11 @@ function bodyFor(template: EmailTemplateId, copy: Messages): Body {
   }
 }
 
-function toText(body: Body, footer: string): string {
+// Every email opens with a plain greeting and never addresses anyone by the
+// name they typed, which could be any text at all (Security Reviewer).
+function toText(body: Body, greeting: string, footer: string): string {
   return [
-    body.heading,
+    greeting,
     '',
     ...body.paragraphs.flatMap((p) => [p, '']),
     body.signOff,
@@ -68,7 +68,7 @@ function toText(body: Body, footer: string): string {
 
 // Plain HTML with no images, remote styles, fonts or links: nothing in the
 // message can report back when it is opened (no tracking, rule 1).
-function toHtml(body: Body, footer: string, locale: EmailLocale): string {
+function toHtml(body: Body, greeting: string, footer: string, locale: EmailLocale): string {
   const paragraphs = body.paragraphs.map((p) => `<p>${escapeHtml(p)}</p>`).join('\n')
   return `<!doctype html>
 <html lang="${locale}">
@@ -78,7 +78,7 @@ function toHtml(body: Body, footer: string, locale: EmailLocale): string {
 <title>${escapeHtml(body.subject)}</title>
 </head>
 <body style="margin:0;padding:24px;font-family:sans-serif;font-size:16px;line-height:1.5;color:#1a1a1a;background:#ffffff">
-<h1 style="font-size:22px;margin:0 0 16px">${escapeHtml(body.heading)}</h1>
+<p>${escapeHtml(greeting)}</p>
 ${paragraphs}
 <p>${escapeHtml(body.signOff)}</p>
 <hr style="border:0;border-top:1px solid #cccccc;margin:24px 0">
@@ -93,7 +93,7 @@ export function renderEmail(template: EmailTemplateId, locale: EmailLocale): Ren
   const body = bodyFor(template, copy)
   return {
     subject: body.subject,
-    text: toText(body, copy.footer),
-    html: toHtml(body, copy.footer, locale),
+    text: toText(body, copy.greeting, copy.footer),
+    html: toHtml(body, copy.greeting, copy.footer, locale),
   }
 }

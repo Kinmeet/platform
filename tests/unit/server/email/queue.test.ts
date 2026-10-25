@@ -2,8 +2,10 @@ import { env } from 'cloudflare:workers'
 import type { H3Event } from 'h3'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { queueEmail } from '../../../../server/utils/email'
+import { createEmailLog } from './email-log'
 
-const db = (env as unknown as { DB: D1Database }).DB
+const { DB: db, KV: kv } = env as unknown as { DB: D1Database; KV: KVNamespace }
+const key = 'test-only-key'
 const request = {
   to: 'fernfox@example.org',
   template: 'application_receipt',
@@ -19,40 +21,72 @@ function fakeEvent(cloudflareEnv: Record<string, unknown> | undefined) {
   return { event, settled: () => Promise.all(pending) }
 }
 
+async function sends() {
+  const row = await db.prepare('SELECT COUNT(*) AS n FROM email_log').first<{ n: number }>()
+  return row?.n
+}
+
 describe('queueEmail', () => {
   beforeEach(async () => {
-    await db.exec('DROP TABLE IF EXISTS email_log')
-    await db.exec(
-      'CREATE TABLE email_log (id TEXT PRIMARY KEY, to_hmac TEXT NOT NULL, template_id TEXT NOT NULL, sent_at TEXT NOT NULL, delete_after TEXT NOT NULL)',
-    )
+    await createEmailLog()
+    const { keys } = await kv.list()
+    await Promise.all(keys.map((k) => kv.delete(k.name)))
     vi.spyOn(console, 'info').mockImplementation(() => {})
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
   })
 
   afterEach(() => vi.restoreAllMocks())
 
-  it('hands the work to waitUntil and logs the send', async () => {
-    const { event, settled } = fakeEvent({ DB: db, EMAIL_LOG_HMAC_KEY: 'test-only-key' })
-    expect(queueEmail(event, request)).toBeUndefined()
+  it('answers queued and sends after the response', async () => {
+    const { event, settled } = fakeEvent({ DB: db, KV: kv, EMAIL_LOG_HMAC_KEY: key })
+    expect(await queueEmail(event, request)).toBe('queued')
     await settled()
-    const row = await db.prepare('SELECT COUNT(*) AS n FROM email_log').first<{ n: number }>()
-    expect(row?.n).toBe(1)
+    expect(await sends()).toBe(1)
   })
 
-  it('never throws, and logs only a code when something is missing', async () => {
+  it('answers not_requested for a second receipt to the same address that day', async () => {
+    const cfEnv = { DB: db, KV: kv, EMAIL_LOG_HMAC_KEY: key }
+    const first = fakeEvent(cfEnv)
+    expect(await queueEmail(first.event, request)).toBe('queued')
+    const second = fakeEvent(cfEnv)
+    expect(await queueEmail(second.event, { ...request, to: ' FernFox@Example.org' })).toBe(
+      'not_requested',
+    )
+    await Promise.all([first.settled(), second.settled()])
+    expect(await sends()).toBe(1)
+  })
+
+  it('never throws, answers not_requested and logs only a code when set up wrongly', async () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
     for (const cloudflareEnv of [
       undefined,
-      { DB: db },
-      { DB: db, EMAIL_LOG_HMAC_KEY: 'k', EMAIL_TRANSPORT: 'smtp' },
+      { DB: db, EMAIL_LOG_HMAC_KEY: key },
+      { DB: db, KV: kv },
+      { DB: db, KV: kv, EMAIL_LOG_HMAC_KEY: key, EMAIL_TRANSPORT: 'smtp' },
     ]) {
       const { event, settled } = fakeEvent(cloudflareEnv)
-      expect(() => queueEmail(event, request)).not.toThrow()
+      expect(await queueEmail(event, request)).toBe('not_requested')
       await settled()
     }
     const logged = error.mock.calls.flat().join(' ')
-    expect(logged).toContain('email_db_missing')
-    expect(logged).toContain('email_log_hmac_key_missing')
-    expect(logged).toContain('email_transport_unknown')
+    for (const code of [
+      'email_db_missing',
+      'email_kv_missing',
+      'email_log_hmac_key_missing',
+      'email_transport_unknown',
+    ]) {
+      expect(logged).toContain(code)
+    }
     expect(logged).not.toContain('example.org')
+    expect(await sends()).toBe(0)
+  })
+
+  it('still answers queued when sending fails later, and logs a code', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    await db.exec('DROP TABLE email_log')
+    const { event, settled } = fakeEvent({ DB: db, KV: kv, EMAIL_LOG_HMAC_KEY: key })
+    expect(await queueEmail(event, request)).toBe('queued')
+    await settled()
+    expect(error.mock.calls.flat().join(' ')).toContain('email_send_failed')
   })
 })

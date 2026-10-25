@@ -1,15 +1,14 @@
-import type { D1Database } from '@cloudflare/workers-types'
-import { hmacAddress } from './address-hmac'
-import { countRecentSends, daysBefore, recordSend } from './send-log'
+import type { D1Database, KVNamespace } from '@cloudflare/workers-types'
+import { recordSend } from './send-log'
 import { renderEmail, type EmailLocale, type EmailTemplateId } from './templates'
 import type { EmailTransport } from './transport'
 
 /**
- * At most this many copies of one template go to one address in any 24
- * hours. Turnstile and the per-form limit stop floods; this stops a form
- * being used to fill one stranger's inbox.
+ * One receipt per address per day (Security Reviewer, contract b9f2115).
+ * Turnstile and the per-form limit stop floods; this stops a form being
+ * used to fill one stranger's inbox.
  */
-export const DAILY_LIMIT_PER_ADDRESS = 3
+export const RECEIPT_MARKER_TTL_SECONDS = 24 * 60 * 60
 
 export interface EmailRequest {
   to: string
@@ -17,26 +16,39 @@ export interface EmailRequest {
   locale: EmailLocale
 }
 
-export interface EmailDeps {
+export function receiptMarkerKey(toHmac: string): string {
+  return `receipt:${toHmac}`
+}
+
+/**
+ * Claims today's receipt for an address. The KV marker's key holds only the
+ * address HMAC and it expires by itself after 24 hours. Returns false when a
+ * receipt has already gone to this address in that time. KV is eventually
+ * consistent, so two submissions in the same moment may both get one; the
+ * limit is about inbox abuse, not exact counting.
+ */
+export async function claimReceipt(kv: KVNamespace, toHmac: string): Promise<boolean> {
+  const key = receiptMarkerKey(toHmac)
+  if ((await kv.get(key)) !== null) return false
+  await kv.put(key, '1', { expirationTtl: RECEIPT_MARKER_TTL_SECONDS })
+  return true
+}
+
+export interface DeliverDeps {
   db: D1Database
-  hmacKey: string
   transport: EmailTransport
   now?: () => Date
 }
 
-export type SendOutcome = 'sent' | 'rate_limited'
-
-export async function sendEmail(deps: EmailDeps, request: EmailRequest): Promise<SendOutcome> {
-  const now = deps.now?.() ?? new Date()
-  const toHmac = await hmacAddress(deps.hmacKey, request.to)
-
-  const recent = await countRecentSends(deps.db, toHmac, request.template, daysBefore(now, 1))
-  if (recent >= DAILY_LIMIT_PER_ADDRESS) return 'rate_limited'
-
+/** Renders the fixed template, sends it, then writes the send log row. */
+export async function deliverEmail(
+  deps: DeliverDeps,
+  request: EmailRequest,
+  toHmac: string,
+): Promise<void> {
   const rendered = renderEmail(request.template, request.locale)
   await deps.transport.send({ ...rendered, to: request.to.trim(), template: request.template })
-  await recordSend(deps.db, toHmac, request.template, now)
-  return 'sent'
+  await recordSend(deps.db, toHmac, request.template, deps.now?.() ?? new Date())
 }
 
 /** Error codes only: never the address, the message or the error's own text. */

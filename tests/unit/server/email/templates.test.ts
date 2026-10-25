@@ -9,7 +9,7 @@ describe('email templates', () => {
     const copy = enGB.email.applicationReceipt
     expect(receipt.subject).toBe(copy.subject)
     for (const line of [
-      copy.heading,
+      enGB.email.greeting,
       copy.received,
       copy.next,
       copy.notYou,
@@ -29,6 +29,12 @@ describe('email templates', () => {
       expect(html).not.toMatch(/url\(/i)
       expect(text).not.toMatch(/https?:\/\//i)
     }
+  })
+
+  it('opens with a plain greeting', () => {
+    expect(receipt.text.startsWith('Hello,\n')).toBe(true)
+    expect(receipt.html).toContain('<body')
+    expect(receipt.html.split('<body')[1]).toMatch(/^[^>]*>\s*<p>Hello,<\/p>/)
   })
 
   it('sets the language on the HTML part', () => {
