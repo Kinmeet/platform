@@ -11,7 +11,9 @@ Resource ids are not secrets. They live in [`wrangler.jsonc`](../wrangler.jsonc)
 | Staging               | `env.staging`          | `kinmeet-staging`               | `main`                              | `kinmeet-staging` | `kinmeet-staging` | `kinmeet-staging` | made-up |
 | Live                  | `env.live`             | `kinmeet-live`                  | `live` (Matt only)                  | `kinmeet-live`    | `kinmeet-live`    | `kinmeet-live`    | real    |
 
-`KINMEET_ENV` is set to `staging`, `preview` or `live` so the app can tell where it is running.
+`KINMEET_ENV` is set to `local`, `staging`, `preview` or `live` so the app can tell where it is running.
+
+`SITE_ORIGIN` is the exact origin the forms accept (checked against the request's `Origin` header): `http://localhost:3000` locally, `https://kinmeet-staging.kinmeet.workers.dev` on staging and `https://kinmeet-live.kinmeet.workers.dev` on live. Each Preview has its own host, so for Previews it is the pattern `https://*-kinmeet-staging.kinmeet.workers.dev`, where `*` stands for exactly one preview name (letters, digits and hyphens, no dots). When a custom domain arrives, `SITE_ORIGIN` for live changes with it.
 
 ## Ids
 

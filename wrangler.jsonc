@@ -23,6 +23,7 @@
     "traces": { "enabled": false },
   },
   "logpush": false,
+  "vars": { "KINMEET_ENV": "local", "SITE_ORIGIN": "http://localhost:3000" },
   // Local bindings are simulated on this machine; the ids only label them.
   "d1_databases": [
     {
@@ -62,7 +63,10 @@
       "workers_dev": true,
       // Needed for Worker Previews to be served on workers.dev.
       "preview_urls": true,
-      "vars": { "KINMEET_ENV": "staging" },
+      "vars": {
+        "KINMEET_ENV": "staging",
+        "SITE_ORIGIN": "https://kinmeet-staging.kinmeet.workers.dev",
+      },
       "d1_databases": [
         {
           "binding": "DB",
@@ -90,7 +94,12 @@
       ],
       // Pull request Previews. Separate made-up data, never staging or live.
       "previews": {
-        "vars": { "KINMEET_ENV": "preview" },
+        // Each Preview has its own host, <preview-name>-kinmeet-staging.kinmeet.workers.dev,
+        // so this is a pattern: "*" stands for exactly one preview name.
+        "vars": {
+          "KINMEET_ENV": "preview",
+          "SITE_ORIGIN": "https://*-kinmeet-staging.kinmeet.workers.dev",
+        },
         "d1_databases": [
           {
             "binding": "DB",
@@ -131,7 +140,10 @@
       "logpush": false,
       "workers_dev": true,
       "preview_urls": false,
-      "vars": { "KINMEET_ENV": "live" },
+      "vars": {
+        "KINMEET_ENV": "live",
+        "SITE_ORIGIN": "https://kinmeet-live.kinmeet.workers.dev",
+      },
       "d1_databases": [
         {
           "binding": "DB",
