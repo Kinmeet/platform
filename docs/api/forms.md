@@ -6,14 +6,17 @@ Sources: P1 Phase 1, P3 data map and retention, S5 (Turnstile). Not collected: p
 
 ## Shared rules for both endpoints
 
-- **Same origin only.** JSON over `POST`, `Content-Type: application/json`. No CORS headers; requests from another origin are refused.
+- **Same origin only.** JSON over `POST`, with no CORS headers. The server refuses with `400 bad_request` unless `Origin` matches our own origin, `Sec-Fetch-Site` is `same-origin` (when present) and `Content-Type` is `application/json`.
+- **Body size cap.** Bodies over 16 KB are refused with `400 bad_request` before parsing.
+- **Validation.** Zod 4 (Tech Lead, 25 October; ADR-0004). Each form has `shared/forms/<form>.ts`, which exports its schema and inferred type. Schemas never set messages; one helper, `shared/forms/errors.ts`, maps Zod issues to `{ field, code }`.
 - **Shared schema.** One validation schema per form lives in `shared/forms/` and is imported by both the page (client checks) and the server route (the real check). The server never trusts the client check. Library is Theo's call (Zod or Valibot suggested).
 - **Error codes, not sentences.** The server returns a field name and a stable code; the page turns the code into translated text. No user-facing English comes from the API (P1 Phase 4: Welsh later).
-- **Idempotent retries.** The page generates a random `submissionId` (UUID v4) once: when the say hello form loads, or when the apply flow starts. It is kept across steps and retries, sent with every attempt, and cleared only after a successful send, so it is never regenerated per step. A repeat with the same id returns the first result and stores nothing new. The id is stored on the row itself, so it is deleted with the row and nothing outlives the submission. This is what lets "send failed" keep the answers and offer Try again without creating duplicates.
+- **Idempotent retries.** The page generates a random `submissionId` (UUID v4) once: when the say hello form loads, or when the apply flow starts. It is kept across steps and retries, sent with every attempt, and cleared only after a successful send, so it is never regenerated per step. Turnstile tokens are single-use, so every retry carries a fresh token. The order is: verify Turnstile first, then look up `submissionId`. A repeat with the same id returns the first result and stores nothing new, even when the body differs, so nothing is overwritten. The id is stored on the row itself, so it is deleted with the row and nothing outlives the submission. This is what lets "send failed" keep the answers and offer Try again without creating duplicates.
 - **What is never stored or logged:** IP address, user agent, request body in logs, Turnstile token after verification (P3, P9).
 - **Turnstile** token in `turnstileToken`, verified server-side before anything is stored (S5). The siteverify call sends only the secret and the token, never the optional `remoteip`.
+- **Rate limiting.** Uses Cloudflare's rate limiting binding with the key `${form}:${hmac(ip)}` (an HMAC with a Worker secret, never the raw IP, and the key is never logged). The per-IP limit is generous (about 5 per 60 seconds per form), because schools, colleges and mobile networks share addresses. A global per-form limiter acts as a flood backstop, and Turnstile stays the main defence. Counts live only inside Cloudflare, and we write nothing. `retryAfter` matches the limiter's period. Receipt emails are rate-limited too. Security sign-off: Nadia.
 - **Logs:** the Workers observability settings for these routes keep no request headers (`CF-Connecting-IP`, `User-Agent`) and no bodies, and errors log a code, never the request body. Jun or Nadia confirm the settings; Kit adds a test that a failed submission writes no body to the logs.
-- Text fields are trimmed; empty after trimming counts as missing. Lengths are in characters.
+- Text fields are trimmed; empty after trimming counts as missing. Lengths are counted in Unicode code points (`[...s].length`), the same way in the browser and on the server.
 
 ## Responses (both endpoints)
 
@@ -70,11 +73,11 @@ Stored in D1 with a deletion date of **12 months after our last reply** (P3). On
 | `callName`, `email` | As say hello. |
 | `answers` | Step 3 answers, keyed by question id from the role config; each at most 2000; required ones per config. Unknown ids are refused with `unknown_field`. |
 
-**Role config is shared:** the step 1 and step 3 question ids, choices and which are required live in one file per role (`content/roles/<role>`), used by Mei's pages and Ade's validation. Web owns the wording; Services reads the ids.
+**Role config is shared:** the step 1 and step 3 question ids, choices and which are required live in `shared/forms/roles/<role>.ts`, and the wording lives in `i18n/locales/`. Both Mei's pages and Ade's validation use them. Web owns the wording; Services owns the ids. (`content/` is the Nuxt Content area for published policies, ADR-0002.)
 
 Stored in D1 (stage 1 only: no legal details, P1). Deletion date: **6 months after we tell an unsuccessful applicant** (P3), so the "[six months]" placeholder in the copy is correct. Backstop for rows that never reach a decision (withdrawn, or the founding round closes without one being sent): **6 months after the round closes** (to be added to P3). A successful application moves into the trustee record (explained to the applicant at the time, P9) and leaves this table rather than being kept here.
 
-A receipt email is queued after the row is stored (`receipt: "queued"`); a failed receipt never turns a stored application into a failure. The receipt confirms receipt only and never echoes the applicant's answers or checks. The email sending log (P3, 30 days) holds only the address and a template id.
+A receipt email is queued after the row is stored (`receipt: "queued"`); a failed receipt never turns a stored application into a failure. The receipt is a fixed template ("we got your application") that confirms receipt only and never repeats the message, answers or checks, so the form cannot be used to send arbitrary text to a stranger. The email sending log (P3, 30 days) holds only the address and a template id.
 
 The founder (later the chair and secretary, P3) reads applications on the admin page.
 
@@ -82,4 +85,4 @@ The founder (later the chair and secretary, P3) reads applications on the admin 
 
 1. **Q2 copy:** this contract follows P1 (messages and applications are saved to D1 with a deletion date), so "Nothing is saved on this site" has to change. The Web squad changes the copy; Ezra checks it against P9.
 2. **Under-13s writing in** (P1 gap, P3 gap): area 5 has not decided. Until it does, we store messages as normal and do not ask for age on say hello (Head of Delivery, 25 October). Closes together with the P9 placeholder "[Area 5 to confirm how messages from under-13s are handled]". Safeguarding go-live condition (raised by Ezra with the Head of Delivery, not a blocker for this contract): before the form is public, an admin action passes a message to the safeguarding process and removes it from the say hello table, and whoever reads the inbox has a short note on handling a disclosure (SG6, SG-03).
-3. **Rate limiting without storing IPs:** propose Cloudflare's rate limiting binding, nothing written to D1 or logs. If the binding allows any key, use an HMAC of the IP with a Worker secret rather than the raw IP. Privacy has agreed; Theo and Nadia to confirm the security side.
+3. **P9 and P6 wording:** we process the IP briefly for rate limiting, even though we never store it. Ezra to check that P9 and P6 mention short-lived use of connection details to stop abuse.
