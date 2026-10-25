@@ -23,6 +23,8 @@
     "traces": { "enabled": false },
   },
   "logpush": false,
+  // Read by the form routes. Deploys fail until both are set (docs/environments.md).
+  "secrets": { "required": ["TURNSTILE_SECRET_KEY", "RATE_LIMIT_HMAC_KEY"] },
   // Local bindings are simulated on this machine; the ids only label them.
   "d1_databases": [
     {
@@ -63,6 +65,7 @@
       // Needed for Worker Previews to be served on workers.dev.
       "preview_urls": true,
       "vars": { "KINMEET_ENV": "staging" },
+      "secrets": { "required": ["TURNSTILE_SECRET_KEY", "RATE_LIMIT_HMAC_KEY"] },
       "d1_databases": [
         {
           "binding": "DB",
@@ -132,6 +135,7 @@
       "workers_dev": true,
       "preview_urls": false,
       "vars": { "KINMEET_ENV": "live" },
+      "secrets": { "required": ["TURNSTILE_SECRET_KEY", "RATE_LIMIT_HMAC_KEY"] },
       "d1_databases": [
         {
           "binding": "DB",

@@ -27,7 +27,7 @@ const verify = (
     result: verifyTurnstile({
       secret: SECRET,
       token: TOKEN,
-      expectedHostname: HOST,
+      hostnameAllowed: (hostname: string) => hostname === HOST,
       expectedAction: 'hello',
       fetcher: fake.fetcher,
       ...overrides,

@@ -51,7 +51,7 @@ openssl rand -base64 32 | bunx wrangler preview base-config secret put RATE_LIMI
 openssl rand -base64 32 | bunx wrangler secret put RATE_LIMIT_HMAC_KEY --env live
 ```
 
-Generate a fresh value for every environment and every secret; never reuse one. Previews get their secrets from the Preview base config (`wrangler preview base-config secret`), which every new Preview starts with, separately from staging. They are not marked required in `wrangler.jsonc` yet, so the first deploys can happen before the forms exist; Services adds `secrets.required` when the code that reads them lands.
+Generate a fresh value for every environment and every secret; never reuse one. Previews get their secrets from the Preview base config (`wrangler preview base-config secret`), which every new Preview starts with, separately from staging. `TURNSTILE_SECRET_KEY` and `RATE_LIMIT_HMAC_KEY` are listed in `secrets.required` for local, staging and live, because the form routes read them: a deploy fails until both are set for that environment.
 
 ## Logging (P5)
 

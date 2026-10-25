@@ -9,14 +9,16 @@ export type JsonParse = { ok: true; body: Record<string, unknown> } | { ok: fals
 const JSON_CONTENT_TYPE = /^application\/json(\s*;\s*charset=utf-8)?$/i
 
 /**
- * Same origin only: a JSON POST whose `Origin` is exactly this environment's
- * configured origin (never worked out from the request's `Host`). A missing
- * or `null` origin is refused.
+ * Same origin only: a JSON POST whose `Origin` is this environment's
+ * configured site (never worked out from the request's `Host`; see
+ * `site-origin.ts`). A missing or `null` origin is refused.
  */
-export function isSameOriginJsonPost(request: Request, expectedOrigin: string): boolean {
+export function isSameOriginJsonPost(
+  request: Request,
+  originAllowed: (origin: string | null) => boolean,
+): boolean {
   if (request.method !== 'POST') return false
-  const origin = request.headers.get('Origin')
-  if (origin === null || origin === 'null' || origin !== expectedOrigin) return false
+  if (!originAllowed(request.headers.get('Origin'))) return false
   const fetchSite = request.headers.get('Sec-Fetch-Site')
   if (fetchSite !== null && fetchSite !== 'same-origin') return false
   return JSON_CONTENT_TYPE.test((request.headers.get('Content-Type') ?? '').trim())

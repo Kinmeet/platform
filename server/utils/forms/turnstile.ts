@@ -22,8 +22,8 @@ interface SiteverifyResponse {
 export interface VerifyTurnstileOptions {
   secret: string
   token: string
-  /** The token must have been issued on this environment's hostname. */
-  expectedHostname: string
+  /** The token must have been issued on this environment's site (see `site-origin.ts`). */
+  hostnameAllowed: (hostname: string) => boolean
   /** The widget's `data-action`, which is the form name, so a token cannot cross forms. */
   expectedAction: string
   fetcher?: typeof fetch
@@ -32,7 +32,7 @@ export interface VerifyTurnstileOptions {
 export async function verifyTurnstile({
   secret,
   token,
-  expectedHostname,
+  hostnameAllowed,
   expectedAction,
   fetcher = fetch,
 }: VerifyTurnstileOptions): Promise<TurnstileResult> {
@@ -57,6 +57,7 @@ export async function verifyTurnstile({
   }
 
   if (data.success !== true) return 'failed'
-  if (data.hostname !== expectedHostname || data.action !== expectedAction) return 'failed'
+  if (typeof data.hostname !== 'string' || !hostnameAllowed(data.hostname)) return 'failed'
+  if (data.action !== expectedAction) return 'failed'
   return 'passed'
 }

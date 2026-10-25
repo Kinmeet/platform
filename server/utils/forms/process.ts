@@ -24,8 +24,8 @@ export interface FormSubmissionSteps<Schema extends z.ZodType<{ submissionId: st
   /** Short form name, also the Turnstile action, for example `hello`. */
   form: string
   schema: Schema
-  /** This environment's origin, from configuration. */
-  expectedOrigin: string
+  /** Whether an `Origin` header is this environment's site, from configuration. */
+  originAllowed: (origin: string | null) => boolean
   /** Largest body a valid request can have, worked out from the schema. */
   bodyCap: number
   /** What a 201 says when there is no receipt step, and what a repeat says. */
@@ -55,7 +55,7 @@ export async function processFormSubmission<Schema extends z.ZodType<{ submissio
   }
 
   try {
-    if (!isSameOriginJsonPost(request, steps.expectedOrigin)) return badRequest()
+    if (!isSameOriginJsonPost(request, steps.originAllowed)) return badRequest()
     const read = await readCappedBody(request, steps.bodyCap)
     if (!read.ok) return badRequest()
 

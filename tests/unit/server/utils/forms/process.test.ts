@@ -43,7 +43,7 @@ function harness(
   const steps: FormSubmissionSteps<typeof helloSchema> = {
     form: 'hello',
     schema: helloSchema,
-    expectedOrigin: ORIGIN,
+    originAllowed: (origin) => origin === ORIGIN,
     bodyCap: HELLO_BODY_CAP,
     receipt: 'not_requested',
     withinRateLimit: async () => {

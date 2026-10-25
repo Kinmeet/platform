@@ -4,6 +4,7 @@ import type { z } from 'zod'
 import { processFormSubmission, type FormSubmissionSteps } from './process'
 import { withinRateLimit, type RateLimiter } from './rate-limit'
 import { sendFormResponse, type Receipt } from './responses'
+import { hostnameAllowed, originAllowed, type SitePattern } from './site-origin'
 import { verifyTurnstile } from './turnstile'
 
 /**
@@ -11,8 +12,10 @@ import { verifyTurnstile } from './turnstile'
  * environment with `wrangler secret put`; limiters are in `wrangler.jsonc`.
  */
 export interface FormEnv {
-  /** This environment's exact origin, for example the staging workers.dev URL. */
+  /** This environment's site: exact for staging and live, a pattern for Previews. */
   SITE_ORIGIN: string
+  /** `local`, `preview`, `staging` or `live`; only `preview` allows a pattern. */
+  KINMEET_ENV?: string
   TURNSTILE_SECRET_KEY: string
   RATE_LIMIT_HMAC_KEY: string
   FORM_RATE_LIMITER: RateLimiter
@@ -68,13 +71,14 @@ export async function handleFormSubmission<Schema extends z.ZodType<{ submission
   }
 
   const request = toWebRequest(event)
+  const site: SitePattern = { siteOrigin: env.SITE_ORIGIN, environment: env.KINMEET_ENV }
   const { afterStore } = route
   const response = await processFormSubmission(request, {
     form: route.form,
     schema: route.schema,
     receipt: route.receipt,
     bodyCap: route.bodyCap,
-    expectedOrigin: env.SITE_ORIGIN,
+    originAllowed: (origin) => originAllowed(origin, site),
     withinRateLimit: () =>
       withinRateLimit({
         form: route.form,
@@ -88,7 +92,7 @@ export async function handleFormSubmission<Schema extends z.ZodType<{ submission
       verifyTurnstile({
         secret: env.TURNSTILE_SECRET_KEY,
         token,
-        expectedHostname: new URL(env.SITE_ORIGIN).hostname,
+        hostnameAllowed: (hostname) => hostnameAllowed(hostname, site),
         expectedAction: route.form,
       }),
     exists: (submissionId) => route.exists(event, submissionId),

@@ -7,6 +7,7 @@ import {
 
 const ORIGIN = 'https://kinmeet-staging.kinmeet.workers.dev'
 const CAP = 1024
+const exact = (origin: string | null) => origin === ORIGIN
 
 function request(
   init: { method?: string; headers?: Record<string, string>; body?: BodyInit | null } = {},
@@ -26,20 +27,25 @@ const json = { 'Content-Type': 'application/json' }
 
 describe('same origin JSON POST check', () => {
   it('accepts our own page', () => {
-    expect(isSameOriginJsonPost(request(), ORIGIN)).toBe(true)
+    expect(isSameOriginJsonPost(request(), exact)).toBe(true)
     expect(
       isSameOriginJsonPost(
         request({ headers: { Origin: ORIGIN, 'Content-Type': 'application/json; charset=utf-8' } }),
-        ORIGIN,
+        exact,
       ),
     ).toBe(true)
   })
 
-  it('matches the configured origin exactly, not the request host', () => {
+  it('asks the configured check, not the request host', () => {
     // The request URL's own origin is not enough when configuration says otherwise.
-    expect(isSameOriginJsonPost(request(), 'https://kinmeet-live.kinmeet.workers.dev')).toBe(false)
     expect(
-      isSameOriginJsonPost(request({ headers: { Origin: `${ORIGIN}/`, ...json } }), ORIGIN),
+      isSameOriginJsonPost(
+        request(),
+        (origin) => origin === 'https://kinmeet-live.kinmeet.workers.dev',
+      ),
+    ).toBe(false)
+    expect(
+      isSameOriginJsonPost(request({ headers: { Origin: `${ORIGIN}/`, ...json } }), exact),
     ).toBe(false)
   })
 
@@ -51,12 +57,12 @@ describe('same origin JSON POST check', () => {
       { Origin: ORIGIN, ...json, 'Sec-Fetch-Site': 'cross-site' },
       { Origin: ORIGIN, ...json, 'Sec-Fetch-Site': 'same-site' },
     ]) {
-      expect(isSameOriginJsonPost(request({ headers }), ORIGIN)).toBe(false)
+      expect(isSameOriginJsonPost(request({ headers }), exact)).toBe(false)
     }
   })
 
   it('refuses other methods and anything but exactly application/json', () => {
-    expect(isSameOriginJsonPost(request({ method: 'PUT' }), ORIGIN)).toBe(false)
+    expect(isSameOriginJsonPost(request({ method: 'PUT' }), exact)).toBe(false)
     for (const type of [
       'text/plain',
       'application/x-www-form-urlencoded',
@@ -65,10 +71,7 @@ describe('same origin JSON POST check', () => {
       'application/json-patch+json',
     ]) {
       expect(
-        isSameOriginJsonPost(
-          request({ headers: { Origin: ORIGIN, 'Content-Type': type } }),
-          ORIGIN,
-        ),
+        isSameOriginJsonPost(request({ headers: { Origin: ORIGIN, 'Content-Type': type } }), exact),
       ).toBe(false)
     }
   })
