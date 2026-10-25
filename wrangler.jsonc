@@ -1,7 +1,9 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  // Local development settings. Deployed Workers are defined in env.staging
-  // and env.live (added in issue #4). Kinmeet account only.
+  // Top level: local development only (`wrangler dev`), never deployed.
+  // Deployed Workers are env.staging and env.live, built by Workers Builds
+  // (ADR-0001). Kinmeet account only. Resource ids are not secrets.
+  // Every D1, KV and R2 resource was created with jurisdiction eu (P3).
   "name": "kinmeet-local",
   "account_id": "0fa695ccf43f64b3eb9fae94520109b4",
   "main": "./.output/server/index.mjs",
@@ -12,5 +14,69 @@
   "assets": {
     "directory": "./.output/public",
     "binding": "ASSETS",
+  },
+  // Local bindings are simulated on this machine; the ids only label them.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "kinmeet-local",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations",
+    },
+  ],
+  "kv_namespaces": [{ "binding": "KV", "id": "00000000000000000000000000000000" }],
+  "r2_buckets": [{ "binding": "R2", "bucket_name": "kinmeet-local" }],
+
+  "env": {
+    // Built from `main`. Every other branch gets a Preview under this Worker.
+    "staging": {
+      "name": "kinmeet-staging",
+      "workers_dev": true,
+      // Needed for Worker Previews to be served on workers.dev.
+      "preview_urls": true,
+      "vars": { "KINMEET_ENV": "staging" },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "kinmeet-staging",
+          "database_id": "18c80f5f-3c72-4781-8d38-98ef6cc4a096",
+          "migrations_dir": "migrations",
+        },
+      ],
+      "kv_namespaces": [{ "binding": "KV", "id": "5a9d7b8c548a4c3a8d596eec650a474b" }],
+      "r2_buckets": [{ "binding": "R2", "bucket_name": "kinmeet-staging", "jurisdiction": "eu" }],
+      // Pull request Previews. Separate made-up data, never staging or live.
+      "previews": {
+        "vars": { "KINMEET_ENV": "preview" },
+        "d1_databases": [
+          {
+            "binding": "DB",
+            "database_name": "kinmeet-preview",
+            "database_id": "74454f75-8b40-44d7-ac02-e6145d9e8ff6",
+            "migrations_dir": "migrations",
+          },
+        ],
+        "kv_namespaces": [{ "binding": "KV", "id": "87dfe82d807e49cf945334fbd17d7b26" }],
+        "r2_buckets": [{ "binding": "R2", "bucket_name": "kinmeet-preview", "jurisdiction": "eu" }],
+      },
+    },
+
+    // Built only from the protected `live` branch. No Previews.
+    "live": {
+      "name": "kinmeet-live",
+      "workers_dev": true,
+      "preview_urls": false,
+      "vars": { "KINMEET_ENV": "live" },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "kinmeet-live",
+          "database_id": "3b253758-831e-4db9-bb90-fb4598f215db",
+          "migrations_dir": "migrations",
+        },
+      ],
+      "kv_namespaces": [{ "binding": "KV", "id": "90bba5907a604bc49aead31e93c939fc" }],
+      "r2_buckets": [{ "binding": "R2", "bucket_name": "kinmeet-live", "jurisdiction": "eu" }],
+    },
   },
 }
