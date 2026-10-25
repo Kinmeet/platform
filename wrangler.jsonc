@@ -1,0 +1,16 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  // Local development settings. Deployed Workers are defined in env.staging
+  // and env.live (added in issue #4). Kinmeet account only.
+  "name": "kinmeet-local",
+  "account_id": "0fa695ccf43f64b3eb9fae94520109b4",
+  "main": "./.output/server/index.mjs",
+  "compatibility_date": "2026-10-20",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "preview_urls": false,
+  "assets": {
+    "directory": "./.output/public",
+    "binding": "ASSETS",
+  },
+}

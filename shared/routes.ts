@@ -1,0 +1,20 @@
+/**
+ * Every public route in the app, in one place.
+ *
+ * The no-third-party-requests test loads each of these, and the security
+ * headers use `form` to decide whether Cloudflare Turnstile may load. Every
+ * new page must be added here; a route coverage test for this arrives with
+ * issue #6.
+ */
+export interface PublicRoute {
+  path: string
+  /** True only for pages that show a form protected by Turnstile (S5). */
+  form: boolean
+}
+
+export const publicRoutes: readonly PublicRoute[] = [{ path: '/', form: false }]
+
+export function isFormRoute(path: string, routes: readonly PublicRoute[] = publicRoutes): boolean {
+  const clean = path.split('?')[0]?.replace(/\/+$/, '') || '/'
+  return routes.some((route) => route.form && route.path === clean)
+}
