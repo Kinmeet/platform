@@ -31,7 +31,7 @@ Every version below was read from the npm registry (`npm view <package>`) on 25 
 | `typescript` | 7.0.2 | 7.0.2 latest; 6.0.3 latest 6.x; 7.1.0-beta | **Flag 2.** Use 6.0.x. |
 | `vue-tsc` | not listed | 3.3.13 | Peer `typescript` `>=5.0.0`. Built on `@volar/typescript`, which needs the TypeScript JavaScript API. |
 | `@typescript-eslint/parser` | not listed | 8.72.0 | Peer `typescript` `>=4.8.4 <6.1.0`. This is what rules out TypeScript 7 for linting. |
-| `pnpm` | 12.15 | 12.15.0 | `engines.node`: `>=18`. Pin with `packageManager` in `package.json`. |
+| `bun` (package manager and script runner) | 1.4.4 | 1.4.4 | Replaces pnpm (Matt's decision, 25 October 2026). Published 22 October 2026. Pin with `packageManager` in `package.json`. Node 24 is still required: see [Bun and Node](#bun-and-node). |
 | `vue` | not listed | 3.5.44 | Comes with Nuxt. |
 
 ### TypeScript 7
@@ -51,6 +51,14 @@ From the [Node.js release schedule](https://github.com/nodejs/Release/blob/main/
 | 26 | Current; Active LTS from 28 October 2026 | 30 April 2029 | 26.12.1 |
 
 Recommendation (**Flag 1**): pin `24` in `.nvmrc` and `engines` for Sprint 0 (meets Nuxt's `^24.15.0` and Wrangler's `>=22`). Nuxt already lists `>=26.0.0`, so moving to 26 after 28 October should be a one-line change once CI passes on it.
+
+### Bun and Node
+
+We use Bun as the package manager and script runner, but Nuxt, Vitest and Wrangler still run on Node 24:
+
+- `bun run <script>` respects a CLI's `#!/usr/bin/env node` shebang and runs it with Node, unless `--bun` is passed ([Bun: bun run, Shebangs](https://bun.sh/docs/cli/run)). `nuxt`, `vitest` and `wrangler` are all Node-shebang CLIs, so `bun run dev`, `bun run build` and `bun run test` run them on Node 24. Do not add `--bun`.
+- CI therefore needs both `actions/setup-node` (Node 24) and `oven-sh/setup-bun` (Bun 1.4.4).
+- The test command is **`bun run test`, never `bun test`**. When a built-in Bun command has the same name as a package script, the built-in wins ([Bun: bun run](https://bun.sh/docs/cli/run)), so `bun test` starts Bun's own test runner instead of Vitest and skips the Workers runtime and the Nuxt test environment.
 
 ## Workers Vitest integration
 
@@ -143,7 +151,7 @@ From [Workers CI/CD](https://developers.cloudflare.com/workers/ci-cd/) (updated 
 
 Recommendation: **GitHub Actions with `cloudflare/wrangler-action@v4`**. It lets the deploy wait for every required check, keeps the API token scoped to the Kinmeet account, and gives us a clean approval gate for live releases.
 
-Current tags (from `git ls-remote --tags`, 25 October 2026): `cloudflare/wrangler-action` v4.1.3, `actions/checkout` v7.0.1, `actions/setup-node` v7.1.0, `pnpm/action-setup` v6.1.0. **Flag 6**: Cloudflare's example uses `actions/checkout@v6`. Pin every action to a full commit SHA with the tag in a comment.
+Current tags (from `git ls-remote --tags`, 25 October 2026): `cloudflare/wrangler-action` v4.1.3, `actions/checkout` v7.0.1, `actions/setup-node` v7.1.0, `oven-sh/setup-bun` v2.2.0 (`0c5077e51419868618aeaa5fe8019c62421857d6`, the same commit as the `v2` tag). **Flag 6**: Cloudflare's example uses `actions/checkout@v6`. Pin every action to a full commit SHA with the tag in a comment.
 
 ## Features that can inject third-party scripts
 
@@ -172,8 +180,9 @@ So today nothing can inject a script on our pages. The risk arrives with a custo
 
 ## Sources
 
-npm registry entries read with `npm view` on 25 October 2026: `nuxt`, `@nuxt/nitro-server`, `nitropack`, `wrangler`, `@cloudflare/vitest-plugin`, `@cloudflare/vitest-pool-workers`, `vitest`, `@nuxt/test-utils`, `@playwright/test`, `@axe-core/playwright`, `@nuxtjs/i18n`, `@nuxt/eslint`, `eslint`, `typescript`, `vue-tsc`, `@typescript-eslint/parser`, `pnpm`, `vue`. Nitro preset behaviour read from the published `nitropack@2.13.5` package source.
+npm registry entries read with `npm view` on 25 October 2026: `nuxt`, `@nuxt/nitro-server`, `nitropack`, `wrangler`, `@cloudflare/vitest-plugin`, `@cloudflare/vitest-pool-workers`, `vitest`, `@nuxt/test-utils`, `@playwright/test`, `@axe-core/playwright`, `@nuxtjs/i18n`, `@nuxt/eslint`, `eslint`, `typescript`, `vue-tsc`, `@typescript-eslint/parser`, `bun`, `vue`. Nitro preset behaviour read from the published `nitropack@2.13.5` package source.
 
+- Bun: https://bun.sh/docs/cli/run
 - Node.js: https://github.com/nodejs/Release/blob/main/schedule.json, https://nodejs.org/dist/index.json
 - Vue language tools, TypeScript 7 support: https://github.com/vuejs/language-tools/issues/5381
 - Cloudflare Vitest integration: https://developers.cloudflare.com/workers/testing/vitest-integration/ and the pages linked above
