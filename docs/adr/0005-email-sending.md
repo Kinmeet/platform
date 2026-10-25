@@ -24,12 +24,12 @@ S3 decided in-house sending for the platform's own emails. Sprint 1 needs one: t
 
 ## Options considered
 
-| Option | For | Against |
-| --- | --- | --- |
-| Capture sink until a domain exists (chosen) | Nothing leaves the platform; code and tests are ready for the domain | "Receipt sent end to end" can only be shown once the domain exists (accepted risk, Head of Delivery, 25 October) |
-| Send now from a third-party sender's shared domain | Receipts arrive straight away | A new processor not in S3 or P6; poor deliverability; would need a decision |
-| Capture into D1 or KV so staging receipts can be viewed | Easier to demo | Stores addresses and messages that P3 has no row for |
-| Rate limiting binding for the per-address limit | No D1 read | Periods of 60 seconds at most, approximate counts |
+| Option                                                  | For                                                                  | Against                                                                                                          |
+| ------------------------------------------------------- | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Capture sink until a domain exists (chosen)             | Nothing leaves the platform; code and tests are ready for the domain | "Receipt sent end to end" can only be shown once the domain exists (accepted risk, Head of Delivery, 25 October) |
+| Send now from a third-party sender's shared domain      | Receipts arrive straight away                                        | A new processor not in S3 or P6; poor deliverability; would need a decision                                      |
+| Capture into D1 or KV so staging receipts can be viewed | Easier to demo                                                       | Stores addresses and messages that P3 has no row for                                                             |
+| Rate limiting binding for the per-address limit         | No D1 read                                                           | Periods of 60 seconds at most, approximate counts                                                                |
 
 ## Consequences
 
