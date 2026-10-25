@@ -6,7 +6,8 @@ import { transportFor } from '../email/transport'
 
 interface EmailEnv {
   DB: D1Database
-  KV: KVNamespace
+  /** Receipt-limit markers, in their own namespace (#39). */
+  RECEIPTS: KVNamespace
   EMAIL_LOG_HMAC_KEY: string
   EMAIL_TRANSPORT?: string
 }
@@ -27,11 +28,11 @@ export async function queueEmail(event: H3Event, request: EmailRequest): Promise
   try {
     const env = event.context.cloudflare?.env as EmailEnv | undefined
     if (!env?.DB) throw new Error('email_db_missing')
-    if (!env.KV) throw new Error('email_kv_missing')
+    if (!env.RECEIPTS) throw new Error('email_kv_missing')
     const transport = transportFor(env.EMAIL_TRANSPORT)
     const toHmac = await hmacAddress(env.EMAIL_LOG_HMAC_KEY, request.to)
 
-    if (!(await claimReceipt(env.KV, toHmac))) {
+    if (!(await claimReceipt(env.RECEIPTS, toHmac))) {
       console.warn(JSON.stringify({ event: 'email_rate_limited', template: request.template }))
       return 'not_requested'
     }

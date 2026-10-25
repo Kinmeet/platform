@@ -12,7 +12,7 @@ import { SEND_LOG_RETENTION_DAYS } from '../../../../server/email/send-log'
 import { createCaptureTransport, transportFor } from '../../../../server/email/transport'
 import { createEmailLog } from './email-log'
 
-const { DB: db, KV: kv } = env as unknown as { DB: D1Database; KV: KVNamespace }
+const { DB: db, RECEIPTS: kv } = env as unknown as { DB: D1Database; RECEIPTS: KVNamespace }
 const hmacKey = 'test-only-key-not-a-secret'
 const address = 'fernfox@example.org'
 

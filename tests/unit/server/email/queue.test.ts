@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { queueEmail } from '../../../../server/utils/email'
 import { createEmailLog } from './email-log'
 
-const { DB: db, KV: kv } = env as unknown as { DB: D1Database; KV: KVNamespace }
+const { DB: db, RECEIPTS: kv } = env as unknown as { DB: D1Database; RECEIPTS: KVNamespace }
 const key = 'test-only-key'
 const request = {
   to: 'fernfox@example.org',
@@ -38,14 +38,14 @@ describe('queueEmail', () => {
   afterEach(() => vi.restoreAllMocks())
 
   it('answers queued and sends after the response', async () => {
-    const { event, settled } = fakeEvent({ DB: db, KV: kv, EMAIL_LOG_HMAC_KEY: key })
+    const { event, settled } = fakeEvent({ DB: db, RECEIPTS: kv, EMAIL_LOG_HMAC_KEY: key })
     expect(await queueEmail(event, request)).toBe('queued')
     await settled()
     expect(await sends()).toBe(1)
   })
 
   it('answers not_requested for a second receipt to the same address that day', async () => {
-    const cfEnv = { DB: db, KV: kv, EMAIL_LOG_HMAC_KEY: key }
+    const cfEnv = { DB: db, RECEIPTS: kv, EMAIL_LOG_HMAC_KEY: key }
     const first = fakeEvent(cfEnv)
     expect(await queueEmail(first.event, request)).toBe('queued')
     const second = fakeEvent(cfEnv)
@@ -61,8 +61,8 @@ describe('queueEmail', () => {
     for (const cloudflareEnv of [
       undefined,
       { DB: db, EMAIL_LOG_HMAC_KEY: key },
-      { DB: db, KV: kv },
-      { DB: db, KV: kv, EMAIL_LOG_HMAC_KEY: key, EMAIL_TRANSPORT: 'smtp' },
+      { DB: db, RECEIPTS: kv },
+      { DB: db, RECEIPTS: kv, EMAIL_LOG_HMAC_KEY: key, EMAIL_TRANSPORT: 'smtp' },
     ]) {
       const { event, settled } = fakeEvent(cloudflareEnv)
       expect(await queueEmail(event, request)).toBe('not_requested')
@@ -84,7 +84,7 @@ describe('queueEmail', () => {
   it('still answers queued when sending fails later, and logs a code', async () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
     await db.exec('DROP TABLE email_log')
-    const { event, settled } = fakeEvent({ DB: db, KV: kv, EMAIL_LOG_HMAC_KEY: key })
+    const { event, settled } = fakeEvent({ DB: db, RECEIPTS: kv, EMAIL_LOG_HMAC_KEY: key })
     expect(await queueEmail(event, request)).toBe('queued')
     await settled()
     expect(error.mock.calls.flat().join(' ')).toContain('email_send_failed')
