@@ -17,6 +17,7 @@ Collect every user-facing string the change adds or edits: `i18n/locales/` entri
 | local group, group | chapter |
 | meet | moot |
 | role title and community name for people in roles | legal names, faces, addresses |
+| call name or community name (form field labels) | "legal name" as a field label |
 
 Never name or compare other communities or organisations.
 
