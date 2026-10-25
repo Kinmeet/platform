@@ -39,7 +39,7 @@ See [ADR-0002](docs/adr/0002-project-structure.md). In short:
 | `tests/unit/` | Vitest with the Cloudflare Workers pool |
 | `tests/e2e/` | Playwright, including the no-third-party and accessibility tests |
 | `docs/` | Handbook, ADRs, sprints, research, runbooks |
-| `.claude/` | Team rules, hooks and skills |
+| `.claude/` | Team rules, hooks (tested with `node --test .claude/hooks/test/hooks.test.mjs`) and skills |
 
 ## Commands
 

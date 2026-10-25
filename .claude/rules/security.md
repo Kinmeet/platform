@@ -2,7 +2,7 @@
 
 Source document: P5 Security design. Assume the code is public, the server could one day be breached, and an insider could misuse access.
 
-- **Secrets** live only as Worker secrets per environment (`wrangler secret put`) or GitHub Actions secrets. Never in the repository, `wrangler` config, issues, PRs or logs. Local values go in `.dev.vars`, which is ignored and never committed. Hooks block writes to `.env*`, `.dev.vars*` and key files.
+- **Secrets** live only as Worker secrets per environment (`wrangler secret put`) or GitHub Actions secrets. Never in the repository, `wrangler` config, issues, PRs or logs. Local values go in `.dev.vars`, which is ignored and never committed. Hooks block writing, reading or committing `.env*`, `.envrc`, `.dev.vars*` and key files, and scan commits and pushes for likely secrets. The hooks are a safety net, not the control: GitHub secret scanning, push protection, a CI secret scan, branch protection and a protected `live` environment sit behind them. Never work around a hook; if one blocks you wrongly, tell your EM.
 - **API tokens** are scoped to one job each and to the Kinmeet account only.
 - **Headers on every response:** strict Content-Security-Policy (`default-src 'self'`, `frame-ancestors 'none'`, no inline scripts; Turnstile's origin only on routes marked as form pages), HSTS with preload, `Referrer-Policy: no-referrer`, a Permissions-Policy that turns off camera, microphone and location, `X-Content-Type-Options: nosniff`. Do not loosen the CSP to make something work; fix the thing.
 - **No `v-html` (or `innerHTML`) with anything we did not write ourselves.** The CSP adds nonces to Nuxt's own inline tags, so injected markup must never reach the page.
