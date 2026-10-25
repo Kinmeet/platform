@@ -64,3 +64,5 @@ CREATE TABLE email_log (
 ) STRICT;
 
 CREATE INDEX email_log_delete_after ON email_log (delete_after);
+-- The sender's per-address receipt limit counts recent rows for one HMAC.
+CREATE INDEX email_log_to_hmac_sent_at ON email_log (to_hmac, sent_at);

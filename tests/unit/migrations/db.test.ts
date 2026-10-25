@@ -196,3 +196,14 @@ describe('D1 schema (migrations/db)', () => {
     }
   })
 })
+
+describe('email log', () => {
+  it('indexes the per-address receipt limit lookup', async () => {
+    const plan = await env.DB.prepare(
+      'EXPLAIN QUERY PLAN SELECT count(*) FROM email_log WHERE to_hmac = ? AND sent_at > ?',
+    )
+      .bind(FAKE_HMAC, RECEIVED)
+      .all<{ detail: string }>()
+    expect(plan.results.map((row) => row.detail).join(' ')).toContain('email_log_to_hmac_sent_at')
+  })
+})
