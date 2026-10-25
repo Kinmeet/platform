@@ -1,6 +1,7 @@
 import { env } from 'cloudflare:workers'
 import type { H3Event } from 'h3'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { hmacAddress } from '../../../../server/email/address-hmac'
 import { queueEmail } from '../../../../server/utils/email'
 import { createEmailLog } from './email-log'
 
@@ -54,6 +55,37 @@ describe('queueEmail', () => {
     )
     await Promise.all([first.settled(), second.settled()])
     expect(await sends()).toBe(1)
+  })
+
+  it('counts sub-addressed and dotted Gmail variants as one inbox, but sends as typed', async () => {
+    const cfEnv = { DB: db, RECEIPTS: kv, EMAIL_LOG_HMAC_KEY: key }
+    const typed = 'test.person+kinmeet@gmail.com'
+    const first = fakeEvent(cfEnv)
+    expect(await queueEmail(first.event, { ...request, to: typed })).toBe('queued')
+    await first.settled()
+    for (const to of [
+      'testperson@gmail.com',
+      'test.person+2@googlemail.com',
+      'tes.tperson@gmail.com',
+    ]) {
+      const { event } = fakeEvent(cfEnv)
+      expect(await queueEmail(event, { ...request, to })).toBe('not_requested')
+    }
+    const { event: other } = fakeEvent(cfEnv)
+    expect(await queueEmail(other, { ...request, to: 'otherperson@gmail.com' })).toBe('queued')
+    const row = await db.prepare('SELECT to_hmac FROM email_log').first<{ to_hmac: string }>()
+    expect(row?.to_hmac).toBe(await hmacAddress(key, typed))
+  })
+
+  it('refuses a header-injection address before claiming a receipt', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const { event, settled } = fakeEvent({ DB: db, RECEIPTS: kv, EMAIL_LOG_HMAC_KEY: key })
+    expect(
+      await queueEmail(event, { ...request, to: 'fernfox@example.org\r\nBcc: x@example.org' }),
+    ).toBe('not_requested')
+    await settled()
+    expect((await kv.list()).keys).toHaveLength(0)
+    expect(await sends()).toBe(0)
   })
 
   it('never throws, answers not_requested and logs only a code when set up wrongly', async () => {

@@ -1,6 +1,10 @@
 import { env } from 'cloudflare:workers'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { hmacAddress } from '../../../../server/email/address-hmac'
+import {
+  assertSendableAddress,
+  hmacAddress,
+  inboxAddress,
+} from '../../../../server/email/address-hmac'
 import {
   RECEIPT_MARKER_TTL_SECONDS,
   claimReceipt,
@@ -65,6 +69,22 @@ describe('deliverEmail', () => {
     expect(days).toBe(SEND_LOG_RETENTION_DAYS)
   })
 
+  it('refuses addresses that could add a mail header, and sends nothing', async () => {
+    for (const to of [
+      'fernfox@example.org\r\nBcc: oakmoth@example.org',
+      'fernfox@example.org\nX-Test: 1',
+      'fern\u0000fox@example.org',
+      'fernfox@example.org@example.org',
+      'fernfox.example.org',
+    ]) {
+      await expect(deliverEmail(deps(), { ...request, to }, 'a'.repeat(64))).rejects.toThrow(
+        'email_invalid_address',
+      )
+    }
+    expect(transport.captured).toHaveLength(0)
+    expect(await logRows()).toHaveLength(0)
+  })
+
   it('writes no log row when the transport fails', async () => {
     const failing = { name: 'failing', send: () => Promise.reject(new Error('boom')) }
     await expect(
@@ -106,6 +126,34 @@ describe('claimReceipt', () => {
   })
 })
 
+describe('inboxAddress', () => {
+  it('drops a +tag for every domain', () => {
+    expect(inboxAddress('FernFox+1@Example.org ')).toBe('fernfox@example.org')
+    expect(inboxAddress('fernfox+a+b@example.org')).toBe('fernfox@example.org')
+    expect(inboxAddress('fern.fox+x@example.org')).toBe('fern.fox@example.org')
+  })
+
+  it('removes dots and joins the two Gmail domains', () => {
+    for (const variant of [
+      'test.person@gmail.com',
+      'testperson+2@gmail.com',
+      't.e.s.t.person@googlemail.com',
+      'TestPerson@GMAIL.com',
+    ]) {
+      expect(inboxAddress(variant)).toBe('testperson@gmail.com')
+    }
+  })
+
+  it('leaves anything without a local part alone', () => {
+    expect(inboxAddress('+tag@example.org')).toBe('+tag@example.org')
+    expect(inboxAddress('not-an-address')).toBe('not-an-address')
+  })
+
+  it('accepts an ordinary address', () => {
+    expect(() => assertSendableAddress('fernfox+tag@example.org')).not.toThrow()
+  })
+})
+
 describe('email helpers', () => {
   it('turns any error into a code without its message', () => {
     expect(emailErrorCode(new Error('email_db_missing'))).toBe('email_db_missing')
@@ -137,5 +185,21 @@ describe('email helpers', () => {
 
   it('refuses to hash without a key', async () => {
     await expect(hmacAddress('', address)).rejects.toThrow('email_log_hmac_key_missing')
+  })
+})
+
+describe('deployed capture transport', () => {
+  it('keeps no messages', async () => {
+    vi.spyOn(console, 'info').mockImplementation(() => {})
+    const deployed = transportFor('capture') as ReturnType<typeof createCaptureTransport>
+    await deployed.send({
+      to: 'fernfox@example.org',
+      template: 'application_receipt',
+      subject: '',
+      text: '',
+      html: '',
+    })
+    expect(deployed.captured).toHaveLength(0)
+    vi.restoreAllMocks()
   })
 })

@@ -1,6 +1,6 @@
 import type { D1Database, KVNamespace } from '@cloudflare/workers-types'
 import type { H3Event } from 'h3'
-import { hmacAddress } from '../email/address-hmac'
+import { assertSendableAddress, hmacAddress, inboxAddress } from '../email/address-hmac'
 import { claimReceipt, deliverEmail, emailErrorCode, type EmailRequest } from '../email/send'
 import { transportFor } from '../email/transport'
 
@@ -39,9 +39,13 @@ export async function queueEmail(event: H3Event, request: EmailRequest): Promise
       console.warn(JSON.stringify({ event: 'email_no_live_transport', template: request.template }))
       return 'not_requested'
     }
+    assertSendableAddress(request.to)
+    // The log keeps the address as typed, so "did my email arrive?" matches;
+    // the limit counts per inbox.
     const toHmac = await hmacAddress(env.EMAIL_LOG_HMAC_KEY, request.to)
+    const inboxHmac = await hmacAddress(env.EMAIL_LOG_HMAC_KEY, inboxAddress(request.to))
 
-    if (!(await claimReceipt(env.RECEIPTS, toHmac))) {
+    if (!(await claimReceipt(env.RECEIPTS, inboxHmac))) {
       console.warn(JSON.stringify({ event: 'email_rate_limited', template: request.template }))
       return 'not_requested'
     }

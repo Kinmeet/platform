@@ -5,6 +5,43 @@ export function normaliseAddress(address: string): string {
   return address.trim().toLowerCase()
 }
 
+const gmailDomains = new Set(['gmail.com', 'googlemail.com'])
+
+/**
+ * The inbox an address reaches, so one person cannot be sent many receipts
+ * through `name+1@`, `name+2@` or, for Gmail, dotted variants (Security
+ * Reviewer). Drops a `+tag` for every domain; for Gmail also removes dots
+ * and treats both Gmail domains as one. Used only for the receipt limit;
+ * mail is always sent to the address exactly as given.
+ */
+export function inboxAddress(address: string): string {
+  const normalised = normaliseAddress(address)
+  const at = normalised.lastIndexOf('@')
+  if (at < 1) return normalised
+  let local = normalised.slice(0, at)
+  let domain = normalised.slice(at + 1)
+  const plus = local.indexOf('+')
+  if (plus > 0) local = local.slice(0, plus)
+  if (gmailDomains.has(domain)) {
+    local = local.replaceAll('.', '')
+    domain = 'gmail.com'
+  }
+  return `${local}@${domain}`
+}
+
+/**
+ * Refuses an address that could add a mail header once a real transport
+ * exists: any control character (CR and LF included) or more than one `@`.
+ * The forms schema refuses these too; this is the backstop every caller
+ * goes through.
+ */
+export function assertSendableAddress(address: string): void {
+  // eslint-disable-next-line no-control-regex
+  if (/[\u0000-\u001f\u007f]/.test(address) || address.split('@').length !== 2) {
+    throw new Error('email_invalid_address')
+  }
+}
+
 /**
  * A keyed HMAC-SHA-256 of an email address, as lower-case hex. The send log
  * keeps this instead of the address (P3, Privacy and Safeguarding Reviewer):

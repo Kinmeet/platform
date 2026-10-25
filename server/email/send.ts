@@ -1,4 +1,5 @@
 import type { D1Database, KVNamespace } from '@cloudflare/workers-types'
+import { assertSendableAddress } from './address-hmac'
 import { recordSend } from './send-log'
 import { renderEmail, type EmailLocale, type EmailTemplateId } from './templates'
 import type { EmailTransport } from './transport'
@@ -21,8 +22,9 @@ export function receiptMarkerKey(toHmac: string): string {
 }
 
 /**
- * Claims today's receipt for an address. The KV marker's key holds only the
- * address HMAC and it expires by itself after 24 hours. Returns false when a
+ * Claims today's receipt for an inbox. Pass the HMAC of `inboxAddress(to)`,
+ * so sub-addressed and dotted variants share one marker. The key holds only
+ * that HMAC and it expires by itself after 24 hours. Returns false when a
  * receipt has already gone to this address in that time. KV is eventually
  * consistent, so two submissions in the same moment may both get one; the
  * limit is about inbox abuse, not exact counting.
@@ -46,6 +48,7 @@ export async function deliverEmail(
   request: EmailRequest,
   toHmac: string,
 ): Promise<void> {
+  assertSendableAddress(request.to)
   const rendered = renderEmail(request.template, request.locale)
   await deps.transport.send({ ...rendered, to: request.to.trim(), template: request.template })
   await recordSend(deps.db, toHmac, request.template, deps.now?.() ?? new Date())
