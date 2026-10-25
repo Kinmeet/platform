@@ -3,7 +3,7 @@ import { getRequestHeader, toWebRequest } from 'h3'
 import type { z } from 'zod'
 import { processFormSubmission, type FormSubmissionSteps } from './process'
 import { withinRateLimit, type RateLimiter } from './rate-limit'
-import { sendFormResponse } from './responses'
+import { sendFormResponse, type Receipt } from './responses'
 import { verifyTurnstile } from './turnstile'
 
 /**
@@ -11,6 +11,8 @@ import { verifyTurnstile } from './turnstile'
  * environment with `wrangler secret put`; limiters are in `wrangler.jsonc`.
  */
 export interface FormEnv {
+  /** This environment's exact origin, for example the staging workers.dev URL. */
+  SITE_ORIGIN: string
   TURNSTILE_SECRET_KEY: string
   RATE_LIMIT_HMAC_KEY: string
   FORM_RATE_LIMITER: RateLimiter
@@ -20,7 +22,8 @@ export interface FormEnv {
 export function formEnv(event: H3Event): FormEnv {
   const env = (event.context as { cloudflare?: { env?: Partial<FormEnv> } }).cloudflare?.env
   if (
-    !env?.TURNSTILE_SECRET_KEY ||
+    !env?.SITE_ORIGIN ||
+    !env.TURNSTILE_SECRET_KEY ||
     !env.RATE_LIMIT_HMAC_KEY ||
     !env.FORM_RATE_LIMITER ||
     !env.FORM_GLOBAL_RATE_LIMITER
@@ -37,14 +40,14 @@ export function logFormCode(code: string) {
 
 type RouteSteps<Schema extends z.ZodType<{ submissionId: string }>> = Pick<
   FormSubmissionSteps<Schema>,
-  'form' | 'schema' | 'receipt'
+  'form' | 'schema' | 'receipt' | 'bodyCap'
 > & {
   exists: (event: H3Event, submissionId: string) => Promise<boolean>
   store: (
     event: H3Event,
     submission: z.infer<Schema>,
   ) => ReturnType<FormSubmissionSteps<Schema>['store']>
-  afterStore?: (event: H3Event, submission: z.infer<Schema>) => Promise<void>
+  afterStore?: (event: H3Event, submission: z.infer<Schema>) => Promise<Receipt>
 }
 
 /**
@@ -70,20 +73,23 @@ export async function handleFormSubmission<Schema extends z.ZodType<{ submission
     form: route.form,
     schema: route.schema,
     receipt: route.receipt,
+    bodyCap: route.bodyCap,
+    expectedOrigin: env.SITE_ORIGIN,
     withinRateLimit: () =>
       withinRateLimit({
         form: route.form,
         // Used only to build the HMAC key; never stored or logged.
         ip: getRequestHeader(event, 'CF-Connecting-IP') ?? null,
         hmacKey: env.RATE_LIMIT_HMAC_KEY,
-        perConnection: env.FORM_RATE_LIMITER,
+        perNetwork: env.FORM_RATE_LIMITER,
         global: env.FORM_GLOBAL_RATE_LIMITER,
       }),
     verifyTurnstile: (token) =>
       verifyTurnstile({
         secret: env.TURNSTILE_SECRET_KEY,
         token,
-        expectedHostname: new URL(request.url).hostname,
+        expectedHostname: new URL(env.SITE_ORIGIN).hostname,
+        expectedAction: route.form,
       }),
     exists: (submissionId) => route.exists(event, submissionId),
     store: (submission) => route.store(event, submission),

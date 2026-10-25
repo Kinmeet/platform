@@ -2,7 +2,9 @@
  * Server-side Cloudflare Turnstile verification (S5).
  *
  * Sends only the secret and the token, never the optional `remoteip`, so no
- * IP address leaves the Worker. The token is single-use and is not kept.
+ * IP address leaves the Worker. Checks `success`, the hostname and the action,
+ * and fails closed: if siteverify cannot be reached, nothing is stored. The
+ * token is single-use and is not kept.
  */
 
 export const SITEVERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify'
@@ -14,13 +16,16 @@ export type TurnstileResult = 'passed' | 'failed' | 'unavailable'
 interface SiteverifyResponse {
   success?: unknown
   hostname?: unknown
+  action?: unknown
 }
 
 export interface VerifyTurnstileOptions {
   secret: string
   token: string
-  /** When set, the token must have been issued on this hostname. */
-  expectedHostname?: string
+  /** The token must have been issued on this environment's hostname. */
+  expectedHostname: string
+  /** The widget's `data-action`, which is the form name, so a token cannot cross forms. */
+  expectedAction: string
   fetcher?: typeof fetch
 }
 
@@ -28,6 +33,7 @@ export async function verifyTurnstile({
   secret,
   token,
   expectedHostname,
+  expectedAction,
   fetcher = fetch,
 }: VerifyTurnstileOptions): Promise<TurnstileResult> {
   if (!secret) return 'unavailable'
@@ -51,6 +57,6 @@ export async function verifyTurnstile({
   }
 
   if (data.success !== true) return 'failed'
-  if (expectedHostname !== undefined && data.hostname !== expectedHostname) return 'failed'
+  if (data.hostname !== expectedHostname || data.action !== expectedAction) return 'failed'
   return 'passed'
 }

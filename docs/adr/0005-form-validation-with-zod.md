@@ -18,7 +18,7 @@ Use Zod 4 (`zod`, pinned) for every form schema.
 - Schemas never set messages. A rule Zod has no issue code for (too long in code points, an invalid email, `under_18`, `not_independent`) is a refinement carrying `params.code`.
 - One helper, `shared/forms/errors.ts`, maps Zod issues to `{ field, code }`: one error per field, dotted paths for nested fields, and `unknown_field` for each unexpected key. An issue a person using our page could not cause (a wrong type, a malformed `submissionId`) makes the route answer `400 bad_request` instead.
 - Text is trimmed before checks, and lengths are counted with `[...value].length` in both places.
-- The server runs every request through one pipeline (`server/utils/forms/process.ts`): same-origin JSON check, rate limit, 16 KB body cap, Turnstile, validation, idempotent replay, store. Routes supply only the schema and storage.
+- The server runs every request through one pipeline (`server/utils/forms/process.ts`) in the contract's fixed order: method, origin and content type, size cap (worked out from the schema), per-network limit, global limit, parse and validate, Turnstile, idempotency lookup, store, receipt. Validation comes before Turnstile so a malformed request never costs a siteverify call. Routes supply only the schema and storage.
 
 ## Options considered
 

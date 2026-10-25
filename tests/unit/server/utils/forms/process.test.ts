@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { helloSchema, type HelloSubmission } from '../../../../../shared/forms/hello'
+import {
+  HELLO_BODY_CAP,
+  helloSchema,
+  type HelloSubmission,
+} from '../../../../../shared/forms/hello'
 import {
   processFormSubmission,
   type FormSubmissionSteps,
 } from '../../../../../server/utils/forms/process'
+import type { Receipt } from '../../../../../server/utils/forms/responses'
 import type { TurnstileResult } from '../../../../../server/utils/forms/turnstile'
 
 // Made-up test data only.
@@ -25,7 +30,12 @@ function post(body: unknown, headers: Record<string, string> = {}) {
 }
 
 function harness(
-  options: { rateOk?: boolean; turnstile?: TurnstileResult; storeFails?: boolean } = {},
+  options: {
+    rateOk?: boolean
+    turnstile?: TurnstileResult
+    storeFails?: boolean
+    receipt?: Receipt
+  } = {},
 ) {
   const stored = new Map<string, HelloSubmission>()
   const calls: string[] = []
@@ -33,6 +43,8 @@ function harness(
   const steps: FormSubmissionSteps<typeof helloSchema> = {
     form: 'hello',
     schema: helloSchema,
+    expectedOrigin: ORIGIN,
+    bodyCap: HELLO_BODY_CAP,
     receipt: 'not_requested',
     withinRateLimit: async () => {
       calls.push('rate')
@@ -55,6 +67,7 @@ function harness(
     },
     afterStore: async () => {
       calls.push('after')
+      return options.receipt ?? 'not_requested'
     },
     log: (code) => logs.push(code),
   }
@@ -92,21 +105,47 @@ describe('processFormSubmission', () => {
     expect(h.calls).not.toContain('after')
   })
 
-  it('verifies Turnstile before validating or looking anything up', async () => {
-    const h = harness({ turnstile: 'failed' })
+  it('validates before calling Turnstile, so garbage never costs a siteverify call', async () => {
+    const h = harness()
     const response = await processFormSubmission(post({ ...valid, email: 'bad' }), h.steps)
     expect(response).toEqual({
+      status: 422,
+      body: { ok: false, errors: [{ field: 'email', code: 'invalid_email' }] },
+    })
+    expect(h.calls).toEqual(['rate'])
+  })
+
+  it('answers turnstile_failed when Turnstile says no, before any lookup', async () => {
+    const h = harness({ turnstile: 'failed' })
+    expect(await processFormSubmission(post(valid), h.steps)).toEqual({
       status: 403,
       body: { ok: false, errors: [{ field: 'turnstileToken', code: 'turnstile_failed' }] },
     })
     expect(h.calls).toEqual(['rate', 'turnstile'])
   })
 
-  it('answers turnstile_failed for a missing token without calling Turnstile', async () => {
-    const h = harness()
+  it('answers turnstile_failed for a missing or oversized token without calling Turnstile', async () => {
     const { turnstileToken: _token, ...withoutToken } = valid
-    expect((await processFormSubmission(post(withoutToken), h.steps)).status).toBe(403)
-    expect(h.calls).toEqual(['rate'])
+    for (const body of [withoutToken, { ...valid, turnstileToken: 'x'.repeat(2049) }]) {
+      const h = harness()
+      expect(await processFormSubmission(post(body), h.steps)).toEqual({
+        status: 403,
+        body: { ok: false, errors: [{ field: 'turnstileToken', code: 'turnstile_failed' }] },
+      })
+      expect(h.calls).toEqual(['rate'])
+    }
+  })
+
+  it('reports other field errors before a missing token', async () => {
+    const { turnstileToken: _token, ...withoutToken } = valid
+    const response = await processFormSubmission(
+      post({ ...withoutToken, callName: '' }),
+      harness().steps,
+    )
+    expect(response).toEqual({
+      status: 422,
+      body: { ok: false, errors: [{ field: 'callName', code: 'required' }] },
+    })
   })
 
   it('answers 503 when Turnstile cannot be reached', async () => {
@@ -137,23 +176,35 @@ describe('processFormSubmission', () => {
     expect(h.stored.size).toBe(0)
   })
 
-  it('answers 429 when rate limited, before reading the body', async () => {
+  it('answers 429 when rate limited, before parsing or validating', async () => {
     const h = harness({ rateOk: false })
-    expect(await processFormSubmission(post(valid), h.steps)).toEqual({
+    expect(await processFormSubmission(post('{not json'), h.steps)).toEqual({
       status: 429,
       body: { ok: false, error: 'rate_limited', retryAfter: 60 },
     })
     expect(h.calls).toEqual(['rate'])
   })
 
-  it('answers 400 for another origin without touching the limiter', async () => {
-    const h = harness()
-    const response = await processFormSubmission(
+  it('answers 400 for another origin or an oversized body without touching the limiter', async () => {
+    for (const request of [
       post(valid, { Origin: 'https://example.com' }),
-      h.steps,
-    )
-    expect(response).toEqual({ status: 400, body: { ok: false, error: 'bad_request' } })
-    expect(h.calls).toEqual([])
+      post({ ...valid, message: 'x'.repeat(HELLO_BODY_CAP) }),
+    ]) {
+      const h = harness()
+      expect(await processFormSubmission(request, h.steps)).toEqual({
+        status: 400,
+        body: { ok: false, error: 'bad_request' },
+      })
+      expect(h.calls).toEqual([])
+    }
+  })
+
+  it('uses the receipt the after-store step reports', async () => {
+    const h = harness({ receipt: 'queued' })
+    expect(await processFormSubmission(post(valid), h.steps)).toEqual({
+      status: 201,
+      body: { ok: true, receipt: 'queued' },
+    })
   })
 
   it('answers 400 for invalid JSON or a malformed submission id', async () => {

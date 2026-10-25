@@ -1,35 +1,33 @@
 /**
- * Checks every form request must pass before its body is read
+ * Checks every form request must pass before its body is parsed
  * (docs/api/forms.md, "Same origin only" and "Body size cap").
  */
 
-/** Bodies over 16 KB are refused before parsing. */
-export const MAX_BODY_BYTES = 16 * 1024
+export type BodyRead = { ok: true; text: string } | { ok: false }
+export type JsonParse = { ok: true; body: Record<string, unknown> } | { ok: false }
 
-export type RequestCheck = { ok: true; body: unknown } | { ok: false }
+const JSON_CONTENT_TYPE = /^application\/json(\s*;\s*charset=utf-8)?$/i
 
-/** Same origin only: JSON over POST from our own pages, with no CORS. */
-export function isSameOriginJsonPost(request: Request): boolean {
+/**
+ * Same origin only: a JSON POST whose `Origin` is exactly this environment's
+ * configured origin (never worked out from the request's `Host`). A missing
+ * or `null` origin is refused.
+ */
+export function isSameOriginJsonPost(request: Request, expectedOrigin: string): boolean {
   if (request.method !== 'POST') return false
   const origin = request.headers.get('Origin')
-  if (origin === null || origin !== new URL(request.url).origin) return false
+  if (origin === null || origin === 'null' || origin !== expectedOrigin) return false
   const fetchSite = request.headers.get('Sec-Fetch-Site')
   if (fetchSite !== null && fetchSite !== 'same-origin') return false
-  const contentType = request.headers.get('Content-Type') ?? ''
-  return contentType.split(';')[0]?.trim().toLowerCase() === 'application/json'
+  return JSON_CONTENT_TYPE.test((request.headers.get('Content-Type') ?? '').trim())
 }
 
 /**
- * Reads at most `MAX_BODY_BYTES` of the body and parses it as JSON. Stops
- * reading as soon as the cap is passed, so a large body is never buffered,
- * and does not trust `Content-Length`.
+ * Reads the body as UTF-8 text, counting bytes from the stream and stopping
+ * as soon as `maxBytes` is passed, so a large body is never buffered.
+ * `Content-Length` is never trusted.
  */
-export async function readCappedJson(
-  request: Request,
-  maxBytes = MAX_BODY_BYTES,
-): Promise<RequestCheck> {
-  const declared = Number(request.headers.get('Content-Length') ?? '0')
-  if (Number.isFinite(declared) && declared > maxBytes) return { ok: false }
+export async function readCappedBody(request: Request, maxBytes: number): Promise<BodyRead> {
   if (request.body === null) return { ok: false }
 
   const reader = request.body.getReader()
@@ -52,11 +50,19 @@ export async function readCappedJson(
     bytes.set(chunk, offset)
     offset += chunk.byteLength
   }
-
   try {
-    const body: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes))
+    return { ok: true, text: new TextDecoder('utf-8', { fatal: true }).decode(bytes) }
+  } catch {
+    return { ok: false }
+  }
+}
+
+/** Parses a body that must be a JSON object. */
+export function parseJsonObject(text: string): JsonParse {
+  try {
+    const body: unknown = JSON.parse(text)
     if (typeof body !== 'object' || body === null || Array.isArray(body)) return { ok: false }
-    return { ok: true, body }
+    return { ok: true, body: body as Record<string, unknown> }
   } catch {
     return { ok: false }
   }

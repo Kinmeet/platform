@@ -4,6 +4,7 @@ import { SITEVERIFY_URL, verifyTurnstile } from '../../../../../server/utils/for
 // Cloudflare's documented dummy values, never real ones.
 const SECRET = '1x0000000000000000000000000000000AA'
 const TOKEN = 'XXXX.DUMMY.TOKEN.XXXX'
+const HOST = 'kinmeet-staging.kinmeet.workers.dev'
 
 function fakeFetch(response: Response | Error) {
   const calls: { url: string; body: FormData }[] = []
@@ -16,11 +17,28 @@ function fakeFetch(response: Response | Error) {
 }
 
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status })
+const verify = (
+  response: Response | Error,
+  overrides: { secret?: string; token?: string } = {},
+) => {
+  const fake = fakeFetch(response)
+  return {
+    calls: fake.calls,
+    result: verifyTurnstile({
+      secret: SECRET,
+      token: TOKEN,
+      expectedHostname: HOST,
+      expectedAction: 'hello',
+      fetcher: fake.fetcher,
+      ...overrides,
+    }),
+  }
+}
 
 describe('verifyTurnstile', () => {
-  it('sends only the secret and the token, never remoteip', async () => {
-    const { fetcher, calls } = fakeFetch(json({ success: true, hostname: 'example.com' }))
-    expect(await verifyTurnstile({ secret: SECRET, token: TOKEN, fetcher })).toBe('passed')
+  it('passes a good token and sends only the secret and the token, never remoteip', async () => {
+    const { result, calls } = verify(json({ success: true, hostname: HOST, action: 'hello' }))
+    expect(await result).toBe('passed')
     expect(calls).toHaveLength(1)
     expect(calls[0]!.url).toBe(SITEVERIFY_URL)
     expect([...calls[0]!.body.keys()].sort()).toEqual(['response', 'secret'])
@@ -28,58 +46,31 @@ describe('verifyTurnstile', () => {
   })
 
   it('fails when Turnstile says no', async () => {
-    const { fetcher } = fakeFetch(
-      json({ success: false, 'error-codes': ['invalid-input-response'] }),
+    expect(await verify(json({ success: false, hostname: HOST, action: 'hello' })).result).toBe(
+      'failed',
     )
-    expect(await verifyTurnstile({ secret: SECRET, token: TOKEN, fetcher })).toBe('failed')
   })
 
-  it('fails when the token was issued for another hostname', async () => {
-    const { fetcher } = fakeFetch(json({ success: true, hostname: 'example.org' }))
+  it('fails a token issued for another hostname or form', async () => {
     expect(
-      await verifyTurnstile({
-        secret: SECRET,
-        token: TOKEN,
-        expectedHostname: 'example.com',
-        fetcher,
-      }),
+      await verify(json({ success: true, hostname: 'example.org', action: 'hello' })).result,
     ).toBe('failed')
+    expect(await verify(json({ success: true, hostname: HOST, action: 'apply' })).result).toBe(
+      'failed',
+    )
+    expect(await verify(json({ success: true, hostname: HOST })).result).toBe('failed')
   })
 
   it('fails an empty token without calling Turnstile', async () => {
-    const { fetcher, calls } = fakeFetch(json({ success: true }))
-    expect(await verifyTurnstile({ secret: SECRET, token: '', fetcher })).toBe('failed')
+    const { result, calls } = verify(json({ success: true }), { token: '' })
+    expect(await result).toBe('failed')
     expect(calls).toHaveLength(0)
   })
 
-  it('is unavailable when Turnstile cannot be reached or answers badly', async () => {
-    expect(
-      await verifyTurnstile({
-        secret: SECRET,
-        token: TOKEN,
-        fetcher: fakeFetch(new Error('down')).fetcher,
-      }),
-    ).toBe('unavailable')
-    expect(
-      await verifyTurnstile({
-        secret: SECRET,
-        token: TOKEN,
-        fetcher: fakeFetch(new Response('oops', { status: 500 })).fetcher,
-      }),
-    ).toBe('unavailable')
-    expect(
-      await verifyTurnstile({
-        secret: SECRET,
-        token: TOKEN,
-        fetcher: fakeFetch(new Response('not json')).fetcher,
-      }),
-    ).toBe('unavailable')
-    expect(
-      await verifyTurnstile({
-        secret: '',
-        token: TOKEN,
-        fetcher: fakeFetch(json({ success: true })).fetcher,
-      }),
-    ).toBe('unavailable')
+  it('fails closed when Turnstile cannot be reached or answers badly', async () => {
+    expect(await verify(new Error('down')).result).toBe('unavailable')
+    expect(await verify(new Response('oops', { status: 500 })).result).toBe('unavailable')
+    expect(await verify(new Response('not json')).result).toBe('unavailable')
+    expect(await verify(json({ success: true }), { secret: '' }).result).toBe('unavailable')
   })
 })
