@@ -13,6 +13,7 @@
     "loading": "Loading…",
     "loadFailed": "This list could not be loaded. Please reload the page.",
     "actionFailed": "That did not work. Please reload the page and try again.",
+    "refreshFailed": "That was saved, but the list could not be refreshed. Please reload the page.",
     "email": "Email",
     "received": "Received",
     "deleteAfter": "Deleted after",

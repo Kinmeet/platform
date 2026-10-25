@@ -4,7 +4,7 @@
 // so the request carries the visitor's own Access session.
 import type { AdminApplication, AdminHelloMessage } from '../../../shared/admin'
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 
 useHead({
   title: () => t('admin.title'),
@@ -21,29 +21,50 @@ const formatDate = (seconds: number | null) =>
 const {
   data: hello,
   status: helloStatus,
+  error: helloError,
   refresh: refreshHello,
 } = useFetch<{ messages: AdminHelloMessage[] }>('/api/admin/messages', { server: false })
 const {
   data: apply,
   status: applyStatus,
+  error: applyError,
   refresh: refreshApply,
 } = useFetch<{ applications: AdminApplication[] }>('/api/admin/applications', { server: false })
+
+// Role and question wording comes from the role config's translations (#19).
+// A slug or question id with no wording (a question since removed, or a role
+// not yet translated) is shown as the id itself, so nothing is hidden.
+const roleLabel = (role: string) => (te(`roles.${role}.title`) ? t(`roles.${role}.title`) : role)
+const questionLabel = (role: string, question: string) =>
+  te(`roles.${role}.questions.${question}.label`)
+    ? t(`roles.${role}.questions.${question}.label`)
+    : question
 
 const announcement = ref('')
 const busy = ref<string | null>(null)
 
-async function act(url: string, done: string, refresh: () => Promise<void>) {
+// Lists stay mounted while they refresh, and buttons use aria-disabled
+// rather than disabled, so keyboard focus is never dropped to the body.
+async function act(
+  url: string,
+  done: string,
+  refresh: () => Promise<void>,
+  refreshFailed: () => boolean,
+): Promise<boolean> {
+  if (busy.value !== null) return false
   busy.value = url
   announcement.value = ''
   try {
     await $fetch(url, { method: 'POST' })
-    await refresh()
-    announcement.value = done
   } catch {
     announcement.value = t('admin.actionFailed')
-  } finally {
     busy.value = null
+    return false
   }
+  await refresh()
+  announcement.value = refreshFailed() ? t('admin.refreshFailed') : done
+  busy.value = null
+  return true
 }
 
 const markReplied = (message: AdminHelloMessage) =>
@@ -51,26 +72,34 @@ const markReplied = (message: AdminHelloMessage) =>
     `/api/admin/hello/${message.id}/replied`,
     t('admin.hello.repliedDone', { name: message.callName }),
     refreshHello,
+    () => Boolean(helloError.value),
   )
 
-const markOutcomeTold = (application: AdminApplication) =>
-  act(
+// The button removes itself once the outcome is told, so focus moves to the
+// application's heading rather than being lost.
+async function markOutcomeTold(application: AdminApplication) {
+  const done = await act(
     `/api/admin/applications/${application.id}/outcome-told`,
     t('admin.applications.outcomeToldDone', { name: application.callName }),
     refreshApply,
+    () => Boolean(applyError.value),
   )
+  if (!done) return
+  await nextTick()
+  document.getElementById(`application-${application.id}`)?.focus()
+}
 </script>
 
 <template>
   <main class="admin">
     <h1>{{ t('admin.title') }}</h1>
     <p>{{ t('admin.lead') }}</p>
-    <p class="admin__status" role="status" aria-live="polite">{{ announcement }}</p>
+    <p class="admin__status" role="status">{{ announcement }}</p>
 
     <section aria-labelledby="hello-heading">
       <h2 id="hello-heading">{{ t('admin.hello.heading') }}</h2>
-      <p v-if="helloStatus === 'pending'">{{ t('admin.loading') }}</p>
-      <p v-else-if="helloStatus === 'error'">{{ t('admin.loadFailed') }}</p>
+      <p v-if="helloStatus === 'pending' && !hello">{{ t('admin.loading') }}</p>
+      <p v-else-if="helloStatus === 'error' && !hello">{{ t('admin.loadFailed') }}</p>
       <p v-else-if="!hello?.messages.length">{{ t('admin.hello.empty') }}</p>
       <ul v-else class="admin__list">
         <li v-for="message in hello.messages" :key="message.id" class="admin__item">
@@ -92,7 +121,11 @@ const markOutcomeTold = (application: AdminApplication) =>
             <dd>{{ formatDate(message.deleteAfter) }}</dd>
           </dl>
           <p class="admin__message">{{ message.message }}</p>
-          <button type="button" :disabled="busy !== null" @click="markReplied(message)">
+          <button
+            type="button"
+            :aria-disabled="busy !== null ? 'true' : undefined"
+            @click="markReplied(message)"
+          >
             {{ t('admin.hello.markReplied') }}
             <span class="visually-hidden">{{
               t('admin.forName', { name: message.callName })
@@ -104,18 +137,18 @@ const markOutcomeTold = (application: AdminApplication) =>
 
     <section aria-labelledby="applications-heading">
       <h2 id="applications-heading">{{ t('admin.applications.heading') }}</h2>
-      <p v-if="applyStatus === 'pending'">{{ t('admin.loading') }}</p>
-      <p v-else-if="applyStatus === 'error'">{{ t('admin.loadFailed') }}</p>
+      <p v-if="applyStatus === 'pending' && !apply">{{ t('admin.loading') }}</p>
+      <p v-else-if="applyStatus === 'error' && !apply">{{ t('admin.loadFailed') }}</p>
       <p v-else-if="!apply?.applications.length">{{ t('admin.applications.empty') }}</p>
       <ul v-else class="admin__list">
         <li v-for="application in apply.applications" :key="application.id" class="admin__item">
-          <h3>{{ application.callName }}</h3>
+          <h3 :id="`application-${application.id}`" tabindex="-1">{{ application.callName }}</h3>
           <p v-if="application.conflictToDeclare" class="admin__note">
             {{ t('admin.applications.conflict') }}
           </p>
           <dl>
             <dt>{{ t('admin.applications.role') }}</dt>
-            <dd>{{ application.role }}</dd>
+            <dd>{{ roleLabel(application.role) }}</dd>
             <dt>{{ t('admin.email') }}</dt>
             <dd>{{ application.email }}</dd>
             <dt>{{ t('admin.applications.connection') }}</dt>
@@ -137,14 +170,14 @@ const markOutcomeTold = (application: AdminApplication) =>
           </dl>
           <dl class="admin__answers">
             <template v-for="(answer, question) in application.answers" :key="question">
-              <dt>{{ question }}</dt>
+              <dt>{{ questionLabel(application.role, String(question)) }}</dt>
               <dd class="admin__message">{{ answer }}</dd>
             </template>
           </dl>
           <button
             v-if="application.outcomeToldAt === null"
             type="button"
-            :disabled="busy !== null"
+            :aria-disabled="busy !== null ? 'true' : undefined"
             @click="markOutcomeTold(application)"
           >
             {{ t('admin.applications.markOutcomeTold') }}
@@ -177,8 +210,22 @@ const markOutcomeTold = (application: AdminApplication) =>
 
 .admin__item dl {
   display: grid;
-  grid-template-columns: max-content 1fr;
+  grid-template-columns: minmax(0, max-content) 1fr;
   gap: 0.25rem 1rem;
+}
+
+.admin__item dt {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 30rem) {
+  .admin__item dl {
+    grid-template-columns: 1fr;
+  }
+
+  .admin__item dt {
+    font-weight: 700;
+  }
 }
 
 .admin__item dd {
@@ -204,12 +251,13 @@ const markOutcomeTold = (application: AdminApplication) =>
   cursor: pointer;
 }
 
-.admin button:disabled {
+.admin button[aria-disabled='true'] {
   opacity: 0.6;
   cursor: wait;
 }
 
-.admin button:focus-visible {
+.admin button:focus-visible,
+.admin h3:focus-visible {
   outline: 3px solid var(--colour-ink);
   outline-offset: 2px;
 }
