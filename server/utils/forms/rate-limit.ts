@@ -1,4 +1,4 @@
-import { hmacHex } from './hmac'
+import { purposeHmac } from './hmac'
 
 /**
  * Rate limiting with Cloudflare's rate limiting binding
@@ -83,7 +83,7 @@ export async function withinRateLimit({
   const network = ip ? networkOf(ip) : null
   // Without a usable address (only in local tests) the global limiter still applies.
   if (network !== null) {
-    const key = `${form}:${await hmacHex(hmacKey, network)}`
+    const key = `${form}:${await purposeHmac('rate', hmacKey, network)}`
     if (!(await perNetwork.limit({ key })).success) return false
   }
   return (await global.limit({ key: form })).success

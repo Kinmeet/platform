@@ -72,6 +72,9 @@ export const turnstileToken = z.string().min(1).max(TURNSTILE_TOKEN_MAX)
  * (docs/api/forms.md, "Body size cap"): the most code points of every field,
  * times 4 bytes for UTF-8, plus 4 KB for JSON overhead, rounded up to a
  * whole KB. Pass every field's maximum, so the cap grows with the form.
+ * A hand-made client that writes non-ASCII as `\uXXXX` escapes (6 to 12 bytes
+ * each) can pass the cap and get `400`; our pages use `JSON.stringify`, which
+ * sends UTF-8 as it is, so real visitors are unaffected.
  */
 export function bodyCapBytes(fieldMaxima: readonly number[]): number {
   const worstCase = fieldMaxima.reduce((sum, max) => sum + max, 0) * 4 + 4096
