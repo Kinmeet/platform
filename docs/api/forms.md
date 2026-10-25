@@ -26,7 +26,7 @@ Sources: P1 Phase 1, P3 data map and retention, S5 (Turnstile). Not collected: p
 | `429` | `{ "ok": false, "error": "rate_limited", "retryAfter": 60 }` | Show send failed with "try again in a minute". |
 | `5xx` or network error | `{ "ok": false, "error": "unavailable" }` or no body | Show send failed with Copy my answers; keep answers. |
 
-`field` uses the request's field names, with dotted paths for nested ones (`answers.why_trustee`, `checks.over_18`). Error codes: `required`, `too_long`, `invalid_email`, `invalid_choice`, `under_18`, `turnstile_failed`, `unknown_role`, `role_closed`.
+`field` uses the request's field names, with dotted paths for nested ones (`answers.why_trustee`, `checks.over_18`). Error codes: `required`, `too_long`, `invalid_email`, `invalid_choice`, `under_18`, `not_independent`, `turnstile_failed`, `unknown_role`, `role_closed`.
 
 ## 1. Say hello: `POST /api/hello`
 
@@ -54,7 +54,7 @@ Stored in D1 with a deletion date: **12 months after the last reply** (P3). No r
 {
   "submissionId": "uuid",
   "role": "trustee",
-  "checks": { "over_18": "yes", "connected_to_founders": "not_sure", "trustee_rules_confirmed": "yes" },
+  "checks": { "over_18": "yes", "connection_to_founders": "not_sure", "trustee_rules_confirmed": "yes" },
   "callName": "Fernfox",
   "email": "fernfox@example.invalid",
   "answers": { "why_trustee": "...", "experience": "..." },
@@ -65,7 +65,7 @@ Stored in D1 with a deletion date: **12 months after the last reply** (P3). No r
 | Field | Rule |
 | --- | --- |
 | `role` | Required, a slug from the role config. Sprint 1 accepts `trustee` only (Q3); other slugs return `role_closed`, unknown ones `unknown_role`. |
-| `checks` | Step 1 answers, keyed by question id from the role config; values are that question's choice ids. Server refuses `over_18: "no"` with `under_18` (the page shows the under-18 exit first; this is the server's backstop). `connected_to_founders` accepts `yes`, `no` or `not_sure` (Q5). `trustee_rules_confirmed` must be `yes`, otherwise `required`. |
+| `checks` | Step 1 answers, keyed by question id from the role config; values are that question's choice ids. Server refuses `over_18: "no"` with `under_18` (the page shows the under-18 exit first; this is the server's backstop). `connection_to_founders` (F3) accepts `related_or_household`, `friend_or_acquaintance`, `no` or `not_sure`. The server refuses `related_or_household` with `not_independent` (a backstop, like `under_18`); `friend_or_acquaintance` is accepted and stored with a conflict-to-declare flag for the reviewer; `not_sure` is accepted (Q5). `trustee_rules_confirmed` must be `yes`, otherwise `required`. |
 | `callName`, `email` | As say hello. |
 | `answers` | Step 3 answers, keyed by question id from the role config; each at most 2000; required ones per config. Unknown ids are refused with `invalid_choice`. |
 
