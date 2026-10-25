@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Checks a deployed environment answers and sends the security headers we rely on.
-# Runs after every deploy, because the team's own sessions cannot reach workers.dev.
+# Runs on a GitHub runner after every Workers Builds deploy, because the team's own
+# sessions cannot reach workers.dev.
 # Usage: scripts/check-deployed.sh <base-url>
 set -euo pipefail
 
