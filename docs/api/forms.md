@@ -20,15 +20,15 @@ Sources: P1 Phase 1, P3 data map and retention, S5 (Turnstile). Not collected: p
 
 ## Responses (both endpoints)
 
-| Status | Body | Page should |
-| --- | --- | --- |
-| `201` | `{ "ok": true, "receipt": "queued" \| "not_requested" }` | Show the sent state. |
-| `200` | Same as the first `201` | A repeat of an already-stored `submissionId`; treat as sent. |
-| `422` | `{ "ok": false, "errors": [ { "field": "email", "code": "invalid_email" } ] }` | Show the error summary and inline errors; keep all answers. |
-| `403` | `{ "ok": false, "errors": [ { "field": "turnstileToken", "code": "turnstile_failed" } ] }` | Reset the widget, ask to try again; keep answers. |
-| `400` | `{ "ok": false, "error": "bad_request" }` | Should never happen from our own page; show send failed. |
-| `429` | `{ "ok": false, "error": "rate_limited", "retryAfter": 60 }` | Show send failed with "try again in a minute". |
-| `5xx` or network error | `{ "ok": false, "error": "unavailable" }` or no body | Show send failed with Copy my answers; keep answers. |
+| Status                 | Body                                                                                       | Page should                                                  |
+| ---------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------ |
+| `201`                  | `{ "ok": true, "receipt": "queued" \| "not_requested" }`                                   | Show the sent state.                                         |
+| `200`                  | Same as the first `201`                                                                    | A repeat of an already-stored `submissionId`; treat as sent. |
+| `422`                  | `{ "ok": false, "errors": [ { "field": "email", "code": "invalid_email" } ] }`             | Show the error summary and inline errors; keep all answers.  |
+| `403`                  | `{ "ok": false, "errors": [ { "field": "turnstileToken", "code": "turnstile_failed" } ] }` | Reset the widget, ask to try again; keep answers.            |
+| `400`                  | `{ "ok": false, "error": "bad_request" }`                                                  | Should never happen from our own page; show send failed.     |
+| `429`                  | `{ "ok": false, "error": "rate_limited", "retryAfter": 60 }`                               | Show send failed with "try again in a minute".               |
+| `5xx` or network error | `{ "ok": false, "error": "unavailable" }` or no body                                       | Show send failed with Copy my answers; keep answers.         |
 
 `field` uses the request's field names, with dotted paths for nested ones (`answers.why_trustee`, `checks.over_18`). Error codes: `required`, `too_long`, `invalid_email`, `invalid_choice`, `unknown_field`, `under_18`, `not_independent`, `turnstile_failed`, `unknown_role`, `role_closed`.
 
@@ -44,11 +44,11 @@ Sources: P1 Phase 1, P3 data map and retention, S5 (Turnstile). Not collected: p
 }
 ```
 
-| Field | Rule |
-| --- | --- |
+| Field      | Rule                                                                      |
+| ---------- | ------------------------------------------------------------------------- |
 | `callName` | Required, 1-60. Whatever name they want to be called; never "legal name". |
-| `email` | Required, at most 254, basic syntax check only. |
-| `message` | Required, 1-2000. |
+| `email`    | Required, at most 254, basic syntax check only.                           |
+| `message`  | Required, 1-2000.                                                         |
 
 Stored in D1 with a deletion date of **12 months after our last reply** (P3). On insert, `delete_after` is set to 12 months after receipt, and each reply we send pushes it to 12 months after that reply, so a message we never answer is still deleted. No receipt email for say hello in Sprint 1 (`receipt: "not_requested"`).
 
@@ -58,7 +58,11 @@ Stored in D1 with a deletion date of **12 months after our last reply** (P3). On
 {
   "submissionId": "uuid",
   "role": "trustee",
-  "checks": { "over_18": "yes", "connection_to_founders": "not_sure", "trustee_rules_confirmed": "yes" },
+  "checks": {
+    "over_18": "yes",
+    "connection_to_founders": "not_sure",
+    "trustee_rules_confirmed": "yes"
+  },
   "callName": "Fernfox",
   "email": "fernfox@example.invalid",
   "answers": { "why_trustee": "...", "experience": "..." },
@@ -66,12 +70,12 @@ Stored in D1 with a deletion date of **12 months after our last reply** (P3). On
 }
 ```
 
-| Field | Rule |
-| --- | --- |
-| `role` | Required, a slug from the role config. Sprint 1 accepts `trustee` only (Q3); other slugs return `role_closed`, unknown ones `unknown_role`. |
-| `checks` | Step 1 answers, keyed by question id from the role config; values are that question's choice ids. Server refuses `over_18: "no"` with `under_18` (the page shows the under-18 exit first; this is the server's backstop). `connection_to_founders` (F3) accepts `related_or_household`, `friend_or_acquaintance`, `no` or `not_sure`. The server refuses `related_or_household` with `not_independent` (a backstop, like `under_18`); `friend_or_acquaintance` and `not_sure` (Q5) are accepted. Only the applicant's answer is stored: the admin page works out "conflict to declare" when it reads the row, with no separate flag column, and keeps this answer out of any counts or summaries. A refused answer returns `422` and stores nothing. `trustee_rules_confirmed` must be `yes`, otherwise `required`. |
-| `callName`, `email` | As say hello. |
-| `answers` | Step 3 answers, keyed by question id from the role config; each at most 2000; required ones per config. Unknown ids are refused with `unknown_field`. |
+| Field               | Rule                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `role`              | Required, a slug from the role config. Sprint 1 accepts `trustee` only (Q3); other slugs return `role_closed`, unknown ones `unknown_role`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `checks`            | Step 1 answers, keyed by question id from the role config; values are that question's choice ids. Server refuses `over_18: "no"` with `under_18` (the page shows the under-18 exit first; this is the server's backstop). `connection_to_founders` (F3) accepts `related_or_household`, `friend_or_acquaintance`, `no` or `not_sure`. The server refuses `related_or_household` with `not_independent` (a backstop, like `under_18`); `friend_or_acquaintance` and `not_sure` (Q5) are accepted. Only the applicant's answer is stored: the admin page works out "conflict to declare" when it reads the row, with no separate flag column, and keeps this answer out of any counts or summaries. A refused answer returns `422` and stores nothing. `trustee_rules_confirmed` must be `yes`, otherwise `required`. |
+| `callName`, `email` | As say hello.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `answers`           | Step 3 answers, keyed by question id from the role config; each at most 2000; required ones per config. Unknown ids are refused with `unknown_field`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 
 **Role config is shared:** the step 1 and step 3 question ids, choices and which are required live in `shared/forms/roles/<role>.ts`, and the wording lives in `i18n/locales/`. Both Mei's pages and Ade's validation use them. Web owns the wording; Services owns the ids. (`content/` is the Nuxt Content area for published policies, ADR-0002.)
 
