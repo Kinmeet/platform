@@ -5,68 +5,38 @@ import {
   hmacAddress,
   inboxAddress,
 } from '../../../../server/email/address-hmac'
+import { deliverEmail, emailErrorCode } from '../../../../server/email/send'
 import {
-  RECEIPT_MARKER_TTL_SECONDS,
-  claimReceipt,
-  deliverEmail,
-  emailErrorCode,
-  receiptMarkerKey,
-} from '../../../../server/email/send'
-import { SEND_LOG_RETENTION_DAYS } from '../../../../server/email/send-log'
+  RECEIPT_WINDOW_SECONDS,
+  SEND_LOG_RETENTION_DAYS,
+  claimSend,
+} from '../../../../server/email/send-log'
 import { createCaptureTransport, transportFor } from '../../../../server/email/transport'
-import { createEmailLog } from './email-log'
+import { createEmailLog, logRows } from './email-log'
 
-const { DB: db, RECEIPTS: kv } = env as unknown as { DB: D1Database; RECEIPTS: KVNamespace }
+const { DB: db } = env as unknown as { DB: D1Database }
 const hmacKey = 'test-only-key-not-a-secret'
 const address = 'fernfox@example.org'
+const request = { to: address, template: 'application_receipt', locale: 'en-GB' } as const
 
-async function logRows() {
-  const { results } = await db.prepare('SELECT * FROM email_log').all<Record<string, string>>()
-  return results
-}
+afterEach(() => vi.restoreAllMocks())
 
 describe('deliverEmail', () => {
-  const now = new Date('2026-11-02T10:00:00.000Z')
   let transport: ReturnType<typeof createCaptureTransport>
   let info: ReturnType<typeof vi.spyOn>
 
-  beforeEach(async () => {
-    await createEmailLog()
+  beforeEach(() => {
     transport = createCaptureTransport()
     info = vi.spyOn(console, 'info').mockImplementation(() => {})
   })
 
-  afterEach(() => vi.restoreAllMocks())
-
-  const deps = () => ({ db, transport, now: () => now })
-  const request = { to: address, template: 'application_receipt', locale: 'en-GB' } as const
-
-  it('sends the fixed receipt to the address given', async () => {
-    await deliverEmail(deps(), request, await hmacAddress(hmacKey, address))
+  it('sends the fixed receipt to the address exactly as given', async () => {
+    await deliverEmail(transport, { ...request, to: 'Fern.Fox+kinmeet@example.org' })
     expect(transport.captured).toHaveLength(1)
-    expect(transport.captured[0]).toMatchObject({ to: address, template: 'application_receipt' })
-  })
-
-  it('logs only an HMAC of the address, the template and dates, kept 30 days', async () => {
-    const toHmac = await hmacAddress(hmacKey, '  FernFox@Example.Org ')
-    await deliverEmail(deps(), { ...request, to: '  FernFox@Example.Org ' }, toHmac)
-    const rows = await logRows()
-    expect(rows).toHaveLength(1)
-    const row = rows[0]!
-    expect(Object.keys(row).sort()).toEqual([
-      'delete_after',
-      'id',
-      'sent_at',
-      'template_id',
-      'to_hmac',
-    ])
-    expect(row.to_hmac).toBe(await hmacAddress(hmacKey, address))
-    expect(row.to_hmac).toMatch(/^[0-9a-f]{64}$/)
-    expect(JSON.stringify(row).toLowerCase()).not.toContain('fernfox')
-    expect(row.template_id).toBe('application_receipt')
-    expect(row.sent_at).toBe(now.toISOString())
-    const days = (Date.parse(row.delete_after!) - now.getTime()) / 86_400_000
-    expect(days).toBe(SEND_LOG_RETENTION_DAYS)
+    expect(transport.captured[0]).toMatchObject({
+      to: 'Fern.Fox+kinmeet@example.org',
+      template: 'application_receipt',
+    })
   })
 
   it('refuses addresses that could add a mail header, and sends nothing', async () => {
@@ -77,24 +47,15 @@ describe('deliverEmail', () => {
       'fernfox@example.org@example.org',
       'fernfox.example.org',
     ]) {
-      await expect(deliverEmail(deps(), { ...request, to }, 'a'.repeat(64))).rejects.toThrow(
+      await expect(deliverEmail(transport, { ...request, to })).rejects.toThrow(
         'email_invalid_address',
       )
     }
     expect(transport.captured).toHaveLength(0)
-    expect(await logRows()).toHaveLength(0)
-  })
-
-  it('writes no log row when the transport fails', async () => {
-    const failing = { name: 'failing', send: () => Promise.reject(new Error('boom')) }
-    await expect(
-      deliverEmail({ ...deps(), transport: failing }, request, 'a'.repeat(64)),
-    ).rejects.toThrow()
-    expect(await logRows()).toHaveLength(0)
   })
 
   it('logs the template id when capturing, never the address or text', async () => {
-    await deliverEmail(deps(), request, 'a'.repeat(64))
+    await deliverEmail(transport, request)
     const logged = info.mock.calls.flat().join(' ')
     expect(logged).toContain('application_receipt')
     expect(logged).not.toContain('example.org')
@@ -102,27 +63,59 @@ describe('deliverEmail', () => {
   })
 })
 
-describe('claimReceipt', () => {
-  it('allows one receipt per address, with a marker that expires after a day', async () => {
-    const toHmac = await hmacAddress(hmacKey, 'oakmoth@example.org')
-    const put = vi.spyOn(kv, 'put')
-    expect(await claimReceipt(kv, toHmac)).toBe(true)
-    expect(await claimReceipt(kv, toHmac)).toBe(false)
-    expect(await claimReceipt(kv, await hmacAddress(hmacKey, 'OAKMOTH@example.org '))).toBe(false)
-    expect(await claimReceipt(kv, await hmacAddress(hmacKey, 'birchwren@example.org'))).toBe(true)
-    expect(put).toHaveBeenCalledWith(receiptMarkerKey(toHmac), '1', {
-      expirationTtl: RECEIPT_MARKER_TTL_SECONDS,
-    })
-    expect(RECEIPT_MARKER_TTL_SECONDS).toBe(86_400)
-    vi.restoreAllMocks()
+describe('claimSend', () => {
+  const now = new Date('2026-11-02T10:00:00.000Z')
+  const nowSeconds = Math.floor(now.getTime() / 1000)
+  let toHmac: string
+
+  beforeEach(async () => {
+    await createEmailLog()
+    toHmac = await hmacAddress(hmacKey, inboxAddress(address))
   })
 
-  it('keys the marker on the HMAC only', async () => {
-    const toHmac = await hmacAddress(hmacKey, 'ashfinch@example.org')
-    await claimReceipt(kv, toHmac)
-    const { keys } = await kv.list({ prefix: 'receipt:' })
-    expect(keys.map((k) => k.name)).toContain(`receipt:${toHmac}`)
-    expect(keys.some((k) => k.name.includes('example.org'))).toBe(false)
+  it('writes a row holding only the HMAC, the template and dates, kept 30 days', async () => {
+    expect(await claimSend(db, toHmac, 'application_receipt', now)).toBe(true)
+    const rows = await logRows()
+    expect(rows).toHaveLength(1)
+    const row = rows[0]!
+    expect(Object.keys(row).sort()).toEqual([
+      'delete_after',
+      'id',
+      'sent_at',
+      'template_id',
+      'to_hmac',
+    ])
+    expect(row.to_hmac).toBe(toHmac)
+    expect(row.to_hmac).toMatch(/^[0-9a-f]{64}$/)
+    expect(JSON.stringify(row).toLowerCase()).not.toContain('fernfox')
+    expect(row.template_id).toBe('application_receipt')
+    expect(row.sent_at).toBe(nowSeconds)
+    expect(row.delete_after - row.sent_at).toBe(SEND_LOG_RETENTION_DAYS * 86_400)
+  })
+
+  it('allows one per inbox in 24 hours, counting other inboxes separately', async () => {
+    expect(await claimSend(db, toHmac, 'application_receipt', now)).toBe(true)
+    expect(await claimSend(db, toHmac, 'application_receipt', now)).toBe(false)
+    const later = new Date(now.getTime() + (RECEIPT_WINDOW_SECONDS - 1) * 1000)
+    expect(await claimSend(db, toHmac, 'application_receipt', later)).toBe(false)
+    const other = await hmacAddress(hmacKey, 'oakmoth@example.org')
+    expect(await claimSend(db, other, 'application_receipt', now)).toBe(true)
+    expect(await logRows()).toHaveLength(2)
+  })
+
+  it('allows the inbox again once 24 hours have passed', async () => {
+    await claimSend(db, toHmac, 'application_receipt', now)
+    const nextDay = new Date(now.getTime() + RECEIPT_WINDOW_SECONDS * 1000)
+    expect(await claimSend(db, toHmac, 'application_receipt', nextDay)).toBe(true)
+  })
+
+  it('lets only one of two claims at the same moment through', async () => {
+    const results = await Promise.all([
+      claimSend(db, toHmac, 'application_receipt', now),
+      claimSend(db, toHmac, 'application_receipt', now),
+    ])
+    expect(results.filter(Boolean)).toHaveLength(1)
+    expect(await logRows()).toHaveLength(1)
   })
 })
 
@@ -167,14 +160,20 @@ describe('email helpers', () => {
     expect(() => transportFor('smtp')).toThrow('email_transport_unknown')
   })
 
-  it('keeps only the most recent captured messages', async () => {
+  it('keeps only the most recent captured messages in a test transport', async () => {
     const transport = createCaptureTransport(2)
     vi.spyOn(console, 'info').mockImplementation(() => {})
     for (const to of ['a@example.org', 'b@example.org', 'c@example.org']) {
       await transport.send({ to, template: 'application_receipt', subject: '', text: '', html: '' })
     }
     expect(transport.captured.map((m) => m.to)).toEqual(['b@example.org', 'c@example.org'])
-    vi.restoreAllMocks()
+  })
+
+  it('keeps nothing in the deployed capture transport', async () => {
+    vi.spyOn(console, 'info').mockImplementation(() => {})
+    const deployed = transportFor('capture') as ReturnType<typeof createCaptureTransport>
+    await deployed.send({ ...request, subject: '', text: '', html: '' })
+    expect(deployed.captured).toHaveLength(0)
   })
 
   it('gives the same HMAC whatever the case or spacing, and a different one per key', async () => {
@@ -185,21 +184,5 @@ describe('email helpers', () => {
 
   it('refuses to hash without a key', async () => {
     await expect(hmacAddress('', address)).rejects.toThrow('email_log_hmac_key_missing')
-  })
-})
-
-describe('deployed capture transport', () => {
-  it('keeps no messages', async () => {
-    vi.spyOn(console, 'info').mockImplementation(() => {})
-    const deployed = transportFor('capture') as ReturnType<typeof createCaptureTransport>
-    await deployed.send({
-      to: 'fernfox@example.org',
-      template: 'application_receipt',
-      subject: '',
-      text: '',
-      html: '',
-    })
-    expect(deployed.captured).toHaveLength(0)
-    vi.restoreAllMocks()
   })
 })

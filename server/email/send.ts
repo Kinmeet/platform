@@ -1,15 +1,6 @@
-import type { D1Database, KVNamespace } from '@cloudflare/workers-types'
 import { assertSendableAddress } from './address-hmac'
-import { recordSend } from './send-log'
 import { renderEmail, type EmailLocale, type EmailTemplateId } from './templates'
 import type { EmailTransport } from './transport'
-
-/**
- * One receipt per address per day (Security Reviewer, contract b9f2115).
- * Turnstile and the per-form limit stop floods; this stops a form being
- * used to fill one stranger's inbox.
- */
-export const RECEIPT_MARKER_TTL_SECONDS = 24 * 60 * 60
 
 export interface EmailRequest {
   to: string
@@ -17,41 +8,14 @@ export interface EmailRequest {
   locale: EmailLocale
 }
 
-export function receiptMarkerKey(toHmac: string): string {
-  return `receipt:${toHmac}`
-}
-
-/**
- * Claims today's receipt for an inbox. Pass the HMAC of `inboxAddress(to)`,
- * so sub-addressed and dotted variants share one marker. The key holds only
- * that HMAC and it expires by itself after 24 hours. Returns false when a
- * receipt has already gone to this address in that time. KV is eventually
- * consistent, so two submissions in the same moment may both get one; the
- * limit is about inbox abuse, not exact counting.
- */
-export async function claimReceipt(kv: KVNamespace, toHmac: string): Promise<boolean> {
-  const key = receiptMarkerKey(toHmac)
-  if ((await kv.get(key)) !== null) return false
-  await kv.put(key, '1', { expirationTtl: RECEIPT_MARKER_TTL_SECONDS })
-  return true
-}
-
-export interface DeliverDeps {
-  db: D1Database
-  transport: EmailTransport
-  now?: () => Date
-}
-
-/** Renders the fixed template, sends it, then writes the send log row. */
+/** Renders the fixed template and sends it to the address exactly as given. */
 export async function deliverEmail(
-  deps: DeliverDeps,
+  transport: EmailTransport,
   request: EmailRequest,
-  toHmac: string,
 ): Promise<void> {
   assertSendableAddress(request.to)
   const rendered = renderEmail(request.template, request.locale)
-  await deps.transport.send({ ...rendered, to: request.to.trim(), template: request.template })
-  await recordSend(deps.db, toHmac, request.template, deps.now?.() ?? new Date())
+  await transport.send({ ...rendered, to: request.to.trim(), template: request.template })
 }
 
 /** Error codes only: never the address, the message or the error's own text. */

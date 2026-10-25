@@ -11,8 +11,8 @@ const gmailDomains = new Set(['gmail.com', 'googlemail.com'])
  * The inbox an address reaches, so one person cannot be sent many receipts
  * through `name+1@`, `name+2@` or, for Gmail, dotted variants (Security
  * Reviewer). Drops a `+tag` for every domain; for Gmail also removes dots
- * and treats both Gmail domains as one. Used only for the receipt limit;
- * mail is always sent to the address exactly as given.
+ * and treats both Gmail domains as one. The send log's `to_hmac` is taken
+ * from this form; mail is always sent to the address exactly as given.
  */
 export function inboxAddress(address: string): string {
   const normalised = normaliseAddress(address)
@@ -45,8 +45,8 @@ export function assertSendableAddress(address: string): void {
 /**
  * A keyed HMAC-SHA-256 of an email address, as lower-case hex. The send log
  * keeps this instead of the address (P3, Privacy and Safeguarding Reviewer):
- * a later bounce or "did my email arrive?" check hashes the address it has
- * and looks that up. The key is a Worker secret, so the log alone cannot be
+ * a later bounce or "did my email arrive?" check hashes the inbox form of
+ * the address it has and looks that up. The key is a Worker secret, so the log alone cannot be
  * matched against a list of guessed addresses.
  */
 export async function hmacAddress(key: string, address: string): Promise<string> {
