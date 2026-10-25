@@ -10,6 +10,8 @@ interface EmailEnv {
   RECEIPTS: KVNamespace
   EMAIL_LOG_HMAC_KEY: string
   EMAIL_TRANSPORT?: string
+  /** `staging`, `preview` or `live` (#39). */
+  KINMEET_ENV?: string
 }
 
 export type ReceiptStatus = 'queued' | 'not_requested'
@@ -30,6 +32,13 @@ export async function queueEmail(event: H3Event, request: EmailRequest): Promise
     if (!env?.DB) throw new Error('email_db_missing')
     if (!env.RECEIPTS) throw new Error('email_kv_missing')
     const transport = transportFor(env.EMAIL_TRANSPORT)
+    // Live has no real transport until Kinmeet has a domain. Saying a receipt
+    // is on its way would not be true (P9), so nothing is claimed, logged or
+    // captured there (Privacy and Safeguarding Reviewer).
+    if (transport.name === 'capture' && env.KINMEET_ENV === 'live') {
+      console.warn(JSON.stringify({ event: 'email_no_live_transport', template: request.template }))
+      return 'not_requested'
+    }
     const toHmac = await hmacAddress(env.EMAIL_LOG_HMAC_KEY, request.to)
 
     if (!(await claimReceipt(env.RECEIPTS, toHmac))) {

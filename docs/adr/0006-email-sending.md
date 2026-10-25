@@ -35,9 +35,9 @@ S3 decided in-house sending for the platform's own emails. Sprint 1 needs one: t
 ## Consequences
 
 - Every environment needs the secret `EMAIL_LOG_HMAC_KEY` and the `DB` and `RECEIPTS` bindings (DevOps, with #4). Without the secret, receipts are not sent, the response says `not_requested` and `email_log_hmac_key_missing` is logged.
-- Until the domain exists, the live environment also uses the capture sink, so no receipts reach applicants. The domain question goes to the founder at the M1 review.
+- Until the domain exists, live has no real transport. There, `queueEmail` answers `not_requested` straight away and writes no marker, log row or captured copy, so the page never says a receipt is coming when it is not (P9; Privacy and Safeguarding Reviewer). The domain question goes to the founder at the M1 review.
 - A suppression list (hard bounces and complaints) is not in P3 yet. When bounces are handled, it is stored as an HMAC only, after the Head of Delivery adds a P3 row.
-- Captured messages live only in one isolate's memory and disappear when it is recycled; they are a test aid, not a mailbox.
+- Captured messages live only in one isolate's memory and disappear when it is recycled; they are a test aid, not a mailbox, and no route may ever serve them. A staging viewer would need its own privacy review.
 
 ## Sources
 

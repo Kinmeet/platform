@@ -81,6 +81,35 @@ describe('queueEmail', () => {
     expect(await sends()).toBe(0)
   })
 
+  it('claims nothing on live while only the capture sink exists', async () => {
+    const put = vi.spyOn(kv, 'put')
+    const info = vi.spyOn(console, 'info').mockImplementation(() => {})
+    const { event, settled } = fakeEvent({
+      DB: db,
+      RECEIPTS: kv,
+      EMAIL_LOG_HMAC_KEY: key,
+      KINMEET_ENV: 'live',
+    })
+    expect(await queueEmail(event, request)).toBe('not_requested')
+    await settled()
+    expect(put).not.toHaveBeenCalled()
+    expect((await kv.list()).keys).toHaveLength(0)
+    expect(await sends()).toBe(0)
+    expect(info).not.toHaveBeenCalled()
+  })
+
+  it('captures as normal on staging', async () => {
+    const { event, settled } = fakeEvent({
+      DB: db,
+      RECEIPTS: kv,
+      EMAIL_LOG_HMAC_KEY: key,
+      KINMEET_ENV: 'staging',
+    })
+    expect(await queueEmail(event, request)).toBe('queued')
+    await settled()
+    expect(await sends()).toBe(1)
+  })
+
   it('still answers queued when sending fails later, and logs a code', async () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
     await db.exec('DROP TABLE email_log')

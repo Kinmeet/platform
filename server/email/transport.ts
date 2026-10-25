@@ -17,7 +17,10 @@ export const CAPTURE_LIMIT = 20
  * Keeps messages in this isolate's memory instead of sending them. Used on
  * staging and in tests until Kinmeet has a domain with SPF, DKIM and DMARC
  * (S3, P1 Phase 0), so nothing leaves the platform. Nothing is written to
- * storage, and the log line names the template only.
+ * storage, and the log line names the template only. Never used on live.
+ *
+ * `captured` is for tests only and must never be served by any route. A
+ * staging viewer for captured mail would need its own privacy review.
  */
 export function createCaptureTransport(limit = CAPTURE_LIMIT) {
   const captured: EmailMessage[] = []
