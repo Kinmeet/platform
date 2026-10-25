@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+
+# Nuxt and Nitro build output
+.nuxt/
+.output/
+.data/
+.nitro/
+.cache/
+dist/
+
+# Wrangler and Miniflare local state
+.wrangler/
+.dev.vars*
+!.dev.vars.example
+
+# Environment files (never commit secrets)
+.env
+.env.*
+!.env.example
+
+# Test output
+coverage/
+playwright-report/
+test-results/
+blob-report/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Editors and operating systems
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Claude Code local settings
+.claude/settings.local.json
