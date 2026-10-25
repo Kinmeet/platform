@@ -38,7 +38,8 @@ export interface FormSubmissionSteps<Schema extends z.ZodType<{ submissionId: st
   store: (submission: z.infer<Schema>) => Promise<StoreResult>
   /**
    * After a first successful store only: the receipt limit and queueing the
-   * receipt. Returns what the 201 says about the receipt; must not throw.
+   * receipt. Returns what the 201 says about the receipt. If it throws, the
+   * answer is still 201, with `not_requested`.
    */
   afterStore?: (submission: z.infer<Schema>) => Promise<Receipt>
   log: (code: string) => void
@@ -91,7 +92,17 @@ export async function processFormSubmission<Schema extends z.ZodType<{ submissio
     if ((await steps.store(submission)) === 'duplicate')
       return formResponses.repeated(steps.receipt)
 
-    const receipt = steps.afterStore ? await steps.afterStore(submission) : steps.receipt
+    // The submission is stored, so it is a 201 whatever happens next: a
+    // failed receipt must never make the person send it again.
+    let receipt = steps.receipt
+    if (steps.afterStore) {
+      try {
+        receipt = await steps.afterStore(submission)
+      } catch {
+        log(`${form}_receipt_failed`)
+        receipt = 'not_requested'
+      }
+    }
     return formResponses.stored(receipt)
   } catch {
     log(`${form}_unavailable`)

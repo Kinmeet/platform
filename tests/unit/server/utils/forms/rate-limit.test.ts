@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hmacHex } from '../../../../../server/utils/forms/hmac'
+import { purposeHmac } from '../../../../../server/utils/forms/hmac'
 import {
   networkOf,
   withinRateLimit,
@@ -67,7 +67,9 @@ describe('withinRateLimit', () => {
       global: global.fake,
     })
     expect(allowed).toBe(true)
-    expect(perNetwork.keys).toEqual([`hello:${await hmacHex(KEY, '2001:db8:1234:5678::/64')}`])
+    expect(perNetwork.keys).toEqual([
+      `hello:${await purposeHmac('rate', KEY, '2001:db8:1234:5678::/64')}`,
+    ])
     expect(global.keys).toEqual(['hello'])
     expect(perNetwork.keys.join()).not.toContain('2001')
   })

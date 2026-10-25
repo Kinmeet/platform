@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hmacHex } from '../../../../../server/utils/forms/hmac'
+import { hmacHex, purposeHmac } from '../../../../../server/utils/forms/hmac'
 
 describe('hmacHex', () => {
   it('matches the RFC 4231 HMAC-SHA-256 test vector', async () => {
@@ -10,5 +10,12 @@ describe('hmacHex', () => {
 
   it('refuses an empty key', async () => {
     await expect(hmacHex('', 'value')).rejects.toThrow('hmac_key_missing')
+  })
+
+  it('prefixes the value with its purpose, so the same value differs per purpose', async () => {
+    expect(await purposeHmac('rate', 'Jefe', '192.0.2.10')).toBe(
+      await hmacHex('Jefe', 'rate:192.0.2.10'),
+    )
+    expect(await purposeHmac('rate', 'Jefe', 'x')).not.toBe(await purposeHmac('email', 'Jefe', 'x'))
   })
 })

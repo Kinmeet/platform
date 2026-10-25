@@ -199,6 +199,19 @@ describe('processFormSubmission', () => {
     }
   })
 
+  it('still answers 201 not_requested when the after-store step fails', async () => {
+    const h = harness()
+    h.steps.afterStore = async () => {
+      throw new Error('queue down')
+    }
+    expect(await processFormSubmission(post(valid), h.steps)).toEqual({
+      status: 201,
+      body: { ok: true, receipt: 'not_requested' },
+    })
+    expect(h.stored.size).toBe(1)
+    expect(h.logs).toEqual(['hello_receipt_failed'])
+  })
+
   it('uses the receipt the after-store step reports', async () => {
     const h = harness({ receipt: 'queued' })
     expect(await processFormSubmission(post(valid), h.steps)).toEqual({
