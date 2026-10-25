@@ -18,13 +18,13 @@ Releases go through a protected `live` branch. Only organisation admins (Matt) c
 1. **One Worker.** Production is built from `live`. `main` and every pull request branch get a Preview under that same Worker, pointed at test bindings by its `previews` block. The Preview of `main` serves as staging.
 2. **Two Workers (chosen).** `kinmeet-live` is built only from `live`, with Preview builds turned off. `kinmeet-staging` is built from `main`, and every other branch gets a Preview under `kinmeet-staging`.
 
-| | One Worker | Two Workers |
-| --- | --- | --- |
-| What stands between a pull request and live data | Only the `previews` block being right | A different Worker whose own bindings are already test resources, plus the `previews` block |
-| Code that ever runs next to live bindings | Production builds from `live`, and Previews if the block is wrong | Only builds from `live`, which Matt alone updates |
-| Staging | The `main` Preview, sharing test resources with every pull request Preview | A persistent Worker with its own made-up data, separate from pull request Previews |
-| Setup | One Workers Builds connection | Two connections, both to the same repository |
-| Config | Simpler `wrangler.jsonc` | `env.staging` and `env.live` in `wrangler.jsonc` |
+|                                                  | One Worker                                                                 | Two Workers                                                                                 |
+| ------------------------------------------------ | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| What stands between a pull request and live data | Only the `previews` block being right                                      | A different Worker whose own bindings are already test resources, plus the `previews` block |
+| Code that ever runs next to live bindings        | Production builds from `live`, and Previews if the block is wrong          | Only builds from `live`, which Matt alone updates                                           |
+| Staging                                          | The `main` Preview, sharing test resources with every pull request Preview | A persistent Worker with its own made-up data, separate from pull request Previews          |
+| Setup                                            | One Workers Builds connection                                              | Two connections, both to the same repository                                                |
+| Config                                           | Simpler `wrangler.jsonc`                                                   | `env.staging` and `env.live` in `wrangler.jsonc`                                            |
 
 We chose two Workers because the safety of live data then does not depend on one block of config being correct. Pull request code never runs as part of the live Worker at all. The cost is one extra Workers Builds connection, set up once.
 

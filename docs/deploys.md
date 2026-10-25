@@ -2,11 +2,11 @@
 
 How code reaches the Kinmeet Workers. The reasoning is in [ADR-0001](adr/0001-deploys-with-workers-builds.md). Deploys are done by Cloudflare Workers Builds; GitHub Actions only runs CI and the post-deploy check.
 
-| Where | Worker | URL | Built from | Data |
-| --- | --- | --- | --- | --- |
-| Pull request Previews | `kinmeet-staging` (Previews) | Posted on each pull request | Every branch except `main` and `live` | `kinmeet-preview`, made-up |
-| Staging | `kinmeet-staging` | https://kinmeet-staging.kinmeet.workers.dev | `main` | `kinmeet-staging`, made-up |
-| Live | `kinmeet-live` | https://kinmeet-live.kinmeet.workers.dev | `live` | `kinmeet-live`, real |
+| Where                 | Worker                       | URL                                         | Built from                            | Data                       |
+| --------------------- | ---------------------------- | ------------------------------------------- | ------------------------------------- | -------------------------- |
+| Pull request Previews | `kinmeet-staging` (Previews) | Posted on each pull request                 | Every branch except `main` and `live` | `kinmeet-preview`, made-up |
+| Staging               | `kinmeet-staging`            | https://kinmeet-staging.kinmeet.workers.dev | `main`                                | `kinmeet-staging`, made-up |
+| Live                  | `kinmeet-live`               | https://kinmeet-live.kinmeet.workers.dev    | `live`                                | `kinmeet-live`, real       |
 
 ## Releasing to live
 
