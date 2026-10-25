@@ -1,4 +1,4 @@
-import { writeFile } from 'node:fs/promises'
+import { readdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { buildSecurityHeaders } from './server/utils/security-headers'
 
@@ -50,7 +50,16 @@ export default defineNuxtConfig({
 
   hooks: {
     'nitro:build:public-assets': async (nitro) => {
-      await writeFile(join(nitro.options.output.publicDir, '_headers'), staticAssetHeaders())
+      const publicDir = nitro.options.output.publicDir
+      // Pages must be rendered by the Worker so they get a nonce and, on form
+      // pages, Turnstile. A prerendered page would be served as a static file
+      // with neither, so the build fails instead.
+      const files = await readdir(publicDir, { recursive: true })
+      const pages = files.filter((file) => file.endsWith('.html'))
+      if (pages.length > 0) {
+        throw new Error(`Prerendered pages are not allowed: ${pages.join(', ')}`)
+      }
+      await writeFile(join(publicDir, '_headers'), staticAssetHeaders())
     },
   },
 

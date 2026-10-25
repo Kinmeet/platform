@@ -1,4 +1,4 @@
-import { isFormRoute } from '../../shared/routes'
+import { isFormRoute, type PublicRoute } from '../../shared/routes'
 
 /** The only third-party origin any page may load, and only on form pages (S5). */
 export const TURNSTILE_ORIGIN = 'https://challenges.cloudflare.com'
@@ -8,10 +8,12 @@ export interface SecurityHeaderOptions {
   path: string
   /** Per-response nonce for inline scripts and styles that Nuxt renders. */
   nonce?: string
+  /** Route list to check against; defaults to every public route. */
+  routes?: readonly PublicRoute[]
 }
 
-export function buildContentSecurityPolicy({ path, nonce }: SecurityHeaderOptions): string {
-  const form = isFormRoute(path)
+export function buildContentSecurityPolicy({ path, nonce, routes }: SecurityHeaderOptions): string {
+  const form = isFormRoute(path, routes)
   const nonceSource = nonce ? ` 'nonce-${nonce}'` : ''
   const turnstile = form ? ` ${TURNSTILE_ORIGIN}` : ''
 
@@ -60,7 +62,9 @@ export function buildSecurityHeaders(options: SecurityHeaderOptions): Record<str
       'microphone=()',
       'midi=()',
       'payment=()',
-      'publickey-credentials-get=()',
+      // Passkeys are the main way to sign in (P5), so WebAuthn stays on for our own origin.
+      'publickey-credentials-create=(self)',
+      'publickey-credentials-get=(self)',
       'screen-wake-lock=()',
       'serial=()',
       'usb=()',

@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { publicRoutes, isFormRoute } from '../../shared/routes'
+import { publicRoutes, isFormRoute } from '../../../../shared/routes'
 import {
   TURNSTILE_ORIGIN,
   buildContentSecurityPolicy,
   buildSecurityHeaders,
   createNonce,
-} from '../../server/utils/security-headers'
-import { addNonce, removeEmptyAttributes } from '../../server/utils/html-nonce'
+} from '../../../../server/utils/security-headers'
+import { addNonce, applyNonce, removeEmptyAttributes } from '../../../../server/utils/html-nonce'
 
 function directives(policy: string): Map<string, string> {
   return new Map(
@@ -29,6 +29,11 @@ describe('security headers', () => {
     expect(headers['X-Frame-Options']).toBe('DENY')
     expect(headers['Cross-Origin-Opener-Policy']).toBe('same-origin')
     expect(headers['Cross-Origin-Resource-Policy']).toBe('same-origin')
+  })
+
+  it('keeps passkeys available on our own origin only', () => {
+    expect(headers['Permissions-Policy']).toContain('publickey-credentials-create=(self)')
+    expect(headers['Permissions-Policy']).toContain('publickey-credentials-get=(self)')
   })
 
   it('turns off powerful browser features', () => {
@@ -69,18 +74,14 @@ describe('content security policy', () => {
 
   it('allows Turnstile scripts and frames only on form pages', () => {
     const formPath = '/test-form-page'
-    const routes = publicRoutes as { path: string; form: boolean }[]
-    routes.push({ path: formPath, form: true })
-    try {
-      const policy = directives(buildContentSecurityPolicy({ path: formPath }))
-      expect(policy.get('script-src')).toBe(`'self' ${TURNSTILE_ORIGIN}`)
-      expect(policy.get('frame-src')).toBe(TURNSTILE_ORIGIN)
-      expect(policy.get('connect-src')).toBe("'self'")
-      expect(isFormRoute(`${formPath}/`)).toBe(true)
-      expect(isFormRoute(`${formPath}?step=2`)).toBe(true)
-    } finally {
-      routes.pop()
-    }
+    const routes = [...publicRoutes, { path: formPath, form: true }]
+    const policy = directives(buildContentSecurityPolicy({ path: formPath, routes }))
+    expect(policy.get('script-src')).toBe(`'self' ${TURNSTILE_ORIGIN}`)
+    expect(policy.get('frame-src')).toBe(TURNSTILE_ORIGIN)
+    expect(policy.get('connect-src')).toBe("'self'")
+    expect(isFormRoute(`${formPath}/`, routes)).toBe(true)
+    expect(isFormRoute(`${formPath}?step=2`, routes)).toBe(true)
+    expect(isFormRoute(formPath)).toBe(false)
   })
 
   it('adds the nonce to scripts and styles only', () => {
@@ -110,5 +111,38 @@ describe('nonces', () => {
 describe('empty attributes', () => {
   it('removes empty class and style attributes but keeps others', () => {
     expect(removeEmptyAttributes(' lang="en-GB" class="" style=""')).toBe(' lang="en-GB"')
+  })
+})
+
+describe('applying the nonce to a rendered page', () => {
+  function page() {
+    return {
+      head: [
+        '<script type="importmap">{}</script><script type="module" src="/_nuxt/a.js"></script>',
+      ],
+      bodyPrepend: ['<script>prepended()</script>'],
+      body: ['<main><p>Hello</p><script>injected()</script></main>'],
+      bodyAppend: ['<script>window.__NUXT__={}</script>'],
+      htmlAttrs: [' lang="en-GB" class=""'],
+      bodyAttrs: [' style=""'],
+    }
+  }
+
+  it('stamps the tags Nuxt writes in head and bodyAppend', () => {
+    const html = page()
+    applyNonce(html, 'n')
+    expect(html.head[0]).toBe(
+      '<script nonce="n" type="importmap">{}</script><script nonce="n" type="module" src="/_nuxt/a.js"></script>',
+    )
+    expect(html.bodyAppend[0]).toBe('<script nonce="n">window.__NUXT__={}</script>')
+    expect(html.htmlAttrs[0]).toBe(' lang="en-GB"')
+    expect(html.bodyAttrs[0]).toBe('')
+  })
+
+  it('never stamps a script that reached the rendered page content', () => {
+    const html = page()
+    applyNonce(html, 'n')
+    expect(html.body[0]).toBe('<main><p>Hello</p><script>injected()</script></main>')
+    expect(html.bodyPrepend[0]).toBe('<script>prepended()</script>')
   })
 })
