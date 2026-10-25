@@ -27,19 +27,19 @@ Read [docs/handbook.md](docs/handbook.md) before any work. Topic rules live in [
 
 See [ADR-0002](docs/adr/0002-project-structure.md). In short:
 
-| Path | What lives there |
-| --- | --- |
-| `app/` | Nuxt 4 app: pages, components, layouts, composables, assets |
-| `server/` | Nitro: API routes, middleware, utilities, scheduled jobs |
-| `shared/` | Types and pure helpers used by both `app/` and `server/` |
-| `i18n/locales/` | All user-facing text, keyed; no hard-coded copy in components |
-| `public/` | Static files served as-is (fonts are bundled from packages and served from our own origin) |
-| `scripts/` | Repository scripts run by CI, such as the copy check |
-| `migrations/<binding>/` | Versioned D1 migrations, one folder per database binding |
-| `tests/unit/` | Vitest with the Cloudflare Workers pool |
-| `tests/e2e/` | Playwright, including the no-third-party and accessibility tests |
-| `docs/` | Handbook, ADRs, sprints, research, runbooks |
-| `.claude/` | Team rules, hooks (tested with `node --test .claude/hooks/test/hooks.test.mjs`) and skills |
+| Path                    | What lives there                                                                           |
+| ----------------------- | ------------------------------------------------------------------------------------------ |
+| `app/`                  | Nuxt 4 app: pages, components, layouts, composables, assets                                |
+| `server/`               | Nitro: API routes, middleware, utilities, scheduled jobs                                   |
+| `shared/`               | Types and pure helpers used by both `app/` and `server/`                                   |
+| `i18n/locales/`         | All user-facing text, keyed; no hard-coded copy in components                              |
+| `public/`               | Static files served as-is (fonts are bundled from packages and served from our own origin) |
+| `scripts/`              | Repository scripts run by CI, such as the copy check                                       |
+| `migrations/<binding>/` | Versioned D1 migrations, one folder per database binding                                   |
+| `tests/unit/`           | Vitest with the Cloudflare Workers pool                                                    |
+| `tests/e2e/`            | Playwright, including the no-third-party and accessibility tests                           |
+| `docs/`                 | Handbook, ADRs, sprints, research, runbooks                                                |
+| `.claude/`              | Team rules, hooks (tested with `bun run test:hooks`) and skills                            |
 
 ## Commands
 

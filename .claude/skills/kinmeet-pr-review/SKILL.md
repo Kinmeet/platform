@@ -19,12 +19,14 @@ You are reviewing as a named persona. Sign every comment with your persona name 
 Work through every section. Note "n/a" rather than skipping silently.
 
 **Scope and structure**
+
 - Does the PR do what the issue asks, and nothing unrelated?
 - Branch is `<squad>/<issue>-<slug>`; description starts `Built by <Name>`, has `Closes #N`, lists reviewers by persona.
 - Commits carry the `Kinmeet-Persona:` trailer.
 - Files sit where ADR-0002 says they belong.
 
 **Firm rules**
+
 - No new third-party request, script, font, image or CDN link. Turnstile only on routes marked as form pages.
 - No personal data or secrets in code, fixtures, comments, logs or PR text. Test data is obviously fake.
 - People in roles shown only by role title and community name.
@@ -32,6 +34,7 @@ Work through every section. Note "n/a" rather than skipping silently.
 - Nothing deploys to live outside a tagged, approved release.
 
 **Correctness and design**
+
 - Logic is right for edge cases: empty input, duplicates, time zones (UK), retries, partial failures.
 - Server validates every input; SQL uses bound parameters.
 - Errors are handled and logged without personal data.
@@ -39,17 +42,20 @@ Work through every section. Note "n/a" rather than skipping silently.
 - Types are strict; no `any` or non-null assertions without a comment saying why.
 
 **Tests**
+
 - New behaviour has tests; a bug fix has a test that failed before.
 - Denied cases are tested for role checks.
 - New routes are covered by the no-third-party and accessibility tests.
 - Personal-data tables have retention tests.
 
 **Docs and copy**
+
 - README, runbooks or `docs/` updated where behaviour or operations changed.
 - User-facing text passes `kinmeet-copy-check`.
 - Personal data changes pass `kinmeet-privacy-check`.
 
 **Hand-offs**
+
 - Touches sign-in, sessions, roles, headers, crypto, uploads or secrets: Security Reviewer requested.
 - Touches personal data, retention, safeguarding or user-facing policy text: Privacy and Safeguarding Reviewer requested.
 - Touches a page, component or form: Accessibility Reviewer requested.

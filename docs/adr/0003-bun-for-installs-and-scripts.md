@@ -23,11 +23,11 @@ Bun can also be a JavaScript runtime. Our build and test tools (the Nuxt build, 
 
 ## Options considered
 
-| Option | For | Against |
-| --- | --- | --- |
-| Bun for installs and scripts, tools on Node (chosen) | The founder's choice; fast installs; one lockfile; tools stay on the runtime they are tested on | Two runtimes in CI; `bun test` is an easy mistake |
-| Bun as the runtime for every tool (`bun --bun`) | One runtime | Nuxt, Vitest pool and Wrangler are not tested against it; harder to debug for a successor |
-| pnpm or npm | Most familiar | Not what the founder decided |
+| Option                                               | For                                                                                             | Against                                                                                   |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Bun for installs and scripts, tools on Node (chosen) | The founder's choice; fast installs; one lockfile; tools stay on the runtime they are tested on | Two runtimes in CI; `bun test` is an easy mistake                                         |
+| Bun as the runtime for every tool (`bun --bun`)      | One runtime                                                                                     | Nuxt, Vitest pool and Wrangler are not tested against it; harder to debug for a successor |
+| pnpm or npm                                          | Most familiar                                                                                   | Not what the founder decided                                                              |
 
 ## Consequences
 

@@ -11,13 +11,13 @@ Collect every user-facing string the change adds or edits: `i18n/locales/` entri
 
 ## 2. Terminology (must fix)
 
-| Use | Never |
-| --- | --- |
-| all-ages | SFW, NSFW, family-friendly as a substitute |
-| local group, group | chapter |
-| meet | moot |
-| role title and community name for people in roles | legal names, faces, addresses |
-| call name or community name (form field labels) | "legal name" as a field label |
+| Use                                               | Never                                      |
+| ------------------------------------------------- | ------------------------------------------ |
+| all-ages                                          | SFW, NSFW, family-friendly as a substitute |
+| local group, group                                | chapter                                    |
+| meet                                              | moot                                       |
+| role title and community name for people in roles | legal names, faces, addresses              |
+| call name or community name (form field labels)   | "legal name" as a field label              |
 
 Never name or compare other communities or organisations.
 

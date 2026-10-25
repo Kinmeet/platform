@@ -67,12 +67,12 @@ Conventions that go with the layout:
 
 ## Options considered
 
-| Option | For | Against |
-| --- | --- | --- |
-| Standard Nuxt 4 layout with `shared/`, `i18n/`, per-binding `migrations/` (chosen) | Matches Nuxt and Wrangler defaults and their documentation; least to learn for a successor | Root has many folders |
-| Monorepo with separate packages for web, API and jobs | Clear boundaries | More tooling and config to maintain; P2 chose one app |
-| Nuxt 3 style layout without `app/` | Familiar to some | Not the Nuxt 4 default; would need extra config |
-| One migrations folder for all databases | Simpler at first | Cannot target separate safeguarding and vault databases cleanly |
+| Option                                                                             | For                                                                                        | Against                                                         |
+| ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | --------------------------------------------------------------- |
+| Standard Nuxt 4 layout with `shared/`, `i18n/`, per-binding `migrations/` (chosen) | Matches Nuxt and Wrangler defaults and their documentation; least to learn for a successor | Root has many folders                                           |
+| Monorepo with separate packages for web, API and jobs                              | Clear boundaries                                                                           | More tooling and config to maintain; P2 chose one app           |
+| Nuxt 3 style layout without `app/`                                                 | Familiar to some                                                                           | Not the Nuxt 4 default; would need extra config                 |
+| One migrations folder for all databases                                            | Simpler at first                                                                           | Cannot target separate safeguarding and vault databases cleanly |
 
 ## Consequences
 

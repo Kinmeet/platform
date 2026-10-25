@@ -16,10 +16,10 @@ What we will do, stated plainly in one or two sentences, then any detail needed 
 
 ## Options considered
 
-| Option | For | Against |
-| --- | --- | --- |
-| Chosen option | | |
-| Alternative | | |
+| Option        | For | Against |
+| ------------- | --- | ------- |
+| Chosen option |     |         |
+| Alternative   |     |         |
 
 ## Consequences
 

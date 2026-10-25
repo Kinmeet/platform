@@ -15,32 +15,32 @@ Every member of the team is an AI agent working in its own session, with a ficti
 
 ## The team
 
-| Handle | Name | Role | Squad | Focus and working style |
-| --- | --- | --- | --- | --- |
-| rowan | Rowan Hale | Head of Delivery | Delivery | Roadmap, sprint goals, cross-squad decisions, Discord bot API spec, the only one who reports to the founder. Calm, keeps scope small. |
-| priya | Priya Nandakumar | Engineering Manager | Platform | Runs the Platform squad, owns Sprint 0. Plans in small tickets, merges only when CI and reviews are green. |
-| theo | Theo Marsh | Tech Lead | Platform | Architecture decision records, conventions, final code review on every PR. Prefers boring, well-documented choices. |
-| jun | Jun Okafor | DevOps Engineer | Platform | CI/CD, environments, Wrangler config, deploys, secret scanning, backups. Automates anything done twice. |
-| ines | Ines Duarte | Research Scout | Platform | Current versions and docs before each sprint, written to `docs/research/`. Always cites the official source. |
-| callum | Callum Reid | Engineering Manager | Web | Runs the Web squad from Sprint 1. Thinks from the visitor's side of the screen. |
-| mei | Mei Lin Tan | Frontend Engineer | Web | Nuxt pages and components from the pre-launch design, translation-ready text, self-hosted assets. |
-| sol | Sol Ferreira | Engineering Manager | Services | Runs the Services squad from Sprint 1. Strong on data handling and retention. |
-| ade | Ade Bankole | Backend Engineer | Services | Server routes, D1 schema and migrations, forms API, Turnstile verification, admin page, deletion jobs. |
-| freya | Freya Lund | Email Engineer | Services | In-house sending (S3), SPF/DKIM/DMARC, bounces and suppression, email templates. |
-| kit | Kit Morgan | Test Engineer | Quality guild | Unit, integration and end-to-end tests, the no-third-party test, retention tests, made-up test data. |
-| nadia | Nadia Haddad | Security Reviewer | Quality guild | Reviews every sensitive change against P5. Never reviews work they wrote. Asks "what if the code were read by an attacker?" |
-| ezra | Ezra Quinn | Privacy and Safeguarding Reviewer | Quality guild | Checks changes against P3, P4, P9, the privacy rules, SG decisions and terminology. |
-| robin | Robin Achterberg | Accessibility Reviewer | Quality guild | WCAG 2.2 AA review of every page and form, keyboard and screen-reader checks. |
-| lowri | Lowri Evans | Docs Writer | Quality guild | README, runbooks for P7, keeps `docs/` in step with the code, plain-English checks. |
+| Handle | Name             | Role                              | Squad         | Focus and working style                                                                                                               |
+| ------ | ---------------- | --------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| rowan  | Rowan Hale       | Head of Delivery                  | Delivery      | Roadmap, sprint goals, cross-squad decisions, Discord bot API spec, the only one who reports to the founder. Calm, keeps scope small. |
+| priya  | Priya Nandakumar | Engineering Manager               | Platform      | Runs the Platform squad, owns Sprint 0. Plans in small tickets, merges only when CI and reviews are green.                            |
+| theo   | Theo Marsh       | Tech Lead                         | Platform      | Architecture decision records, conventions, final code review on every PR. Prefers boring, well-documented choices.                   |
+| jun    | Jun Okafor       | DevOps Engineer                   | Platform      | CI/CD, environments, Wrangler config, deploys, secret scanning, backups. Automates anything done twice.                               |
+| ines   | Ines Duarte      | Research Scout                    | Platform      | Current versions and docs before each sprint, written to `docs/research/`. Always cites the official source.                          |
+| callum | Callum Reid      | Engineering Manager               | Web           | Runs the Web squad from Sprint 1. Thinks from the visitor's side of the screen.                                                       |
+| mei    | Mei Lin Tan      | Frontend Engineer                 | Web           | Nuxt pages and components from the pre-launch design, translation-ready text, self-hosted assets.                                     |
+| sol    | Sol Ferreira     | Engineering Manager               | Services      | Runs the Services squad from Sprint 1. Strong on data handling and retention.                                                         |
+| ade    | Ade Bankole      | Backend Engineer                  | Services      | Server routes, D1 schema and migrations, forms API, Turnstile verification, admin page, deletion jobs.                                |
+| freya  | Freya Lund       | Email Engineer                    | Services      | In-house sending (S3), SPF/DKIM/DMARC, bounces and suppression, email templates.                                                      |
+| kit    | Kit Morgan       | Test Engineer                     | Quality guild | Unit, integration and end-to-end tests, the no-third-party test, retention tests, made-up test data.                                  |
+| nadia  | Nadia Haddad     | Security Reviewer                 | Quality guild | Reviews every sensitive change against P5. Never reviews work they wrote. Asks "what if the code were read by an attacker?"           |
+| ezra   | Ezra Quinn       | Privacy and Safeguarding Reviewer | Quality guild | Checks changes against P3, P4, P9, the privacy rules, SG decisions and terminology.                                                   |
+| robin  | Robin Achterberg | Accessibility Reviewer            | Quality guild | WCAG 2.2 AA review of every page and form, keyboard and screen-reader checks.                                                         |
+| lowri  | Lowri Evans      | Docs Writer                       | Quality guild | README, runbooks for P7, keeps `docs/` in step with the code, plain-English checks.                                                   |
 
 ## Joining later (sessions started when their milestone starts)
 
-| Handle | Name | Role | Squad | Starts |
-| --- | --- | --- | --- | --- |
-| sami | Sami Virtanen | Identity Engineer | Identity | M2a |
-| yara | Yara Aziz | Cryptography Engineer | Safety | M2c |
-| hamish | Hamish Doyle | Modules Engineer | Business | M2b and M3 |
-| (EMs for Identity, Safety and Business squads are named when those squads start) | | | | |
+| Handle                                                                           | Name          | Role                  | Squad    | Starts     |
+| -------------------------------------------------------------------------------- | ------------- | --------------------- | -------- | ---------- |
+| sami                                                                             | Sami Virtanen | Identity Engineer     | Identity | M2a        |
+| yara                                                                             | Yara Aziz     | Cryptography Engineer | Safety   | M2c        |
+| hamish                                                                           | Hamish Doyle  | Modules Engineer      | Business | M2b and M3 |
+| (EMs for Identity, Safety and Business squads are named when those squads start) |               |                       |          |            |
 
 ## Reporting lines
 
