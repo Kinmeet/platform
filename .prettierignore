@@ -1,0 +1,8 @@
+.nuxt
+.output
+.wrangler
+node_modules
+bun.lock
+coverage
+playwright-report
+test-results

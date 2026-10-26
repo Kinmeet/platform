@@ -1,0 +1,162 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  // Top level: local development only (`wrangler dev`), never deployed.
+  // Deployed Workers are env.staging and env.live, built by Workers Builds
+  // (ADR-0001). Kinmeet account only. Resource ids are not secrets.
+  // Every D1, KV and R2 resource was created with jurisdiction eu (P3).
+  "name": "kinmeet-local",
+  "account_id": "0fa695ccf43f64b3eb9fae94520109b4",
+  "main": "./.output/server/index.mjs",
+  "compatibility_date": "2026-10-20",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "preview_urls": false,
+  "assets": {
+    "directory": "./.output/public",
+    "binding": "ASSETS",
+  },
+  // P5: Workers Logs for errors only. No invocation (request) logs, no traces,
+  // no Logpush and no Tail Workers, so request details are never stored.
+  "observability": {
+    "enabled": true,
+    "logs": { "enabled": true, "invocation_logs": false },
+    "traces": { "enabled": false },
+  },
+  "logpush": false,
+  // Local bindings are simulated on this machine; the ids only label them.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "kinmeet-local",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations/db",
+    },
+  ],
+  "kv_namespaces": [
+    { "binding": "KV", "id": "00000000000000000000000000000000" },
+    { "binding": "RECEIPTS", "id": "00000000000000000000000000000001" },
+  ],
+  "r2_buckets": [{ "binding": "R2", "bucket_name": "kinmeet-local" }],
+  // Rate limiters count per Cloudflare location. Ids are unique per
+  // environment so counters are never shared.
+  "ratelimits": [
+    { "name": "FORM_RATE_LIMITER", "namespace_id": "1001", "simple": { "limit": 5, "period": 60 } },
+    {
+      "name": "FORM_GLOBAL_RATE_LIMITER",
+      "namespace_id": "1002",
+      "simple": { "limit": 100, "period": 60 },
+    },
+  ],
+
+  "env": {
+    // Built from `main`. Every other branch gets a Preview under this Worker.
+    "staging": {
+      "name": "kinmeet-staging",
+      // Same as the top level, repeated so it never depends on inheritance.
+      "observability": {
+        "enabled": true,
+        "logs": { "enabled": true, "invocation_logs": false },
+        "traces": { "enabled": false },
+      },
+      "logpush": false,
+      "workers_dev": true,
+      // Needed for Worker Previews to be served on workers.dev.
+      "preview_urls": true,
+      "vars": { "KINMEET_ENV": "staging" },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "kinmeet-staging",
+          "database_id": "18c80f5f-3c72-4781-8d38-98ef6cc4a096",
+          "migrations_dir": "migrations/db",
+        },
+      ],
+      "kv_namespaces": [
+        { "binding": "KV", "id": "5a9d7b8c548a4c3a8d596eec650a474b" },
+        { "binding": "RECEIPTS", "id": "ebb759901980452ab6415f7aeb1dff99" },
+      ],
+      "r2_buckets": [{ "binding": "R2", "bucket_name": "kinmeet-staging", "jurisdiction": "eu" }],
+      "ratelimits": [
+        {
+          "name": "FORM_RATE_LIMITER",
+          "namespace_id": "1101",
+          "simple": { "limit": 5, "period": 60 },
+        },
+        {
+          "name": "FORM_GLOBAL_RATE_LIMITER",
+          "namespace_id": "1102",
+          "simple": { "limit": 100, "period": 60 },
+        },
+      ],
+      // Pull request Previews. Separate made-up data, never staging or live.
+      "previews": {
+        "vars": { "KINMEET_ENV": "preview" },
+        "d1_databases": [
+          {
+            "binding": "DB",
+            "database_name": "kinmeet-preview",
+            "database_id": "74454f75-8b40-44d7-ac02-e6145d9e8ff6",
+            "migrations_dir": "migrations/db",
+          },
+        ],
+        "kv_namespaces": [
+          { "binding": "KV", "id": "87dfe82d807e49cf945334fbd17d7b26" },
+          { "binding": "RECEIPTS", "id": "3119a6ddccfe45c6910468d4685cd186" },
+        ],
+        "r2_buckets": [{ "binding": "R2", "bucket_name": "kinmeet-preview", "jurisdiction": "eu" }],
+        "ratelimits": [
+          {
+            "name": "FORM_RATE_LIMITER",
+            "namespace_id": "1201",
+            "simple": { "limit": 5, "period": 60 },
+          },
+          {
+            "name": "FORM_GLOBAL_RATE_LIMITER",
+            "namespace_id": "1202",
+            "simple": { "limit": 100, "period": 60 },
+          },
+        ],
+      },
+    },
+
+    // Built only from the protected `live` branch. No Previews.
+    "live": {
+      "name": "kinmeet-live",
+      // Same as the top level, repeated so it never depends on inheritance.
+      "observability": {
+        "enabled": true,
+        "logs": { "enabled": true, "invocation_logs": false },
+        "traces": { "enabled": false },
+      },
+      "logpush": false,
+      "workers_dev": true,
+      "preview_urls": false,
+      "vars": { "KINMEET_ENV": "live" },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "kinmeet-live",
+          "database_id": "3b253758-831e-4db9-bb90-fb4598f215db",
+          "migrations_dir": "migrations/db",
+        },
+      ],
+      "kv_namespaces": [
+        { "binding": "KV", "id": "90bba5907a604bc49aead31e93c939fc" },
+        { "binding": "RECEIPTS", "id": "94c4f3e1ef6c402092221decd4e4373c" },
+      ],
+      "r2_buckets": [{ "binding": "R2", "bucket_name": "kinmeet-live", "jurisdiction": "eu" }],
+      "ratelimits": [
+        {
+          "name": "FORM_RATE_LIMITER",
+          "namespace_id": "1301",
+          "simple": { "limit": 5, "period": 60 },
+        },
+        {
+          "name": "FORM_GLOBAL_RATE_LIMITER",
+          "namespace_id": "1302",
+          "simple": { "limit": 100, "period": 60 },
+        },
+      ],
+    },
+  },
+}

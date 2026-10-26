@@ -1,0 +1,47 @@
+{
+  "name": "kinmeet-platform",
+  "private": true,
+  "type": "module",
+  "license": "UNLICENSED",
+  "engines": {
+    "bun": ">=1.4.4"
+  },
+  "scripts": {
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "preview": "bun run build && wrangler dev",
+    "postinstall": "nuxt prepare",
+    "typecheck": "nuxt typecheck",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:hooks": "node --test .claude/hooks/test/hooks.test.mjs",
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv",
+    "check:copy": "bun scripts/check-copy.ts"
+  },
+  "dependencies": {
+    "@fontsource-variable/fredoka": "5.3.0",
+    "@fontsource/atkinson-hyperlegible-next": "5.3.0",
+    "@nuxtjs/i18n": "10.6.0",
+    "nuxt": "4.6.2",
+    "vue": "3.5.44",
+    "vue-router": "5.4.0"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "1.4.7",
+    "@cloudflare/workers-types": "5.20261025.1",
+    "@nuxt/eslint": "1.17.0",
+    "@types/node": "24.19.2",
+    "eslint": "10.13.0",
+    "eslint-config-prettier": "10.1.8",
+    "prettier": "3.9.10",
+    "typescript": "6.0.3",
+    "vitest": "5.0.5",
+    "vue-tsc": "3.3.13",
+    "wrangler": "4.152.0"
+  },
+  "packageManager": "bun@1.4.4"
+}
