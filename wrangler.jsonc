@@ -6,7 +6,7 @@
   // Every D1, KV and R2 resource was created with jurisdiction eu (P3).
   "name": "kinmeet-local",
   "account_id": "0fa695ccf43f64b3eb9fae94520109b4",
-  "main": "./.output/server/index.mjs",
+  "main": "./worker/index.mjs",
   "compatibility_date": "2026-10-20",
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": false,

@@ -90,6 +90,17 @@ describe('content security policy', () => {
     expect(policy.get('style-src')).toBe("'self' 'nonce-n0nce'")
     expect(policy.get('img-src')).toBe("'self' data:")
   })
+
+  it('relaxes only styles and dev-server connections for local nuxt dev', () => {
+    const prod = directives(buildContentSecurityPolicy({ path: '/', nonce: 'n0nce' }))
+    const dev = directives(buildContentSecurityPolicy({ path: '/', nonce: 'n0nce', dev: true }))
+    expect(dev.get('style-src')).toBe("'self' 'unsafe-inline'")
+    expect(dev.get('connect-src')).toBe("'self' ws:")
+    expect(dev.get('script-src')).toBe("'self' 'nonce-n0nce'")
+    for (const [name, value] of prod) {
+      if (name !== 'style-src' && name !== 'connect-src') expect(dev.get(name)).toBe(value)
+    }
+  })
 })
 
 describe('nonces', () => {
