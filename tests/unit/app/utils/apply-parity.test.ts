@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { z } from 'zod'
 import { createDraft, readSendResponse, stepErrors } from '../../../../app/utils/apply-flow'
 import { RATE_LIMIT_PERIOD_SECONDS } from '../../../../server/utils/forms/rate-limit'
 import { toFieldErrors } from '../../../../shared/forms/errors'
@@ -49,5 +50,12 @@ describe('the rate limit fallback', () => {
       kind: 'rate_limited',
       retryAfter: RATE_LIMIT_PERIOD_SECONDS,
     })
+  })
+})
+
+describe('the shared schemas', () => {
+  // Zod's eval test is a script-src violation in the browser (P5).
+  it('never compile with eval', () => {
+    expect(z.config().jitless).toBe(true)
   })
 })
