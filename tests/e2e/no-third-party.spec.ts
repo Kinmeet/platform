@@ -48,3 +48,13 @@ test('the policy allows Turnstile only on form pages', async ({ request }) => {
     }
   }
 })
+
+// The dev-only policy (#70) relaxes styles and allows ws: for Vite. It must
+// never reach a built Worker.
+test('the built Worker never sends the dev policy', async ({ request }) => {
+  for (const route of publicRoutes) {
+    const policy = (await request.get(route.path)).headers()['content-security-policy'] ?? ''
+    expect(policy, route.path).not.toContain("'unsafe-inline'")
+    expect(policy, route.path).not.toContain('ws:')
+  }
+})

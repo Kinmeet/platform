@@ -1,4 +1,13 @@
-import { CALL_NAME_MAX, EMAIL_MAX, codePointLength, isPlausibleEmail } from '#shared/forms/fields'
+import { z } from 'zod'
+import { toFieldErrors } from '#shared/forms/errors'
+import {
+  CALL_NAME_MAX,
+  EMAIL_MAX,
+  callName,
+  codePointLength,
+  email,
+  text,
+} from '#shared/forms/fields'
 import { roleKey, type PublishedRole, type StopReason } from '#shared/forms/roles'
 
 /**
@@ -59,6 +68,25 @@ export function stopReason(draft: ApplicationDraft, role: PublishedRole): StopRe
   return undefined
 }
 
+// Step 2's fields, checked with the same schemas as the API (#44).
+const aboutYou = z.object({ callName, email })
+
+/** An optional answer: empty is fine, otherwise the same rule as a required one. */
+function optionalText(max: number) {
+  return z
+    .string()
+    .trim()
+    .refine((value) => codePointLength(value) <= max, { params: { code: 'too_long' } })
+}
+
+/** The schema's problems as field errors, in field order. */
+function schemaErrors(schema: z.ZodType, value: unknown): FieldError[] {
+  const result = schema.safeParse(value)
+  if (result.success) return []
+  const mapped = toFieldErrors(result.error.issues, value)
+  return mapped.ok ? mapped.errors : []
+}
+
 /** Problems with one step's answers, in the order the fields appear. */
 export function stepErrors(draft: ApplicationDraft, role: PublishedRole, step: Step): FieldError[] {
   const errors: FieldError[] = []
@@ -72,26 +100,26 @@ export function stepErrors(draft: ApplicationDraft, role: PublishedRole, step: S
       }
     }
   }
-  if (step === 2) {
-    const callName = draft.callName.trim()
-    if (!callName) errors.push({ field: 'callName', code: 'required' })
-    else if (codePointLength(callName) > CALL_NAME_MAX) {
-      errors.push({ field: 'callName', code: 'too_long' })
-    }
-    const email = draft.email.trim()
-    if (!email) errors.push({ field: 'email', code: 'required' })
-    else if (codePointLength(email) > EMAIL_MAX) errors.push({ field: 'email', code: 'too_long' })
-    else if (!isPlausibleEmail(email)) errors.push({ field: 'email', code: 'invalid_email' })
-  }
+  if (step === 2) errors.push(...schemaErrors(aboutYou, draft))
   if (step === 3) {
-    for (const question of role.apply.questions) {
-      const answer = (draft.answers[question.id] ?? '').trim()
-      const field = `answers.${question.id}`
-      if (!answer && question.required) errors.push({ field, code: 'required' })
-      else if (codePointLength(answer) > question.maxLength) {
-        errors.push({ field, code: 'too_long' })
-      }
-    }
+    // The server's own rules (#44), so the page and the API never disagree.
+    const answers = z.object(
+      Object.fromEntries(
+        role.apply.questions.map((question) => [
+          question.id,
+          question.required ? text(question.maxLength) : optionalText(question.maxLength),
+        ]),
+      ),
+    )
+    const values = Object.fromEntries(
+      role.apply.questions.map((question) => [question.id, draft.answers[question.id] ?? '']),
+    )
+    errors.push(
+      ...schemaErrors(answers, values).map((error) => ({
+        ...error,
+        field: `answers.${error.field}`,
+      })),
+    )
   }
   return errors
 }

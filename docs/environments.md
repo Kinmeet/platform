@@ -9,7 +9,7 @@ Resource ids are not secrets. They live in [`wrangler.jsonc`](../wrangler.jsonc)
 | Local                 | top level              | `kinmeet-local`, never deployed | your machine                        | simulated         | simulated         | simulated         | made-up |
 | Pull request Previews | `env.staging.previews` | Previews of `kinmeet-staging`   | any branch except `main` and `live` | `kinmeet-preview` | `kinmeet-preview` | `kinmeet-preview` | made-up |
 | Staging               | `env.staging`          | `kinmeet-staging`               | `main`                              | `kinmeet-staging` | `kinmeet-staging` | `kinmeet-staging` | made-up |
-| Live                  | `env.live`             | `kinmeet-live`                  | `live` (Matt only)                  | `kinmeet-live`    | `kinmeet-live`    | `kinmeet-live`    | real    |
+| Live                  | `env.live`             | `kinmeet-live`                  | `live` (the founder only)           | `kinmeet-live`    | `kinmeet-live`    | `kinmeet-live`    | real    |
 
 `KINMEET_ENV` is set to `staging`, `preview` or `live` so the app can tell where it is running.
 
@@ -27,7 +27,7 @@ Resource ids are not secrets. They live in [`wrangler.jsonc`](../wrangler.jsonc)
 | KV `kinmeet-preview-receipts` (`RECEIPTS`) | `3119a6ddccfe45c6910468d4685cd186`     |
 | KV `kinmeet-live-receipts` (`RECEIPTS`)    | `94c4f3e1ef6c402092221decd4e4373c`     |
 
-R2 buckets are named, not numbered: `kinmeet-staging`, `kinmeet-preview` and `kinmeet-live`. Matt creates them in the dashboard with jurisdiction EU (step 1 of the one-time setup in [deploys.md](deploys.md)), because the team's API connection cannot set an R2 jurisdiction. Deploys fail until they exist.
+R2 buckets are named, not numbered: `kinmeet-staging`, `kinmeet-preview` and `kinmeet-live`. The founder creates them in the dashboard with jurisdiction EU (step 1 of the one-time setup in [deploys.md](deploys.md)), because the team's API connection cannot set an R2 jurisdiction. Deploys fail until they exist.
 
 ## Other bindings
 
@@ -37,7 +37,7 @@ R2 buckets are named, not numbered: `kinmeet-staging`, `kinmeet-preview` and `ki
 
 ## Secrets
 
-Secrets are never in the repository. Each environment needs its own values, set by Matt (or another account admin) with Wrangler, never pasted into an issue, pull request or chat:
+Secrets are never in the repository. Each environment needs its own values, set by the founder (or another account admin) with Wrangler, never pasted into an issue, pull request or chat:
 
 | Secret                 | Used for                                                                         | How to make it                                 |
 | ---------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------- |
@@ -51,7 +51,11 @@ openssl rand -base64 32 | bunx wrangler preview base-config secret put RATE_LIMI
 openssl rand -base64 32 | bunx wrangler secret put RATE_LIMIT_HMAC_KEY --env live
 ```
 
-Generate a fresh value for every environment and every secret; never reuse one. `TURNSTILE_SECRET_KEY` must be the real secret of that environment's own widget, never Cloudflare's always-pass test secret; only local runs and CI use the test keys. The public site keys are `NUXT_PUBLIC_TURNSTILE_SITE_KEY` in each environment's `vars`, and each widget's hostname list holds only its own environment's host. Previews get their secrets from the Preview base config (`wrangler preview base-config secret`), which every new Preview starts with, separately from staging. They are not marked required in `wrangler.jsonc` yet, so the first deploys can happen before the forms exist; Services adds `secrets.required` when the code that reads them lands.
+Generate a fresh value for every environment and every secret; never reuse one. `TURNSTILE_SECRET_KEY` must be the real secret of that environment's own widget, never Cloudflare's always-pass test secret; only local runs and CI use the test keys. The public site keys are `NUXT_PUBLIC_TURNSTILE_SITE_KEY` in each environment's `vars`, and each widget's hostname list holds only its own environment's host. Previews get their secrets from the Preview base config (`wrangler preview base-config secret`), which every new Preview starts with, separately from staging. `TURNSTILE_SECRET_KEY` and `RATE_LIMIT_HMAC_KEY` are listed in `secrets.required` for local and live, because the form routes read them: a deploy fails until both are set for that environment. Staging leaves them out for now, because its first deploy comes before the secrets can be set. Until they are, its form routes answer `503 unavailable` and store nothing. A follow-up PR adds them back once the secrets exist.
+
+### Local development
+
+`wrangler dev` reads local values from `.dev.vars`, which is ignored and never committed. Use Cloudflare's dummy Turnstile keys (the always-passes test secret `1x0000000000000000000000000000000AA`) and `KINMEET_ENV=local`. With `KINMEET_ENV=local`, and only then, the form routes also accept what the dummy keys report from siteverify: the hostnames `localhost` or `example.com`, and the action `test`. Staging, Previews and live set `KINMEET_ENV` in `wrangler.jsonc`, so they always check the real hostname and the form's own action. A test checks that they refuse the dummy values.
 
 ## Logging (P5)
 
