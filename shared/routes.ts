@@ -13,6 +13,14 @@ export interface PublicRoute {
 
 export const publicRoutes: readonly PublicRoute[] = [{ path: '/', form: false }]
 
+/**
+ * Pages behind Cloudflare Access (the founder's admin page). They are never
+ * public: without a valid Access token they must refuse, and the end-to-end
+ * tests check that they do, with the same security headers as every page.
+ * A page here must not also be in `publicRoutes`.
+ */
+export const adminRoutes: readonly string[] = []
+
 export function isFormRoute(path: string, routes: readonly PublicRoute[] = publicRoutes): boolean {
   const clean = path.split('?')[0]?.replace(/\/+$/, '') || '/'
   return routes.some((route) => route.form && route.path === clean)
