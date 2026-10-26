@@ -1,11 +1,15 @@
 <script setup lang="ts">
+import { findRole } from '#shared/forms/roles'
+
 // The apply flow's layout: the wordmark and a way out, nothing else to
-// distract from the form (W2, W6). Leave goes back to the role's page.
+// distract from the form (W2, W6). Leave goes back to the role's page if
+// that role is published, otherwise to the home page.
 const { t } = useI18n()
 const route = useRoute()
 const leaveTo = computed(() => {
-  const role = route.params.role
-  return typeof role === 'string' ? `/roles/${role}` : '/'
+  const slug = route.params.role
+  const role = typeof slug === 'string' ? findRole(slug) : undefined
+  return role?.published ? `/roles/${role.slug}` : '/'
 })
 </script>
 
