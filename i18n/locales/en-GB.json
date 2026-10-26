@@ -279,6 +279,21 @@
     "redirect": {
       "restarted": "We've started again at step 1, because answers aren't kept if the page reloads.",
       "earlier_step": "There's a step to finish first, so we've taken you to it."
+    },
+    "stop": {
+      "under_18": {
+        "title": "These roles need an adult",
+        "body": "Thanks for wanting to help. Every one of these roles involves checks, money or responsibility, so they're for people aged 18 or over.",
+        "next": "When meets start, all-ages is the whole point, and you'd be very welcome. If you're under 16, come along with a parent or carer."
+      },
+      "not_independent": {
+        "title": "Trustees need to be independent",
+        "body": "Thanks for wanting to help. Trustees hold each other to account, so a trustee can't be related to, in a relationship with, or living with anyone else on the founding team.",
+        "next": "The other roles don't have this rule, so have a look at those."
+      },
+      "see_roles": "See all the roles",
+      "say_hello": "Say hello",
+      "page_title": "{title}, {action}"
     }
   },
   "forms": {

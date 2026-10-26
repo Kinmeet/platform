@@ -185,6 +185,41 @@
   white-space: pre-line;
 }
 
+/* Step 1 extras (#16): the note after a choice, and the confirm link. */
+.apply-question__note:empty {
+  padding: 0;
+  border: 0;
+}
+
+.apply-question__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-weight: var(--weight-bold);
+}
+
+/* Stop pages (#16): the same pattern for each reason. */
+.apply-stop {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-5);
+}
+
+.apply-stop h1 {
+  font-size: var(--text-title);
+}
+
+.apply-stop h1:focus {
+  outline: none;
+}
+
+.apply-stop__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
 @media (min-width: 56rem) {
   .apply__layout {
     display: grid;

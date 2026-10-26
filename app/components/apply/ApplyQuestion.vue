@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import type { CheckQuestion, RoleQuestion } from '#shared/forms/roles'
 
-// One step 1 check or step 3 question, drawn from the role config (#15).
-// Every word comes from `roles.<slug>.questions.<id>`. Role-specific extras
-// (the notes after a choice, the GOV.UK link, stop pages) are #16.
+// One step 1 check or step 3 question, drawn from the role config (#15,
+// #16). Every word comes from `roles.<slug>.questions.<id>`: a choice whose
+// outcome is a note shows `notes.<choice>` under the choices, and a confirm
+// question with a `link` shows `link` as its link text.
 const props = defineProps<{
   roleKey: string
   question: CheckQuestion | RoleQuestion
@@ -24,6 +25,13 @@ const describedBy = computed(
       .filter(Boolean)
       .join(' ') || undefined,
 )
+
+// The note for the chosen answer, if its outcome is `{ note: true }`.
+const note = computed(() => {
+  if (props.question.type !== 'single_choice' || !model.value) return ''
+  const outcome = props.question.outcomes?.[model.value]
+  return outcome && 'note' in outcome ? t(`${key.value}.notes.${model.value}`) : ''
+})
 
 const ticked = computed({
   get: () => model.value === 'yes',
@@ -57,10 +65,23 @@ const ticked = computed({
         />
         {{ t(`${key}.choices.${choice}`) }}
       </label>
+      <!-- Always on the page, so the note is announced when it appears. -->
+      <p v-if="question.outcomes" class="note apply-question__note" aria-live="polite">
+        {{ note }}
+      </p>
     </template>
     <label v-else class="choice choice--statement">
       <input :id="id" v-model="ticked" type="checkbox" :aria-invalid="error ? 'true' : undefined" />
       <span>{{ t(`${key}.label`) }}</span>
     </label>
+    <a
+      v-if="question.type === 'confirm' && question.link"
+      :href="question.link"
+      class="apply-question__link"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      {{ t(`${key}.link`) }}
+    </a>
   </fieldset>
 </template>
