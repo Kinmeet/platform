@@ -67,9 +67,13 @@ function codeFor(issue: z.core.$ZodIssue, input: unknown): FieldErrorCode | null
   }
 }
 
+/** At most this many field errors are returned, so a body full of made-up keys can't fill the response. */
+export const MAX_FIELD_ERRORS = 10
+
 /**
  * Turns Zod issues for `input` into `{ field, code }` pairs, one per field (the first
- * issue wins), with an `unknown_field` for each unexpected key.
+ * issue wins), with an `unknown_field` for each unexpected key, up to
+ * `MAX_FIELD_ERRORS`.
  *
  * Returns `{ ok: false }` when an issue is not something a person filling in
  * our form could cause (a wrong type, a malformed id), so the route answers
@@ -82,7 +86,7 @@ export function toFieldErrors(
   const errors: FieldError[] = []
   const seen = new Set<string>()
   const add = (field: string, code: FieldErrorCode) => {
-    if (seen.has(field)) return
+    if (seen.has(field) || errors.length >= MAX_FIELD_ERRORS) return
     seen.add(field)
     errors.push({ field, code })
   }
