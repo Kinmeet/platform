@@ -32,6 +32,7 @@ See [ADR-0002](docs/adr/0002-project-structure.md). In short:
 | `app/`                  | Nuxt 4 app: pages, components, layouts, composables, assets                                |
 | `server/`               | Nitro: API routes, middleware, utilities, scheduled jobs                                   |
 | `shared/`               | Types and pure helpers used by both `app/` and `server/`                                   |
+| `worker/`               | The deployed Worker's entry: refuses oversized bodies, then hands over to Nitro (ADR-0008) |
 | `i18n/locales/`         | All user-facing text, keyed; no hard-coded copy in components                              |
 | `public/`               | Static files served as-is (fonts are bundled from packages and served from our own origin) |
 | `scripts/`              | Repository scripts run by CI, such as the copy check                                       |
