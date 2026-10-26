@@ -47,6 +47,8 @@ Docs links are read with the Claude Docs tools (or the Artifact tool's read acti
 7. Decisions in the F, SG, S and P documents are followed. A conflict found while building goes to the Head of Delivery as a question, not a silent change.
 8. Never skip, disable or weaken a test to get green.
 
+**Update, 26 October 2026 (the founder's decision on #36):** until the M2c sunset, the interim safeguarding databases (`kinmeet-*-safeguarding`, binding `SAFEGUARDING_DB`) hold disclosures in plain text, as a recorded exception to rule 5. Agents never query, export or migrate them. See [the safeguarding data rule](../.claude/rules/safeguarding-data.md).
+
 ## 4. Team structure
 
 **Update, 25 October 2026 (the founder):** every team member is a named persona with their own working session. See [personas.md](personas.md) for names, handles, roles, reporting lines and attribution rules. Builders and reviewers are now personas that sit idle until assigned, rather than one-off subagents (personas may still use subagents for parallel chunks). Where this section says "hire", read "assign to the persona".

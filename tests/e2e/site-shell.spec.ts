@@ -36,6 +36,12 @@ for (const route of publicRoutes) {
       for (const href of new Set(hrefs)) {
         const response = await request.get(href)
         expect(response.status(), href).toBe(200)
+        // A link to a section must land on it (Robin, #68).
+        const url = new URL(href)
+        if (url.hash) {
+          await page.goto(url.pathname)
+          await expect(page.locator(url.hash), href).toHaveCount(1)
+        }
       }
     })
   })
