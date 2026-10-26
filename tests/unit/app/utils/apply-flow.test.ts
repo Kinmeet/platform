@@ -3,9 +3,10 @@ import {
   allowedStep,
   clearDraft,
   createDraft,
-  errorMessageKey,
+  errorMessage,
   furthestStep,
   readSendResponse,
+  redirectReason,
   stepErrors,
   stepForField,
   stopReason,
@@ -87,6 +88,27 @@ describe('apply flow: steps and guards', () => {
       expect(stopReason(draft, trustee)).toBeUndefined()
       expect(furthestStep(draft, trustee)).toBe(4)
     }
+  })
+})
+
+describe('apply flow: why the guard moved the visitor', () => {
+  it('says nothing when the step asked for is shown', () => {
+    expect(redirectReason(undefined, draftUpTo(0), trustee)).toBeUndefined()
+    expect(redirectReason('3', draftUpTo(2), trustee)).toBeUndefined()
+  })
+
+  it('says the flow restarted when nothing is answered, as after a reload', () => {
+    expect(redirectReason('3', draftUpTo(0), trustee)).toBe('restarted')
+  })
+
+  it('says a step needs finishing when some answers are there', () => {
+    expect(redirectReason('4', draftUpTo(1), trustee)).toBe('earlier_step')
+  })
+
+  it('leaves a stopped flow to its stop message', () => {
+    const draft = draftUpTo(1)
+    draft.checks.over_18 = 'no'
+    expect(redirectReason('2', draft, trustee)).toBeUndefined()
   })
 })
 
@@ -193,7 +215,7 @@ describe('apply flow: reading the reply', () => {
     expect(readSendResponse(200, { ok: true, receipt: 'queued' })).toEqual({ kind: 'sent' })
   })
 
-  it('sends 422 field errors back to the earliest step with a problem', () => {
+  it("sends 422 field errors back to the earliest step with a problem, keeping only that step's errors", () => {
     const outcome = readSendResponse(422, {
       ok: false,
       errors: [
@@ -201,13 +223,11 @@ describe('apply flow: reading the reply', () => {
         { field: 'email', code: 'invalid_email' },
       ],
     })
+    // Only step 2's error: the summary on step 2 can't link to a step 3 field.
     expect(outcome).toEqual({
       kind: 'invalid',
       step: 2,
-      errors: [
-        { field: 'answers.why_trustee', code: 'too_long' },
-        { field: 'email', code: 'invalid_email' },
-      ],
+      errors: [{ field: 'email', code: 'invalid_email' }],
     })
   })
 
@@ -264,33 +284,56 @@ describe('apply flow: reading the reply', () => {
 })
 
 describe('apply flow: error wording', () => {
-  const fields = [
-    ...trustee.apply.checks.map((check) => `checks.${check.id}`),
-    'callName',
-    'email',
-    ...trustee.apply.questions.map((question) => `answers.${question.id}`),
+  const fields: [string, string[]][] = [
+    ...trustee.apply.checks.map((check): [string, string[]] => [
+      `checks.${check.id}`,
+      ['required', 'invalid_choice'],
+    ]),
+    ['callName', ['required', 'too_long']],
+    ['email', ['required', 'too_long', 'invalid_email']],
+    ...trustee.apply.questions.map((question): [string, string[]] => [
+      `answers.${question.id}`,
+      ['required', 'too_long'],
+    ]),
   ]
 
-  it('has a message for every error the page or the server can give', () => {
-    for (const field of fields) {
-      for (const code of ['required', 'too_long', 'invalid_email', 'invalid_choice']) {
-        const draftCodes = field === 'email' ? ['required', 'too_long', 'invalid_email'] : []
-        if (field === 'email' && !draftCodes.includes(code)) continue
-        if (field === 'callName' && !['required', 'too_long'].includes(code)) continue
-        if (field.startsWith('answers.') && !['required', 'too_long'].includes(code)) continue
-        if (field.startsWith('checks.') && !['required', 'invalid_choice'].includes(code)) continue
-        const key = errorMessageKey({ field, code }, trustee)
+  it('has a message and a question label for every error the page or the server can give', () => {
+    expect(typeof lookup('apply.errors.summary_item')).toBe('string')
+    for (const [field, codes] of fields) {
+      for (const code of codes) {
+        const { key, questionKey } = errorMessage({ field, code }, trustee)
         expect(typeof lookup(key), `${field} ${code} → ${key}`).toBe('string')
+        expect(typeof lookup(questionKey), `${field} → ${questionKey}`).toBe('string')
       }
     }
   })
 
+  it('names the question, so summary items are never identical', () => {
+    const labels = trustee.apply.checks.map(
+      (check) =>
+        errorMessage({ field: `checks.${check.id}`, code: 'required' }, trustee).questionKey,
+    )
+    expect(new Set(labels).size).toBe(labels.length)
+  })
+
   it('uses the tick-box message for confirm questions', () => {
     expect(
-      errorMessageKey({ field: 'checks.trustee_rules_confirmed', code: 'required' }, trustee),
+      errorMessage({ field: 'checks.trustee_rules_confirmed', code: 'required' }, trustee).key,
     ).toBe('apply.errors.confirm_required')
-    expect(errorMessageKey({ field: 'checks.over_18', code: 'required' }, trustee)).toBe(
+    expect(errorMessage({ field: 'checks.over_18', code: 'required' }, trustee).key).toBe(
       'apply.errors.choice_required',
     )
+  })
+
+  it('gives the limit for answers and names that are too long', () => {
+    const experience = trustee.apply.questions.find((question) => question.id === 'experience')
+    expect(errorMessage({ field: 'answers.experience', code: 'too_long' }, trustee)).toEqual({
+      key: 'apply.errors.answer_too_long',
+      params: { max: experience?.maxLength },
+      questionKey: 'roles.trustee.questions.experience.summary',
+    })
+    expect(errorMessage({ field: 'callName', code: 'too_long' }, trustee).params).toEqual({
+      max: 60,
+    })
   })
 })

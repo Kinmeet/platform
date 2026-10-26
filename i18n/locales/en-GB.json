@@ -195,6 +195,7 @@
   "apply": {
     "errors": {
       "summary": "There is 1 thing to fix | There are {count} things to fix",
+      "summary_item": "{question}: {message}",
       "choice_required": "Choose an answer to carry on.",
       "confirm_required": "Tick the box to confirm, or go back if one of the rules applies to you.",
       "answer_required": "Answer this question to carry on. A few sentences is plenty.",
@@ -208,6 +209,14 @@
         "too_long": "That email address is too long. Check it's typed correctly.",
         "invalid_email": "That email address looks incomplete. Check it has a full domain, like name@example.com."
       }
+    },
+    "fields": {
+      "callName": "What to call you",
+      "email": "Email address"
+    },
+    "redirect": {
+      "restarted": "We've started again at step 1, because answers aren't kept if the page reloads.",
+      "earlier_step": "There's a step to finish first, so we've taken you to it."
     }
   }
 }

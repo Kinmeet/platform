@@ -1,5 +1,5 @@
 import { CALL_NAME_MAX, EMAIL_MAX, codePointLength, isPlausibleEmail } from '#shared/forms/fields'
-import type { PublishedRole, StopReason } from '#shared/forms/roles'
+import { roleKey, type PublishedRole, type StopReason } from '#shared/forms/roles'
 
 /**
  * The logic half of the apply flow (#21): what has been answered, which step
@@ -124,6 +124,27 @@ export function allowedStep(
   return Math.min(step, furthestStep(draft, role)) as Step
 }
 
+/**
+ * Why the guard showed a different step from the one asked for, so the page
+ * can say so (Robin, #78). `restarted` means nothing is answered yet, which
+ * is what a reload looks like; `earlier_step` means a step before it isn't
+ * done. A stopped flow needs no reason: the stop message says it.
+ */
+export type RedirectReason = 'restarted' | 'earlier_step'
+
+export function redirectReason(
+  requested: unknown,
+  draft: ApplicationDraft,
+  role: PublishedRole,
+): RedirectReason | undefined {
+  const allowed = allowedStep(requested, draft, role)
+  if (requested === undefined || String(requested) === String(allowed)) return undefined
+  if (stopReason(draft, role)) return undefined
+  return furthestStep(draft, role) === 1 && Object.keys(draft.checks).length === 0
+    ? 'restarted'
+    : 'earlier_step'
+}
+
 /** The step that holds a field, so a server error can send the visitor back to it. */
 export function stepForField(field: string): Step {
   if (field.startsWith('checks.')) return 1
@@ -158,7 +179,7 @@ export function toRequest(draft: ApplicationDraft, role: PublishedRole, turnstil
 /** What the page should do with the API's reply (docs/api/forms.md, "Responses"). */
 export type SendOutcome =
   | { kind: 'sent' }
-  /** Show the error summary on the earliest step with a problem; keep every answer. */
+  /** Show the error summary on the earliest step with a problem, with that step's errors only; keep every answer. */
   | { kind: 'invalid'; step: Step; errors: FieldError[] }
   /** End on the stop page. The page stops first; this is the server's backstop. */
   | { kind: 'stopped'; reason: StopReason }
@@ -197,28 +218,62 @@ export function readSendResponse(status: number, body: unknown): SendOutcome {
     const stop = errors.find((error) => STOPS.has(error.code))
     if (stop) return { kind: 'stopped', reason: stop.code as StopReason }
     if (errors.every((error) => FIXABLE.has(error.code))) {
+      // Only the errors on that step: each summary item must link to a field
+      // on the page being shown. Later ones are caught again further on.
       const step = Math.min(...errors.map((error) => stepForField(error.field))) as Step
-      return { kind: 'invalid', step, errors }
+      return {
+        kind: 'invalid',
+        step,
+        errors: errors.filter((error) => stepForField(error.field) === step),
+      }
     }
   }
   return { kind: 'failed' }
 }
 
+/** How to word one field error: the message and, for the error summary, its question. */
+export interface ErrorMessage {
+  /** The message under the field, under `apply.errors`. */
+  key: string
+  params: Record<string, number>
+  /** The question's short label, for `apply.errors.summary_item`. */
+  questionKey: string
+}
+
 /**
- * The wording key for a field error, under `apply.errors`. Step 1 and step 3
- * questions share messages by type; call name and email have their own.
+ * The wording for a field error. Step 1 and step 3 messages are shared by
+ * type, so the error summary names the question in each item (Robin, #78):
+ * `t('apply.errors.summary_item', { question: t(questionKey), message: t(key, params) })`.
  */
-export function errorMessageKey(error: FieldError, role: PublishedRole): string {
+export function errorMessage(error: FieldError, role: PublishedRole): ErrorMessage {
+  const id = error.field.slice(error.field.indexOf('.') + 1)
+  const questionKey = `${roleKey(role.slug)}.questions.${id}.summary`
   if (error.field.startsWith('checks.')) {
-    const check = role.apply.checks.find((item) => `checks.${item.id}` === error.field)
-    return check?.type === 'confirm'
-      ? 'apply.errors.confirm_required'
-      : 'apply.errors.choice_required'
+    const check = role.apply.checks.find((item) => item.id === id)
+    return {
+      key:
+        check?.type === 'confirm'
+          ? 'apply.errors.confirm_required'
+          : 'apply.errors.choice_required',
+      params: {},
+      questionKey,
+    }
   }
   if (error.field.startsWith('answers.')) {
+    const question = role.apply.questions.find((item) => item.id === id)
     return error.code === 'too_long'
-      ? 'apply.errors.answer_too_long'
-      : 'apply.errors.answer_required'
+      ? {
+          key: 'apply.errors.answer_too_long',
+          params: { max: question?.maxLength ?? 0 },
+          questionKey,
+        }
+      : { key: 'apply.errors.answer_required', params: {}, questionKey }
   }
-  return `apply.errors.${error.field}.${error.code}`
+  const params: Record<string, number> =
+    error.code === 'too_long' ? { max: error.field === 'email' ? EMAIL_MAX : CALL_NAME_MAX } : {}
+  return {
+    key: `apply.errors.${error.field}.${error.code}`,
+    params,
+    questionKey: `apply.fields.${error.field}`,
+  }
 }

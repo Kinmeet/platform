@@ -1,4 +1,4 @@
-import { findRole, type PublishedRole } from '#shared/forms/roles'
+import { findRole, publishedRoles, type PublishedRole } from '#shared/forms/roles'
 
 /** The published role for a slug from the URL, or a 404 (Q3, #21). */
 export function requirePublishedRole(slug: unknown): PublishedRole {
@@ -9,9 +9,9 @@ export function requirePublishedRole(slug: unknown): PublishedRole {
 
 /**
  * One visit's application for a role (#21). The draft is held in memory only:
- * never in localStorage, sessionStorage or a cookie. Reloading the page or
- * following Leave (a full page load, because it goes off a form page) starts
- * again, and the draft is also emptied after a successful send.
+ * never in localStorage, sessionStorage or a cookie. Reloading the page
+ * starts again. Leave empties it (`useLeaveApplication`), whichever way the
+ * navigation happens, and so does a successful send.
  *
  * The step is in the URL (`?step=2`) so Back and Forward work, but a step is
  * only shown once the steps before it are done.
@@ -26,6 +26,9 @@ export function useApplication(role: PublishedRole) {
   )
   if (import.meta.client && !draft.value) draft.value = createDraft(role)
 
+  /** Why the guard last moved the visitor, for one announced line. Cleared by `goTo`. */
+  const redirected = ref<RedirectReason>()
+
   const step = computed<Step>(() =>
     draft.value ? allowedStep(route.query.step, draft.value, role) : 1,
   )
@@ -35,14 +38,15 @@ export function useApplication(role: PublishedRole) {
   watch(
     () => [route.query.step, step.value] as const,
     ([asked, allowed]) => {
-      if (import.meta.client && String(asked ?? '1') !== String(allowed)) {
-        router.replace({ query: { ...route.query, step: allowed === 1 ? undefined : allowed } })
-      }
+      if (!import.meta.client || !draft.value || String(asked ?? '1') === String(allowed)) return
+      redirected.value = redirectReason(asked, draft.value, role)
+      router.replace({ query: { ...route.query, step: allowed === 1 ? undefined : allowed } })
     },
     { immediate: true },
   )
 
   function goTo(target: Step) {
+    redirected.value = undefined
     return router.push({ query: { ...route.query, step: target === 1 ? undefined : target } })
   }
 
@@ -55,5 +59,19 @@ export function useApplication(role: PublishedRole) {
     if (draft.value) clearDraft(draft.value)
   }
 
-  return { draft, step, stopped, goTo, clear }
+  return { draft, step, stopped, redirected, goTo, clear }
+}
+
+/**
+ * For Leave: empties every role's draft. Leave is a client-side link, so the
+ * answers would otherwise stay in memory, and its label promises they won't
+ * be kept (Theo, #78). Call it in setup and run the result on click.
+ */
+export function useLeaveApplication() {
+  const drafts = publishedRoles().map((role) =>
+    useState<ApplicationDraft | null>(`apply:${role.slug}`, () => null),
+  )
+  return () => {
+    for (const draft of drafts) if (draft.value) clearDraft(draft.value)
+  }
 }
