@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { hmacAddress, inboxAddress } from '../../../../server/email/address-hmac'
 import { transportFor } from '../../../../server/email/transport'
 import { queueEmail } from '../../../../server/utils/email'
-import { createEmailLog, logRows } from './email-log'
+import { clearEmailLog, logRows } from './email-log'
 
 const { DB: db } = env as unknown as { DB: D1Database }
 const key = 'test-only-key'
@@ -30,7 +30,7 @@ describe('queueEmail', () => {
   let error: ReturnType<typeof vi.spyOn>
 
   beforeEach(async () => {
-    await createEmailLog()
+    await clearEmailLog()
     info = vi.spyOn(console, 'info').mockImplementation(() => {})
     warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     error = vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -128,7 +128,7 @@ describe('queueEmail', () => {
 
   it('captures on preview and staging', async () => {
     for (const kinmeetEnv of ['preview', 'staging']) {
-      await createEmailLog()
+      await clearEmailLog()
       const { event, settled } = fakeEvent({ ...staging, KINMEET_ENV: kinmeetEnv })
       expect(await queueEmail(event, request)).toBe('queued')
       await settled()
