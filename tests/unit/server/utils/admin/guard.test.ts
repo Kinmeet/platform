@@ -1,7 +1,7 @@
 import { env } from 'cloudflare:test'
 import { createApp, defineEventHandler, toWebHandler } from 'h3'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import adminAccess from '../../../../../server/middleware/admin-access'
+import adminAccess from '../../../../../server/middleware/10.admin-access'
 import repliedHandler from '../../../../../server/api/admin/hello/[id]/replied.post'
 import messagesHandler from '../../../../../server/api/admin/messages.get'
 import { clearAccessKeyCache } from '../../../../../server/utils/admin/access'

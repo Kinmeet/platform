@@ -5,7 +5,7 @@
 ## Access
 
 - Cloudflare Access protects `/admin` and `/api/admin` on the staging and live Workers and lets only the founder through.
-- The Worker checks again on every admin request (`server/middleware/admin-access.ts`): the `Cf-Access-Jwt-Assertion` token must be signed by the team's published keys, for this application's audience, from this team, and not expired. Anything else gets `403`, including missing configuration or keys that cannot be fetched.
+- The Worker checks again on every admin request (`server/middleware/10.admin-access.ts`, which runs after the security headers middleware so a refusal still carries the P5 headers): the `Cf-Access-Jwt-Assertion` token must be signed by the team's published keys, for this application's audience, from this team, and not expired. Anything else gets `403`, including missing configuration or keys that cannot be fetched.
 - Actions (`POST`) must also come from this environment's own origin (`SITE_ORIGIN`).
 - Locally, without Access, the admin page always answers `403`.
 
