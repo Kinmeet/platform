@@ -1,4 +1,4 @@
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { clearAccessKeyCache, verifyAccessToken } from '../../../../../server/utils/admin/access'
 import { AUD, NOW, TEAM, certsFetcher, makeKey, signToken } from './access-token'
 
@@ -12,6 +12,7 @@ beforeAll(async () => {
 })
 
 beforeEach(() => clearAccessKeyCache())
+afterEach(() => vi.useRealTimers())
 
 const verify = (token: string | null, fetcher = certsFetcher([key.jwk]), now = NOW) =>
   verifyAccessToken(token, config, { fetcher, now })
@@ -65,6 +66,7 @@ describe('verifyAccessToken', () => {
   })
 
   it('fetches the keys again once when a new kid appears', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
     const calls: string[] = []
     let keys = [key.jwk]
     const fetcher = (async (input: RequestInfo | URL) => {
@@ -73,7 +75,25 @@ describe('verifyAccessToken', () => {
     }) as typeof fetch
     expect(await verify(await signToken(key), fetcher)).not.toBeNull()
     keys = [key.jwk, otherKey.jwk]
+    vi.advanceTimersByTime(61 * 1000)
     expect(await verify(await signToken(otherKey), fetcher)).not.toBeNull()
+    expect(calls).toHaveLength(2)
+  })
+
+  it('looks again for an unknown kid at most once a minute (Theo, #51)', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    const calls: string[] = []
+    const fetcher = certsFetcher([key.jwk], calls)
+    expect(await verify(await signToken(key), fetcher)).not.toBeNull()
+    // Tokens naming kids we have never seen, as an attacker could send.
+    for (let i = 0; i < 5; i++) {
+      expect(
+        await verify(await signToken(otherKey, {}, { kid: `made-up-${i}` }), fetcher),
+      ).toBeNull()
+    }
+    expect(calls).toHaveLength(1)
+    vi.advanceTimersByTime(61 * 1000)
+    expect(await verify(await signToken(otherKey, {}, { kid: 'made-up-late' }), fetcher)).toBeNull()
     expect(calls).toHaveLength(2)
   })
 

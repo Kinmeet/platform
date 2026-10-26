@@ -39,12 +39,12 @@ const withDb = (db: unknown) => ({ context: { cloudflare: { env: { DB: db } } } 
 describe('the deletion task', () => {
   it('finds DB in the task context, deletes and logs counts only', async () => {
     const { result } = await task.run(withDb(env.DB))
-    expect(result).toEqual({ hello_messages: 1, applications: 0, email_log: 0 })
+    expect(result).toEqual({ hello_messages: 1, applications: 0, email_log: 0, audit_log: 0 })
     expect(logs.mock.calls).toEqual([
       [
         JSON.stringify({
           code: 'deletion_done',
-          deleted: { hello_messages: 1, applications: 0, email_log: 0 },
+          deleted: { hello_messages: 1, applications: 0, email_log: 0, audit_log: 0 },
         }),
       ],
     ])
