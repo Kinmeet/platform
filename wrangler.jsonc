@@ -23,7 +23,13 @@
     "traces": { "enabled": false },
   },
   "logpush": false,
-  "vars": { "KINMEET_ENV": "local", "SITE_ORIGIN": "http://localhost:3000" },
+  // Turnstile site keys are public. Local runs use Cloudflare's always-pass
+  // test key; each deployed environment has its own widget (#20).
+  "vars": {
+    "KINMEET_ENV": "local",
+    "SITE_ORIGIN": "http://localhost:3000",
+    "NUXT_PUBLIC_TURNSTILE_SITE_KEY": "1x00000000000000000000AA",
+  },
   // Local bindings are simulated on this machine; the ids only label them.
   "d1_databases": [
     {
@@ -52,7 +58,7 @@
   "env": {
     // Built from `main`. Every other branch gets a Preview under this Worker.
     "staging": {
-      "name": "kinmeet-staging",
+      "name": "platform-staging",
       // Same as the top level, repeated so it never depends on inheritance.
       "observability": {
         "enabled": true,
@@ -65,7 +71,8 @@
       "preview_urls": true,
       "vars": {
         "KINMEET_ENV": "staging",
-        "SITE_ORIGIN": "https://kinmeet-staging.kinmeet.workers.dev",
+        "SITE_ORIGIN": "https://platform-staging.kinmeet.workers.dev",
+        "NUXT_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAFl6M8Q-UZBb029_",
       },
       "d1_databases": [
         {
@@ -94,11 +101,12 @@
       ],
       // Pull request Previews. Separate made-up data, never staging or live.
       "previews": {
-        // Each Preview has its own host, <preview-name>-kinmeet-staging.kinmeet.workers.dev,
+        // Each Preview has its own host, <preview-name>-platform-staging.kinmeet.workers.dev,
         // so this is a pattern: "*" stands for exactly one preview name.
         "vars": {
           "KINMEET_ENV": "preview",
-          "SITE_ORIGIN": "https://*-kinmeet-staging.kinmeet.workers.dev",
+          "SITE_ORIGIN": "https://*-platform-staging.kinmeet.workers.dev",
+          "NUXT_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAFl6NMpfqLbGGZRZ",
         },
         "d1_databases": [
           {
@@ -130,7 +138,7 @@
 
     // Built only from the protected `live` branch. No Previews.
     "live": {
-      "name": "kinmeet-live",
+      "name": "platform-live",
       // Same as the top level, repeated so it never depends on inheritance.
       "observability": {
         "enabled": true,
@@ -142,7 +150,8 @@
       "preview_urls": false,
       "vars": {
         "KINMEET_ENV": "live",
-        "SITE_ORIGIN": "https://kinmeet-live.kinmeet.workers.dev",
+        "SITE_ORIGIN": "https://platform-live.kinmeet.workers.dev",
+        "NUXT_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAFl-e7Mi_U9gitR4",
       },
       "d1_databases": [
         {

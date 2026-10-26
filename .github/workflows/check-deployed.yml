@@ -1,0 +1,51 @@
+# Checks a Worker after Workers Builds has deployed it. See ADR-0001.
+#
+# Deploys are done by Cloudflare Workers Builds, not by GitHub Actions. Its
+# GitHub app reports each build as a check run, and this workflow runs when
+# that check run completes. It holds no Cloudflare credentials.
+name: Check deployed site
+
+on:
+  check_run:
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Check ${{ matrix.worker }}
+    if: >-
+      github.event.check_run.app.slug != 'github-actions' &&
+      github.event.check_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      matrix:
+        include:
+          - worker: platform-staging
+            branch: main
+          - worker: platform-live
+            branch: live
+    steps:
+      - name: Skip builds for other Workers or branches
+        id: match
+        run: |
+          if [[ "$CHECK_NAME" == *"$WORKER"* && "$HEAD_BRANCH" == "$BRANCH" ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Not a $WORKER build of $BRANCH: $CHECK_NAME on $HEAD_BRANCH"
+          fi
+        env:
+          CHECK_NAME: ${{ github.event.check_run.name }}
+          HEAD_BRANCH: ${{ github.event.check_run.check_suite.head_branch }}
+          WORKER: ${{ matrix.worker }}
+          BRANCH: ${{ matrix.branch }}
+      - if: steps.match.outputs.run == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - if: steps.match.outputs.run == 'true'
+        run: scripts/check-deployed.sh "https://${WORKER}.kinmeet.workers.dev"
+        env:
+          WORKER: ${{ matrix.worker }}

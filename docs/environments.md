@@ -7,13 +7,13 @@ Resource ids are not secrets. They live in [`wrangler.jsonc`](../wrangler.jsonc)
 | Environment           | Wrangler               | Worker                          | Built from                          | D1 (`DB`)         | KV (`KV`)         | R2 (`R2`)         | Data    |
 | --------------------- | ---------------------- | ------------------------------- | ----------------------------------- | ----------------- | ----------------- | ----------------- | ------- |
 | Local                 | top level              | `kinmeet-local`, never deployed | your machine                        | simulated         | simulated         | simulated         | made-up |
-| Pull request Previews | `env.staging.previews` | Previews of `kinmeet-staging`   | any branch except `main` and `live` | `kinmeet-preview` | `kinmeet-preview` | `kinmeet-preview` | made-up |
-| Staging               | `env.staging`          | `kinmeet-staging`               | `main`                              | `kinmeet-staging` | `kinmeet-staging` | `kinmeet-staging` | made-up |
-| Live                  | `env.live`             | `kinmeet-live`                  | `live` (Matt only)                  | `kinmeet-live`    | `kinmeet-live`    | `kinmeet-live`    | real    |
+| Pull request Previews | `env.staging.previews` | Previews of `platform-staging`  | any branch except `main` and `live` | `kinmeet-preview` | `kinmeet-preview` | `kinmeet-preview` | made-up |
+| Staging               | `env.staging`          | `platform-staging`              | `main`                              | `kinmeet-staging` | `kinmeet-staging` | `kinmeet-staging` | made-up |
+| Live                  | `env.live`             | `platform-live`                 | `live` (Matt only)                  | `kinmeet-live`    | `kinmeet-live`    | `kinmeet-live`    | real    |
 
 `KINMEET_ENV` is set to `local`, `staging`, `preview` or `live` so the app can tell where it is running.
 
-`SITE_ORIGIN` is the exact origin the forms accept (checked against the request's `Origin` header): `http://localhost:3000` locally, `https://kinmeet-staging.kinmeet.workers.dev` on staging and `https://kinmeet-live.kinmeet.workers.dev` on live. Each Preview has its own host, so for Previews it is the pattern `https://*-kinmeet-staging.kinmeet.workers.dev`, where `*` stands for exactly one preview name (letters, digits and hyphens, no dots). When a custom domain arrives, `SITE_ORIGIN` for live changes with it.
+`SITE_ORIGIN` is the exact origin the forms accept (checked against the request's `Origin` header): `http://localhost:3000` locally, `https://platform-staging.kinmeet.workers.dev` on staging and `https://platform-live.kinmeet.workers.dev` on live. Each Preview has its own host, so for Previews it is the pattern `https://*-platform-staging.kinmeet.workers.dev`, where `*` stands for exactly one preview name (letters, digits and hyphens, no dots). When a custom domain arrives, `SITE_ORIGIN` for live changes with it.
 
 ## Ids
 
@@ -53,7 +53,7 @@ openssl rand -base64 32 | bunx wrangler preview base-config secret put RATE_LIMI
 openssl rand -base64 32 | bunx wrangler secret put RATE_LIMIT_HMAC_KEY --env live
 ```
 
-Generate a fresh value for every environment and every secret; never reuse one. Previews get their secrets from the Preview base config (`wrangler preview base-config secret`), which every new Preview starts with, separately from staging. They are not marked required in `wrangler.jsonc` yet, so the first deploys can happen before the forms exist; Services adds `secrets.required` when the code that reads them lands.
+Generate a fresh value for every environment and every secret; never reuse one. `TURNSTILE_SECRET_KEY` must be the real secret of that environment's own widget, never Cloudflare's always-pass test secret; only local runs and CI use the test keys. The public site keys are `NUXT_PUBLIC_TURNSTILE_SITE_KEY` in each environment's `vars`, and each widget's hostname list holds only its own environment's host. Previews get their secrets from the Preview base config (`wrangler preview base-config secret`), which every new Preview starts with, separately from staging. They are not marked required in `wrangler.jsonc` yet, so the first deploys can happen before the forms exist; Services adds `secrets.required` when the code that reads them lands.
 
 ## Logging (P5)
 
