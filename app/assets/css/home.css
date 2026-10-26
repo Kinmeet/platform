@@ -1,0 +1,179 @@
+/* The pre-launch home page (#12). Phone first; two columns from 56rem. */
+
+.home {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding-bottom: var(--space-7);
+}
+
+.home-hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: 28px var(--gutter) 0;
+}
+
+.home-hero__text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 18px;
+}
+
+.home-hero__title {
+  margin: 0;
+  max-width: 12ch;
+}
+
+.home-hero__text .lede {
+  margin: 0;
+  max-width: 44ch;
+}
+
+.home-hero__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 100%;
+}
+
+.home-hero__art {
+  position: relative;
+  overflow: hidden;
+  border: var(--border);
+  border-radius: var(--radius-hero);
+  background: var(--colour-meadow);
+  box-shadow: var(--shadow-hero);
+}
+
+.hero-art__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 600 / 420;
+}
+
+.home-hero__art-button {
+  position: absolute;
+  bottom: var(--space-4);
+  left: var(--space-4);
+}
+
+.home-roles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: 0 var(--gutter);
+}
+
+.home-roles > h2,
+.home-roles > p {
+  margin: 0;
+}
+
+.role-list {
+  gap: 0;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  overflow: hidden;
+  list-style: none;
+}
+
+.role-list__item {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px 18px;
+}
+
+.role-list__item + .role-list__item {
+  border-top: 2px solid var(--colour-rule);
+}
+
+.role-list__about {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.role-list__about :is(h3, p) {
+  margin: 0;
+}
+
+.role-list .tag-list {
+  margin: 0;
+}
+
+.role-list__link {
+  align-self: flex-start;
+}
+
+.home-parents {
+  margin: 0 var(--gutter);
+}
+
+.home-parents__text :is(h2, p) {
+  margin: 0;
+}
+
+.home-parents__text {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.home-parents__text p {
+  max-width: 56ch;
+}
+
+@media (min-width: 40rem) {
+  .home-hero__actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 18px;
+    width: auto;
+  }
+}
+
+@media (min-width: 56rem) {
+  .home {
+    gap: var(--space-7);
+  }
+
+  .home-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 6fr) minmax(0, 5fr);
+    align-items: center;
+    gap: 56px;
+    padding-top: var(--space-8);
+  }
+
+  .home-hero__text {
+    gap: var(--space-5);
+  }
+
+  .role-list__item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 22.5rem) auto;
+    align-items: center;
+    gap: var(--space-5);
+    padding: 22px 28px;
+  }
+
+  .role-list__link {
+    justify-self: end;
+  }
+
+  .home-parents {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-6);
+    padding: 28px 36px;
+  }
+
+  .home-parents .button {
+    flex-shrink: 0;
+  }
+}

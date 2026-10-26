@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test'
 import type { PublicRoute } from '../../shared/routes'
-import { TURNSTILE_ORIGIN } from '../../server/utils/security-headers'
+import { TURNSTILE_ORIGIN } from '../../shared/turnstile'
 
 /** Origins a page may load from, besides its own (S5: Turnstile on form pages only). */
 export function allowedOrigins(route: PublicRoute, baseURL: string): Set<string> {
@@ -13,6 +13,8 @@ export interface PageProblems {
   thirdPartyRequests: string[]
   cspViolations: string[]
   pageErrors: string[]
+  /** Every origin other than the page's own that was requested, allowed or not. */
+  otherOrigins: string[]
 }
 
 /**
@@ -20,8 +22,17 @@ export interface PageProblems {
  * violation while a page loads. Requests to other origins are blocked as well
  * as recorded, so a failing test never reaches a third party.
  */
-export async function watchPage(page: Page, allowed: Set<string>): Promise<PageProblems> {
-  const problems: PageProblems = { thirdPartyRequests: [], cspViolations: [], pageErrors: [] }
+export async function watchPage(
+  page: Page,
+  allowed: Set<string>,
+  ownOrigin: string,
+): Promise<PageProblems> {
+  const problems: PageProblems = {
+    thirdPartyRequests: [],
+    cspViolations: [],
+    pageErrors: [],
+    otherOrigins: [],
+  }
 
   await page.route('**/*', (route) => {
     const url = new URL(route.request().url())
@@ -36,6 +47,9 @@ export async function watchPage(page: Page, allowed: Set<string>): Promise<PageP
   // check every request the page makes.
   page.on('request', (request) => {
     const url = new URL(request.url())
+    const isOther = url.protocol !== 'data:' && url.protocol !== 'blob:' && url.origin !== ownOrigin
+    if (isOther && !problems.otherOrigins.includes(url.origin))
+      problems.otherOrigins.push(url.origin)
     if (url.protocol === 'data:' || url.protocol === 'blob:' || allowed.has(url.origin)) return
     if (!problems.thirdPartyRequests.includes(url.href)) problems.thirdPartyRequests.push(url.href)
   })
@@ -57,4 +71,15 @@ export async function watchPage(page: Page, allowed: Set<string>): Promise<PageP
   })
 
   return problems
+}
+
+/**
+ * Waits until Vue has taken over the server's HTML. A click before then is
+ * an ordinary browser navigation, so tests about client-side links must
+ * wait for this first.
+ */
+export async function waitForApp(page: Page) {
+  await page.waitForFunction(() =>
+    Boolean((document.querySelector('#__nuxt') as { __vue_app__?: unknown } | null)?.__vue_app__),
+  )
 }
