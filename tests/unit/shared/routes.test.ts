@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { publicRoutes } from '../../../shared/routes'
+import { accessRoutes, publicRoutes } from '../../../shared/routes'
 
 // Every page must be listed in shared/routes.ts, so the no-third-party and
 // accessibility tests load it. The glob is resolved when the test is built,
@@ -46,19 +46,20 @@ describe('route list', () => {
     const missing = pageFiles
       .map(routePattern)
       .filter((pattern) => !publicRoutes.some((route) => matches(pattern, route.path)))
+      .filter((pattern) => !accessRoutes.some((path) => matches(pattern, path)))
     expect(missing, 'add these pages to shared/routes.ts').toEqual([])
   })
 
   it('has a page for every listed route', () => {
     const patterns = pageFiles.map(routePattern)
-    const stale = publicRoutes
-      .map((route) => route.path)
-      .filter((path) => !patterns.some((pattern) => matches(pattern, path)))
+    const stale = [...publicRoutes.map((route) => route.path), ...accessRoutes].filter(
+      (path) => !patterns.some((pattern) => matches(pattern, path)),
+    )
     expect(stale, 'remove these routes or add their pages').toEqual([])
   })
 
   it('lists each route once', () => {
-    const paths = publicRoutes.map((route) => route.path)
+    const paths = [...publicRoutes.map((route) => route.path), ...accessRoutes]
     expect(new Set(paths).size).toBe(paths.length)
   })
 })

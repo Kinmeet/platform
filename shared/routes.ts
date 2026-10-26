@@ -13,6 +13,14 @@ export interface PublicRoute {
 
 export const publicRoutes: readonly PublicRoute[] = [{ path: '/', form: false }]
 
+/**
+ * Pages behind Cloudflare Access (P4), such as the founder's admin page. They
+ * are never public, so they can't be loaded like the routes above. Instead,
+ * the end-to-end tests check that each one refuses a visitor without an Access
+ * token, with the P5 headers and no third-party requests.
+ */
+export const accessRoutes: readonly string[] = ['/admin']
+
 export function isFormRoute(path: string, routes: readonly PublicRoute[] = publicRoutes): boolean {
   const clean = path.split('?')[0]?.replace(/\/+$/, '') || '/'
   return routes.some((route) => route.form && route.path === clean)
