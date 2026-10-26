@@ -1,13 +1,20 @@
 import { env } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vitest'
-import { handOver } from '../../../../server/safeguarding/handover'
-import { d1Store } from '../../../../server/safeguarding/store'
+import type { H3Event } from 'h3'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { handOver, handOverFromEvent } from '../../../../server/safeguarding/handover'
+import {
+  encryptedStore,
+  storeFromEnv,
+  type HandedOverItem,
+} from '../../../../server/safeguarding/store'
+import { keyringFrom } from '../../../../server/safeguarding/crypto'
 import {
   listApplications,
   listHelloMessages,
   markOutcomeTold,
   markReplied,
 } from '../../../../server/utils/db/admin'
+import { makeTestKey } from './test-key'
 
 // Made-up test data only.
 const RECEIVED = 1_793_000_000
@@ -28,7 +35,10 @@ const SECRET_WORDS = [
   'Made-up answer.',
 ]
 
+let key: string
+
 beforeEach(async () => {
+  key = makeTestKey()
   HELLO_ID = crypto.randomUUID()
   OTHER_HELLO_ID = crypto.randomUUID()
   APPLICATION_ID = crypto.randomUUID()
@@ -58,22 +68,19 @@ beforeEach(async () => {
   ])
 })
 
-const store = () => d1Store(env.SAFEGUARDING_DB)
+afterEach(() => vi.restoreAllMocks())
 
-async function items() {
-  const { results } = await env.SAFEGUARDING_DB.prepare(
-    `SELECT id, source_form, content, received_at, handed_over_at FROM handed_over_items
-     WHERE id IN (?, ?, ?) ORDER BY id`,
+const store = async () => (await storeFromEnv({ DB: env.DB, SAFEGUARDING_KEY: key }))!
+
+/** This test's items, decrypted, in id order. */
+async function items(): Promise<HandedOverItem[]> {
+  const { results } = await env.DB.prepare(
+    `SELECT id FROM safeguarding_items WHERE id IN (?, ?, ?) ORDER BY id`,
   )
     .bind(HELLO_ID, OTHER_HELLO_ID, APPLICATION_ID)
-    .all<{
-      id: string
-      source_form: string
-      content: string
-      received_at: number
-      handed_over_at: number
-    }>()
-  return results
+    .all<{ id: string }>()
+  const s = await store()
+  return Promise.all(results.map(async ({ id }) => (await s.open(id, 'test-reader', NOW + 1000))!))
 }
 
 async function handOverAudit() {
@@ -107,18 +114,18 @@ const mainWithFailingBatch = new Proxy(env.DB, {
 
 describe('pass to safeguarding', () => {
   it('moves a message into the store, out of the main database, with one audit entry', async () => {
-    expect(await handOver(env.DB, store(), 'hello', HELLO_ID, ACTOR, NOW)).toBe('handed_over')
+    expect(await handOver(env.DB, await store(), 'hello', HELLO_ID, ACTOR, NOW)).toBe('handed_over')
     expect(await items()).toEqual([
       {
         id: HELLO_ID,
-        source_form: 'hello',
+        sourceForm: 'hello',
         content: JSON.stringify({
           callName: 'Test Fox',
           email: 'test.fox@example.com',
           message: 'Made-up disclosure.',
         }),
-        received_at: RECEIVED,
-        handed_over_at: NOW,
+        receivedAt: RECEIVED,
+        handedOverAt: NOW,
       },
     ])
     const left = await env.DB.prepare('SELECT id FROM hello_messages').all<{ id: string }>()
@@ -130,15 +137,17 @@ describe('pass to safeguarding', () => {
       at: NOW,
       actor: ACTOR,
       action: 'pass_to_safeguarding',
-      target_table: 'hello_messages',
+      target_table: 'safeguarding_items',
       target_id: HELLO_ID,
     })
   })
 
   it('moves an application with its answers', async () => {
-    expect(await handOver(env.DB, store(), 'apply', APPLICATION_ID, ACTOR, NOW)).toBe('handed_over')
+    expect(await handOver(env.DB, await store(), 'apply', APPLICATION_ID, ACTOR, NOW)).toBe(
+      'handed_over',
+    )
     const [item] = await items()
-    expect(item!.source_form).toBe('apply')
+    expect(item!.sourceForm).toBe('apply')
     expect(JSON.parse(item!.content)).toEqual({
       role: 'trustee',
       callName: 'Sample Applicant',
@@ -146,33 +155,36 @@ describe('pass to safeguarding', () => {
       answers: { why_trustee: 'Made-up answer.' },
     })
     expect(await listApplications(env.DB)).toEqual([])
+    // The audit entry names the item, not the form it came from (Ezra, #95).
     expect((await handOverAudit())[0]).toMatchObject({
-      target_table: 'applications',
+      target_table: 'safeguarding_items',
       target_id: APPLICATION_ID,
     })
   })
 
   it('writes nothing from the row into the audit log', async () => {
-    await handOver(env.DB, store(), 'hello', HELLO_ID, ACTOR, NOW)
-    await handOver(env.DB, store(), 'apply', APPLICATION_ID, ACTOR, NOW)
+    await handOver(env.DB, await store(), 'hello', HELLO_ID, ACTOR, NOW)
+    await handOver(env.DB, await store(), 'apply', APPLICATION_ID, ACTOR, NOW)
     const text = JSON.stringify(await handOverAudit())
     for (const word of [...SECRET_WORDS, 'trustee']) expect(text).not.toContain(word)
   })
 
   it('counts only once', async () => {
-    await handOver(env.DB, store(), 'hello', HELLO_ID, ACTOR, NOW)
-    expect(await handOver(env.DB, store(), 'hello', HELLO_ID, ACTOR, NOW + 100)).toBe('not_found')
+    await handOver(env.DB, await store(), 'hello', HELLO_ID, ACTOR, NOW)
+    expect(await handOver(env.DB, await store(), 'hello', HELLO_ID, ACTOR, NOW + 100)).toBe(
+      'not_found',
+    )
     expect(await items()).toHaveLength(1)
     expect(await handOverAudit()).toHaveLength(1)
   })
 
   it('changes nothing for an unknown row, or an id from the other form', async () => {
-    expect(await handOver(env.DB, store(), 'hello', UNKNOWN_ID, ACTOR, NOW)).toBe('not_found')
-    expect(await handOver(env.DB, store(), 'apply', HELLO_ID, ACTOR, NOW)).toBe('not_found')
+    expect(await handOver(env.DB, await store(), 'hello', UNKNOWN_ID, ACTOR, NOW)).toBe('not_found')
+    expect(await handOver(env.DB, await store(), 'apply', HELLO_ID, ACTOR, NOW)).toBe('not_found')
     expect(await items()).toEqual([])
     expect(await handOverAudit()).toEqual([])
     expect(
-      await env.SAFEGUARDING_DB.prepare('SELECT 1 FROM handed_over_items WHERE id = ?')
+      await env.DB.prepare('SELECT 1 FROM safeguarding_items WHERE id = ?')
         .bind(UNKNOWN_ID)
         .first(),
     ).toBeNull()
@@ -180,8 +192,8 @@ describe('pass to safeguarding', () => {
   })
 
   it('leaves no other action able to reach a passed row', async () => {
-    await handOver(env.DB, store(), 'hello', HELLO_ID, ACTOR, NOW)
-    await handOver(env.DB, store(), 'apply', APPLICATION_ID, ACTOR, NOW)
+    await handOver(env.DB, await store(), 'hello', HELLO_ID, ACTOR, NOW)
+    await handOver(env.DB, await store(), 'apply', APPLICATION_ID, ACTOR, NOW)
     expect(await markReplied(env.DB, HELLO_ID, ACTOR, NOW + 100)).toBe(false)
     expect(await markOutcomeTold(env.DB, APPLICATION_ID, ACTOR, NOW + 100)).toBe(false)
     const { results } = await env.DB.prepare(
@@ -195,37 +207,45 @@ describe('pass to safeguarding', () => {
 
 describe('a failure part-way', () => {
   it('leaves the row where it was if the store cannot be written', async () => {
-    await expect(handOver(env.DB, d1Store(broken), 'hello', HELLO_ID, ACTOR, NOW)).rejects.toThrow()
+    const ring = await keyringFrom(key, undefined)
+    await expect(
+      handOver(env.DB, encryptedStore(broken, ring!), 'hello', HELLO_ID, ACTOR, NOW),
+    ).rejects.toThrow()
     expect((await listHelloMessages(env.DB)).map((m) => m.id)).toContain(HELLO_ID)
     expect(await handOverAudit()).toEqual([])
   })
 
   it('keeps the row, and a retry finishes the move without a second copy', async () => {
     await expect(
-      handOver(mainWithFailingBatch, store(), 'hello', HELLO_ID, ACTOR, NOW),
+      handOver(mainWithFailingBatch, await store(), 'hello', HELLO_ID, ACTOR, NOW),
     ).rejects.toThrow()
     // Copied, but still in the main database: visible and retryable.
     expect(await items()).toHaveLength(1)
     expect((await listHelloMessages(env.DB)).map((m) => m.id)).toContain(HELLO_ID)
     expect(await handOverAudit()).toEqual([])
 
-    expect(await handOver(env.DB, store(), 'hello', HELLO_ID, ACTOR, NOW + 60)).toBe('handed_over')
+    expect(await handOver(env.DB, await store(), 'hello', HELLO_ID, ACTOR, NOW + 60)).toBe(
+      'handed_over',
+    )
     const stored = await items()
     expect(stored).toHaveLength(1)
     // The first copy stands, with its own hand-over time.
-    expect(stored[0]!.handed_over_at).toBe(NOW)
+    expect(stored[0]!.handedOverAt).toBe(NOW)
     expect((await listHelloMessages(env.DB)).map((m) => m.id)).not.toContain(HELLO_ID)
     expect(await handOverAudit()).toHaveLength(1)
   })
 
   it('refuses to delete the row if the copy in the store does not match', async () => {
-    await env.SAFEGUARDING_DB.prepare(
-      `INSERT INTO handed_over_items (id, source_form, content, received_at, handed_over_at)
-       VALUES (?, 'hello', '{"message":"Something else."}', ?, ?)`,
-    )
-      .bind(HELLO_ID, RECEIVED, NOW)
-      .run()
-    await expect(handOver(env.DB, store(), 'hello', HELLO_ID, ACTOR, NOW)).rejects.toThrow(
+    await (
+      await store()
+    ).insert({
+      id: HELLO_ID,
+      sourceForm: 'hello',
+      content: '{"message":"Something else."}',
+      receivedAt: RECEIVED,
+      handedOverAt: NOW,
+    })
+    await expect(handOver(env.DB, await store(), 'hello', HELLO_ID, ACTOR, NOW)).rejects.toThrow(
       /handover_copy_mismatch/,
     )
     expect((await listHelloMessages(env.DB)).map((m) => m.id)).toContain(HELLO_ID)
@@ -233,35 +253,54 @@ describe('a failure part-way', () => {
   })
 })
 
-describe('the safeguarding store', () => {
-  it('refuses every update and delete', async () => {
-    await handOver(env.DB, store(), 'hello', HELLO_ID, ACTOR, NOW)
-    await expect(
-      env.SAFEGUARDING_DB.prepare(`UPDATE handed_over_items SET content = '{}'`).run(),
-    ).rejects.toThrow(/handed_over_items_insert_only/)
-    await expect(
-      env.SAFEGUARDING_DB.prepare('DELETE FROM handed_over_items').run(),
-    ).rejects.toThrow(/handed_over_items_insert_only/)
-    expect(await items()).toHaveLength(1)
-  })
+describe('errors', () => {
+  const event = (environment: object) =>
+    ({ context: { cloudflare: { env: environment } } }) as unknown as H3Event
 
-  it('has no deletion date: retention is set by area 2', async () => {
-    const { results } = await env.SAFEGUARDING_DB.prepare(
-      `SELECT name FROM pragma_table_info('handed_over_items')`,
-    ).all<{ name: string }>()
-    expect(results.map((row) => row.name)).toEqual([
-      'id',
-      'source_form',
-      'content',
-      'received_at',
-      'handed_over_at',
+  it('refuses without the key, moving nothing', async () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    expect(await handOverFromEvent(event({ DB: env.DB }), 'hello', HELLO_ID, ACTOR)).toBe(
+      'unavailable',
+    )
+    expect(errors.mock.calls).toEqual([
+      [JSON.stringify({ code: 'safeguarding_store_unavailable' })],
     ])
+    expect((await listHelloMessages(env.DB)).map((m) => m.id)).toContain(HELLO_ID)
   })
 
-  it('is not the main database', async () => {
-    const { results } = await env.DB.prepare(
-      `SELECT name FROM sqlite_master WHERE name = 'handed_over_items'`,
-    ).all()
-    expect(results).toEqual([])
+  it('never log or throw anything from the row', async () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    // A copy that does not match, then a copy under a key the Worker does not hold.
+    await (
+      await store()
+    ).insert({
+      id: HELLO_ID,
+      sourceForm: 'hello',
+      content: '{"message":"Made-up disclosure."}',
+      receivedAt: RECEIVED,
+      handedOverAt: NOW,
+    })
+    const thrown: unknown[] = []
+    for (const secret of [key, makeTestKey()]) {
+      const s = await storeFromEnv({ DB: env.DB, SAFEGUARDING_KEY: secret })
+      await handOver(env.DB, s!, 'hello', HELLO_ID, ACTOR, NOW).catch((error: unknown) =>
+        thrown.push(error),
+      )
+      expect(
+        await handOverFromEvent(
+          event({ DB: env.DB, SAFEGUARDING_KEY: secret }),
+          'hello',
+          HELLO_ID,
+          ACTOR,
+        ),
+      ).toBe('unavailable')
+    }
+    expect(thrown.map((error) => (error as Error).message)).toEqual([
+      'handover_copy_mismatch',
+      'safeguarding_decrypt_failed',
+    ])
+    const text = JSON.stringify([errors.mock.calls, thrown.map((e) => String(e))])
+    for (const word of SECRET_WORDS) expect(text).not.toContain(word)
+    expect((await listHelloMessages(env.DB)).map((m) => m.id)).toContain(HELLO_ID)
   })
 })

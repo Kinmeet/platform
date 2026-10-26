@@ -1,16 +1,18 @@
 import type { D1Database } from '@cloudflare/workers-types'
+import { auditLogDeleteAfter, nowSeconds } from '../utils/retention'
+import { decryptRecord, encryptRecord, keyringFrom, type SafeguardingKeyring } from './crypto'
 
 /**
- * The interim safeguarding store (#36), behind a small interface so that
- * where it lives can change without touching the hand-over or the acting
- * lead's view (#93). Today it is a D1 database bound to this Worker as
- * SAFEGUARDING_DB. If the safeguarding databases move to their own
- * Cloudflare account (#95), a second implementation of this interface will
- * call a small Worker there through a service binding instead, and only
- * `storeFromEnv` changes.
+ * The interim safeguarding store (#36), as the founder chose on #95: a table
+ * in the main database holding only ciphertext, encrypted and decrypted here
+ * in the Worker (./crypto.ts). It sits behind a small interface so the
+ * hand-over and the acting lead's view (#93) never touch the table or the
+ * key themselves.
  *
- * Every implementation keeps the same rules: insert only, no update or
- * delete, and nothing here ever logs content.
+ * The rules every caller relies on: insert only, no delete; everything that
+ * could identify someone is inside the ciphertext; every opening by a person
+ * is audited before any text is returned; and nothing here ever logs
+ * content.
  */
 
 export type SourceForm = 'hello' | 'apply'
@@ -25,90 +27,125 @@ export interface HandedOverItem {
   handedOverAt: number
 }
 
-export type HandedOverSummary = Omit<HandedOverItem, 'content'>
+/** What the database shows in clear: the id and the hand-over time only. */
+export type HandedOverSummary = Pick<HandedOverItem, 'id' | 'handedOverAt'>
 
 export interface SafeguardingStore {
-  /** Adds an item. Does nothing if an item with this id already exists. */
+  /** Encrypts and adds an item. Does nothing if an item with this id already exists. */
   insert(item: HandedOverItem): Promise<void>
-  /** The stored form and content for an id, so the hand-over can check its copy. */
-  readBack(id: string): Promise<Pick<HandedOverItem, 'sourceForm' | 'content'> | null>
-  /** Ids and dates only, newest first, for the acting lead's list (#93). */
+  /** Decrypts the stored copy, so the hand-over can check it before deleting the original. */
+  readBack(
+    id: string,
+  ): Promise<Pick<HandedOverItem, 'sourceForm' | 'content' | 'receivedAt'> | null>
+  /** Ids and hand-over times only, newest first, for the acting lead's list (#93). */
   list(): Promise<HandedOverSummary[]>
-  /** One whole item, for the acting lead's view (#93). */
-  get(id: string): Promise<HandedOverItem | null>
+  /**
+   * One whole item for a person to read (#93). Writes the audit entry first,
+   * so text is never returned without one.
+   */
+  open(id: string, actor: string, now?: number): Promise<HandedOverItem | null>
 }
 
-/** The side of the store the admin hand-over may use: it writes and checks, never reads content out. */
+/** The side of the store the admin hand-over may use: it writes and checks, never shows content. */
 export type HandoverStore = Pick<SafeguardingStore, 'insert' | 'readBack'>
 
-interface ItemRow {
-  id: string
-  source_form: SourceForm
+/** What is encrypted for each item. */
+interface SealedFields {
+  sourceForm: SourceForm
+  receivedAt: number
   content: string
-  received_at: number
+}
+
+interface ItemRow {
+  key_version: number
+  iv: ArrayBuffer | number[]
+  ciphertext: ArrayBuffer | number[]
   handed_over_at: number
 }
 
-const toItem = (row: ItemRow): HandedOverItem => ({
-  id: row.id,
-  sourceForm: row.source_form,
-  content: row.content,
-  receivedAt: row.received_at,
-  handedOverAt: row.handed_over_at,
-})
+// D1 returns a BLOB as an array of bytes.
+const bytes = (value: ArrayBuffer | number[]) => new Uint8Array(value)
 
-/** The store as a D1 database bound to this Worker. Bound parameters only. */
-export function d1Store(db: D1Database): SafeguardingStore {
+/** The encrypted store in the main database. Bound parameters only. */
+export function encryptedStore(db: D1Database, keyring: SafeguardingKeyring): SafeguardingStore {
+  async function read(id: string): Promise<HandedOverItem | null> {
+    const row = await db
+      .prepare(
+        `SELECT key_version, iv, ciphertext, handed_over_at FROM safeguarding_items WHERE id = ?`,
+      )
+      .bind(id)
+      .first<ItemRow>()
+    if (row === null) return null
+    const plaintext = await decryptRecord(keyring, id, {
+      keyVersion: row.key_version,
+      iv: bytes(row.iv),
+      ciphertext: bytes(row.ciphertext),
+    })
+    const sealed = JSON.parse(plaintext) as SealedFields
+    return { id, ...sealed, handedOverAt: row.handed_over_at }
+  }
+
   return {
     async insert(item) {
+      const sealed: SealedFields = {
+        sourceForm: item.sourceForm,
+        receivedAt: item.receivedAt,
+        content: item.content,
+      }
+      const record = await encryptRecord(keyring, item.id, JSON.stringify(sealed))
       await db
         .prepare(
-          `INSERT INTO handed_over_items (id, source_form, content, received_at, handed_over_at)
+          `INSERT INTO safeguarding_items (id, key_version, iv, ciphertext, handed_over_at)
            VALUES (?, ?, ?, ?, ?)
            ON CONFLICT (id) DO NOTHING`,
         )
-        .bind(item.id, item.sourceForm, item.content, item.receivedAt, item.handedOverAt)
+        .bind(item.id, record.keyVersion, record.iv, record.ciphertext, item.handedOverAt)
         .run()
     },
     async readBack(id) {
-      const row = await db
-        .prepare('SELECT source_form, content FROM handed_over_items WHERE id = ?')
-        .bind(id)
-        .first<Pick<ItemRow, 'source_form' | 'content'>>()
-      return row === null ? null : { sourceForm: row.source_form, content: row.content }
+      const item = await read(id)
+      return item === null
+        ? null
+        : { sourceForm: item.sourceForm, content: item.content, receivedAt: item.receivedAt }
     },
     async list() {
       const { results } = await db
         .prepare(
-          `SELECT id, source_form, received_at, handed_over_at FROM handed_over_items
-           ORDER BY handed_over_at DESC, id`,
+          `SELECT id, handed_over_at FROM safeguarding_items ORDER BY handed_over_at DESC, id`,
         )
-        .all<Omit<ItemRow, 'content'>>()
-      return results.map((row) => ({
-        id: row.id,
-        sourceForm: row.source_form,
-        receivedAt: row.received_at,
-        handedOverAt: row.handed_over_at,
-      }))
+        .all<{ id: string; handed_over_at: number }>()
+      return results.map((row) => ({ id: row.id, handedOverAt: row.handed_over_at }))
     },
-    async get(id) {
-      const row = await db
+    async open(id, actor, now = nowSeconds()) {
+      const audit = await db
         .prepare(
-          `SELECT id, source_form, content, received_at, handed_over_at FROM handed_over_items
-           WHERE id = ?`,
+          `INSERT INTO audit_log (id, at, actor, action, target_table, target_id, delete_after)
+           SELECT ?, ?, ?, 'open_safeguarding_item', 'safeguarding_items', ?, ?
+           WHERE EXISTS (SELECT 1 FROM safeguarding_items WHERE id = ?)`,
         )
-        .bind(id)
-        .first<ItemRow>()
-      return row === null ? null : toItem(row)
+        .bind(crypto.randomUUID(), now, actor, id, auditLogDeleteAfter(now), id)
+        .run()
+      if (audit.meta.changes !== 1) return null
+      return read(id)
     },
   }
 }
 
+interface StoreEnv {
+  DB?: D1Database
+  SAFEGUARDING_KEY?: string
+  SAFEGUARDING_KEY_PREVIOUS?: string
+}
+
 /**
- * The store for this environment, or `null` if it is not set up. The only
- * place in the code that names the binding.
+ * The store for this environment, or `null` if the database or a usable key
+ * is missing, so the safeguarding routes refuse rather than store anything
+ * in clear (Nadia's condition 3). The only place in the code that reads the
+ * key secrets.
  */
-export function storeFromEnv(env: object | undefined): SafeguardingStore | null {
-  const db = (env as { SAFEGUARDING_DB?: D1Database } | undefined)?.SAFEGUARDING_DB
-  return db ? d1Store(db) : null
+export async function storeFromEnv(env: object | undefined): Promise<SafeguardingStore | null> {
+  const { DB, SAFEGUARDING_KEY, SAFEGUARDING_KEY_PREVIOUS } = (env ?? {}) as StoreEnv
+  if (!DB) return null
+  const keyring = await keyringFrom(SAFEGUARDING_KEY, SAFEGUARDING_KEY_PREVIOUS)
+  return keyring ? encryptedStore(DB, keyring) : null
 }

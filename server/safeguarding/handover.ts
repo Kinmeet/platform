@@ -6,17 +6,17 @@ import { storeFromEnv, type HandoverStore, type SourceForm } from './store'
 /**
  * "Pass to safeguarding" (#36, SG6, SG-03 section 4).
  *
- * Moves a say hello message or an application out of the main database and
- * into the interim safeguarding store (./store.ts), in one audited step. It
- * is given only the store's insert and read-back, and the read-back checks
- * the copy and returns nothing, so the admin role can never read from the
- * store.
+ * Moves a say hello message or an application out of the general lists and
+ * into the encrypted interim safeguarding store (./store.ts), in one audited
+ * step. It is given only the store's insert and read-back, and uses the
+ * read-back only to check the copy, never to return it, so the admin role
+ * can never read from the store.
  *
- * D1 has no transaction across two databases, so the order matters:
- * 1. copy the row into the store (doing nothing if the copy already exists),
- * 2. read the copy back and check it matches,
- * 3. delete the row from the main database and write the audit entry, in
- *    one batch.
+ * Insert, then verify, then delete (Nadia's condition 5 on #95):
+ * 1. encrypt the row into the store (doing nothing if the copy already
+ *    exists),
+ * 2. read the copy back, decrypt it and check it matches,
+ * 3. delete the row from its table and write the audit entry, in one batch.
  * A failure part-way leaves the row in the main database, visible and
  * retryable, and never in neither. A retry finds the copy from step 1 and
  * carries on.
@@ -32,32 +32,32 @@ interface HandoverEnv {
 
 /**
  * Whole statements for each form, so no SQL is ever built from a value. The
- * audit entry holds the date, who acted, the action and the row id, never
- * anything from the row.
+ * audit entry holds the date, who acted, the action and the item id, never
+ * anything from the row. It names the item, not the table it came from, so
+ * the log does not say in clear which form a concern was raised through
+ * (Ezra, #95).
  */
 const STATEMENTS = {
   hello: {
     read: `SELECT call_name, email, message, received_at FROM hello_messages WHERE id = ?`,
     remove: `DELETE FROM hello_messages WHERE id = ?`,
     audit: `INSERT INTO audit_log (id, at, actor, action, target_table, target_id, delete_after)
-            SELECT ?, ?, ?, 'pass_to_safeguarding', 'hello_messages', ?, ?
+            SELECT ?, ?, ?, 'pass_to_safeguarding', 'safeguarding_items', ?, ?
             WHERE NOT EXISTS (SELECT 1 FROM hello_messages WHERE id = ?)
               AND NOT EXISTS (
                 SELECT 1 FROM audit_log
-                WHERE action = 'pass_to_safeguarding' AND target_table = 'hello_messages'
-                  AND target_id = ?
+                WHERE action = 'pass_to_safeguarding' AND target_id = ?
               )`,
   },
   apply: {
     read: `SELECT role, call_name, email, answers, received_at FROM applications WHERE id = ?`,
     remove: `DELETE FROM applications WHERE id = ?`,
     audit: `INSERT INTO audit_log (id, at, actor, action, target_table, target_id, delete_after)
-            SELECT ?, ?, ?, 'pass_to_safeguarding', 'applications', ?, ?
+            SELECT ?, ?, ?, 'pass_to_safeguarding', 'safeguarding_items', ?, ?
             WHERE NOT EXISTS (SELECT 1 FROM applications WHERE id = ?)
               AND NOT EXISTS (
                 SELECT 1 FROM audit_log
-                WHERE action = 'pass_to_safeguarding' AND target_table = 'applications'
-                  AND target_id = ?
+                WHERE action = 'pass_to_safeguarding' AND target_id = ?
               )`,
   },
 } as const
@@ -118,7 +118,12 @@ export async function handOver(
     handedOverAt: now,
   })
   const copy = await store.readBack(id)
-  if (copy === null || copy.sourceForm !== source || copy.content !== submission.content) {
+  if (
+    copy === null ||
+    copy.sourceForm !== source ||
+    copy.content !== submission.content ||
+    copy.receivedAt !== submission.receivedAt
+  ) {
     throw new Error('handover_copy_mismatch')
   }
 
@@ -134,8 +139,8 @@ export async function handOver(
 }
 
 /**
- * The hand-over for an admin route. Fails closed: with either database
- * missing, or any step failing, nothing moves and the reply is
+ * The hand-over for an admin route. Fails closed: with the database or the
+ * key missing, or any step failing, nothing moves and the reply is
  * `unavailable`. Logs a code only, never anything from the row.
  */
 export async function handOverFromEvent(
@@ -145,9 +150,9 @@ export async function handOverFromEvent(
   actor: string,
 ): Promise<HandoverResult> {
   const env = (event.context as { cloudflare?: { env?: HandoverEnv } }).cloudflare?.env
-  const store = storeFromEnv(env)
+  const store = await storeFromEnv(env)
   if (!env?.DB || !store) {
-    console.error(JSON.stringify({ code: 'safeguarding_db_missing' }))
+    console.error(JSON.stringify({ code: 'safeguarding_store_unavailable' }))
     return 'unavailable'
   }
   try {

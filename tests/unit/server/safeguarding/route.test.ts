@@ -6,6 +6,7 @@ import helloHandOver from '../../../../server/api/admin/hello/[id]/safeguarding.
 import applyHandOver from '../../../../server/api/admin/applications/[id]/safeguarding.post'
 import { clearAccessKeyCache } from '../../../../server/utils/admin/access'
 import { AUD, TEAM, makeKey, signToken } from '../utils/admin/access-token'
+import { makeTestKey } from './test-key'
 
 // The two "Pass to safeguarding" routes behind admin Access (#36).
 // Made-up test data only.
@@ -74,7 +75,7 @@ async function pass(
     cloudflare: {
       env: {
         DB: env.DB,
-        ...(store ? { SAFEGUARDING_DB: env.SAFEGUARDING_DB } : {}),
+        ...(store ? { SAFEGUARDING_KEY: makeTestKey() } : {}),
         SITE_ORIGIN: ORIGIN,
         KINMEET_ENV: 'staging',
         ACCESS_TEAM_DOMAIN: TEAM,
@@ -104,9 +105,8 @@ async function stillListed() {
 
 async function copied(id: string) {
   return (
-    (await env.SAFEGUARDING_DB.prepare('SELECT 1 FROM handed_over_items WHERE id = ?')
-      .bind(id)
-      .first()) !== null
+    (await env.DB.prepare('SELECT 1 FROM safeguarding_items WHERE id = ?').bind(id).first()) !==
+    null
   )
 }
 
@@ -144,11 +144,13 @@ describe('pass to safeguarding routes', () => {
     expect(await again.json()).toEqual({ ok: false, error: 'not_found' })
   })
 
-  it('fails closed without the safeguarding store, leaving the row listed', async () => {
+  it('fails closed without the safeguarding key, leaving the row listed', async () => {
     const response = await pass(helloPath(), { token: await fresh(), store: false })
     expect(response.status).toBe(503)
     expect(await response.json()).toEqual({ ok: false, error: 'unavailable' })
     expect(await stillListed()).toEqual({ hello: true, apply: true })
-    expect(errorLog.mock.calls).toEqual([[JSON.stringify({ code: 'safeguarding_db_missing' })]])
+    expect(errorLog.mock.calls).toEqual([
+      [JSON.stringify({ code: 'safeguarding_store_unavailable' })],
+    ])
   })
 })
