@@ -398,5 +398,16 @@
       "copy_box_label": "Your message, ready to copy"
     },
     "noscript": "This form needs JavaScript to work. Please turn it on, or come back in a browser that has it."
+  },
+  "email": {
+    "greeting": "Hello,",
+    "footer": "Kinmeet is a planned UK network of local groups run by volunteers.",
+    "applicationReceipt": {
+      "subject": "We have received your application",
+      "received": "We have received your application to help run Kinmeet.",
+      "next": "We read every application ourselves and will reply by email. You do not need to do anything else for now.",
+      "notYou": "If you did not apply, someone may have typed your email address by mistake. You can ignore this email.",
+      "signOff": "From the Kinmeet team"
+    }
   }
 }
