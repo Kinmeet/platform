@@ -40,3 +40,38 @@ describe('admin lists without the admin middleware', () => {
     })
   }
 })
+
+describe('admin lists with a verified identity', () => {
+  const ACTOR = '00000000-0000-4000-8000-00000000f00d'
+  for (const [path, handler, action] of [
+    ['/api/admin/messages', messagesHandler, 'view_hello_messages'],
+    ['/api/admin/applications', applicationsHandler, 'view_applications'],
+  ] as const) {
+    it(`${path} records one view entry per fetch`, async () => {
+      const app = createApp()
+      app.use(path, handler)
+      const count = async () =>
+        (
+          await env.DB.prepare('SELECT count(*) AS n FROM audit_log WHERE action = ? AND actor = ?')
+            .bind(action, ACTOR)
+            .first<{ n: number }>()
+        )?.n ?? 0
+      const before = await count()
+      const context = {
+        cloudflare: { env: { DB: env.DB } },
+        adminIdentity: { sub: ACTOR },
+      }
+      for (let i = 0; i < 2; i++) {
+        const response = await toWebHandler(app)(new Request(`https://example.com${path}`), context)
+        expect(response.status).toBe(200)
+      }
+      expect(await count()).toBe(before + 2)
+      const { results } = await env.DB.prepare(
+        'SELECT target_id FROM audit_log WHERE action = ? AND actor = ?',
+      )
+        .bind(action, ACTOR)
+        .all<{ target_id: string | null }>()
+      expect(results.every((row) => row.target_id === null)).toBe(true)
+    })
+  }
+})

@@ -5,6 +5,7 @@ import {
   listHelloMessages,
   markOutcomeTold,
   markReplied,
+  recordListView,
 } from '../../../../../server/utils/db/admin'
 import {
   applicationDeleteAfterOutcome,
@@ -191,5 +192,58 @@ describe('audit log', () => {
     for (const value of ['Test Fox', 'test.fox@example.com', 'Made-up message.']) {
       expect(text).not.toContain(value)
     }
+  })
+})
+
+describe('list views', () => {
+  it('records each fetch of a list once, with no target row', async () => {
+    const { results: before } = await env.DB.prepare('SELECT id FROM audit_log').all()
+    await recordListView(env.DB, 'hello_messages', ACTOR, NOW)
+    await recordListView(env.DB, 'applications', ACTOR, NOW + 1)
+    const entries = (await auditEntries()).slice(before.length)
+    expect(entries).toEqual([
+      {
+        at: NOW,
+        actor: ACTOR,
+        action: 'view_hello_messages',
+        target_table: 'hello_messages',
+        target_id: null,
+      },
+      {
+        at: NOW + 1,
+        actor: ACTOR,
+        action: 'view_applications',
+        target_table: 'applications',
+        target_id: null,
+      },
+    ])
+    const row = await env.DB.prepare(
+      'SELECT delete_after FROM audit_log ORDER BY rowid DESC LIMIT 1',
+    ).first<{ delete_after: number }>()
+    expect(row?.delete_after).toBe(auditLogDeleteAfter(NOW + 1))
+  })
+
+  it('refuses entries whose action, table and target do not fit together', async () => {
+    const insert = (action: string, table: string, target: string | null) =>
+      env.DB.prepare(
+        `INSERT INTO audit_log (id, at, actor, action, target_table, target_id, delete_after)
+         VALUES (?, 1000, ?, ?, ?, ?, 2000)`,
+      )
+        .bind(crypto.randomUUID(), ACTOR, action, table, target)
+        .run()
+    // A view never names a row, and an action always does.
+    await expect(insert('view_hello_messages', 'hello_messages', HELLO_ID)).rejects.toThrow(
+      /CHECK constraint failed/,
+    )
+    await expect(insert('mark_replied', 'hello_messages', null)).rejects.toThrow(
+      /CHECK constraint failed/,
+    )
+    // Each action belongs to its own table.
+    await expect(insert('view_applications', 'hello_messages', null)).rejects.toThrow(
+      /CHECK constraint failed/,
+    )
+    await expect(insert('mark_outcome_told', 'hello_messages', HELLO_ID)).rejects.toThrow(
+      /CHECK constraint failed/,
+    )
   })
 })
