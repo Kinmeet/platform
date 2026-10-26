@@ -207,7 +207,7 @@
       "email": {
         "required": "Enter your email address, so we can reply.",
         "too_long": "That email address is too long. Check it's typed correctly.",
-        "invalid_email": "That email address looks incomplete. Check it has a full domain, like name@example.com."
+        "invalid_email": "That email address looks incomplete. Check it has a full domain, like name{'@'}example.com."
       }
     },
     "fields": {
