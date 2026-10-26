@@ -2,13 +2,6 @@
 // request bodies before Nitro reads them into memory (issue #54), then hands
 // everything else to the Nuxt server built by `bun run build`.
 import nitro from '../.output/server/index.mjs'
-import { limitRequestBody } from '../server/entry/body-limit'
+import { withBodyLimits } from '../server/entry/worker'
 
-export default {
-  ...nitro,
-  async fetch(request, env, ctx) {
-    const checked = await limitRequestBody(request)
-    if (checked instanceof Response) return checked
-    return nitro.fetch(checked, env, ctx)
-  },
-}
+export default withBodyLimits(nitro)
