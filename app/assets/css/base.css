@@ -81,15 +81,11 @@ b {
 /*
  * One focus ring everywhere: 3px bark, outside the element. The design's
  * sunwarm ring is only 1.97:1 against cream and vanishes on sunwarm buttons,
- * so it is not used. Dark surfaces switch to a cream ring.
+ * so it is not used. `.on-dark` re-points --colour-focus to cream.
  */
 :focus-visible {
   outline: 3px solid var(--colour-focus);
   outline-offset: 3px;
-}
-
-.on-dark :focus-visible {
-  outline-color: var(--colour-focus-on-dark);
 }
 
 /* Moving focus to a heading or summary from script should not draw a ring

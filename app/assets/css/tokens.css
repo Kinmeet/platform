@@ -23,18 +23,22 @@
   --colour-stone: #b9b2a1;
   --colour-disabled: #e5dfd0;
   --colour-disabled-text: #67615a;
-  --colour-error: #a8380f;
+  --colour-error-base: #a8380f;
+  /* For text on meadow bands and wilder-green surfaces (see components.css). */
+  --colour-error-deep: #7a2608;
+  --colour-cream-muted: #e0d9c8;
+  --colour-error-light: #ffd1bd;
 
   /* What each colour is for */
+  --colour-error: var(--colour-error-base);
   --colour-text: var(--colour-bark);
   --colour-text-muted: var(--colour-bark-muted);
   --colour-heading: var(--colour-wilder-green);
   --colour-link: var(--colour-wilder-green);
   --colour-link-hover: var(--colour-wilder-green-deep);
   --colour-outline: var(--colour-bark);
-  /* Focus ring: bark on light grounds, cream on wilder-green (see base.css). */
+  /* Focus ring: bark here; .on-dark re-points it to cream (see base.css). */
   --colour-focus: var(--colour-bark);
-  --colour-focus-on-dark: var(--colour-cream);
 
   /* Type */
   /* Fredoka has no ŵ or ŷ, so those letters fall back to Atkinson (ADR-0007). */

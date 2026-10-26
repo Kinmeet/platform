@@ -111,9 +111,16 @@
   box-shadow: none;
 }
 
-/* A coloured band, such as "Here as a parent?". Headings on meadow are bark:
-   wilder-green on meadow is only 3.58:1. */
+/* A coloured band, such as "Here as a parent?". Wilder-green, bark-muted and
+   the usual error colour are all under 4.5:1 on meadow, so the role tokens
+   are re-pointed for everything inside the band. */
 .band {
+  --colour-heading: var(--colour-bark);
+  --colour-text-muted: var(--colour-bark);
+  --colour-link: var(--colour-wilder-green-deep);
+  --colour-link-hover: var(--colour-bark);
+  --colour-error: var(--colour-error-deep);
+
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
@@ -124,7 +131,6 @@
 }
 
 .band :is(h2, h3) {
-  color: var(--colour-bark);
   font-size: var(--text-band);
 }
 
@@ -234,12 +240,32 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Wilder-green surfaces such as the footer. */
+/* Wilder-green surfaces such as the footer. The role tokens are re-pointed,
+   so headings, eyebrows, hints, links and the focus ring turn cream and
+   errors light coral, while buttons and tags keep their own colours. */
 .on-dark {
+  --colour-text: var(--colour-cream);
+  --colour-text-muted: var(--colour-cream-muted);
+  --colour-heading: var(--colour-cream);
+  --colour-link: var(--colour-cream);
+  --colour-link-hover: var(--colour-cream);
+  --colour-focus: var(--colour-cream);
+  --colour-error: var(--colour-error-light);
+
   background: var(--colour-wilder-green);
-  color: var(--colour-cream);
+  color: var(--colour-text);
 }
 
-.on-dark :is(h2, h3, a, a:hover) {
-  color: var(--colour-cream);
+/* Light surfaces put the role tokens back, so a patch, note or field inside
+   the footer or a meadow band still reads as it does on cream. */
+:is(.patch, .note, .error-summary, .input, .choice) {
+  --colour-text: var(--colour-bark);
+  --colour-text-muted: var(--colour-bark-muted);
+  --colour-heading: var(--colour-wilder-green);
+  --colour-link: var(--colour-wilder-green);
+  --colour-link-hover: var(--colour-wilder-green-deep);
+  --colour-focus: var(--colour-bark);
+  --colour-error: var(--colour-error-base);
+
+  color: var(--colour-text);
 }

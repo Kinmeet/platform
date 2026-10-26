@@ -1,48 +1,39 @@
 import { describe, expect, it } from 'vitest'
+import components from '../../../../../app/assets/css/components.css?raw'
 import tokens from '../../../../../app/assets/css/tokens.css?raw'
 
-// Every text and background pairing the patch language uses, with the WCAG 2.2
-// AA minimum it must meet: 4.5 for body text, 3 for large text (24px and up,
-// or 18.66px bold) and for outlines such as the focus ring (1.4.11).
-const pairings: { what: string; text: string; background: string; minimum: number }[] = [
-  { what: 'body text on cream', text: 'bark', background: 'cream', minimum: 4.5 },
-  { what: 'body text on patches and inputs', text: 'bark', background: 'elevated', minimum: 4.5 },
-  { what: 'body text on sand', text: 'bark', background: 'sand', minimum: 4.5 },
-  { what: 'text on a selected choice', text: 'bark', background: 'selected', minimum: 4.5 },
-  { what: 'text on primary buttons', text: 'bark', background: 'sunwarm', minimum: 4.5 },
-  { what: 'text on meadow bands and tags', text: 'bark', background: 'meadow', minimum: 4.5 },
-  { what: 'hints on cream', text: 'bark-muted', background: 'cream', minimum: 4.5 },
-  { what: 'hints on patches', text: 'bark-muted', background: 'elevated', minimum: 4.5 },
-  { what: 'cancelled tag', text: 'bark-muted', background: 'sand', minimum: 4.5 },
-  { what: 'headings and links on cream', text: 'wilder-green', background: 'cream', minimum: 4.5 },
-  { what: 'links on patches', text: 'wilder-green', background: 'elevated', minimum: 4.5 },
-  { what: 'links on sand', text: 'wilder-green', background: 'sand', minimum: 4.5 },
-  { what: 'link hover on cream', text: 'wilder-green-deep', background: 'cream', minimum: 4.5 },
-  { what: 'footer and paid tag text', text: 'cream', background: 'wilder-green', minimum: 4.5 },
-  { what: 'error messages on cream', text: 'error', background: 'cream', minimum: 4.5 },
-  { what: 'error messages on patches', text: 'error', background: 'elevated', minimum: 4.5 },
-  // Disabled controls are exempt from 1.4.3, but we keep them readable anyway.
-  { what: 'disabled button text', text: 'disabled-text', background: 'disabled', minimum: 4.5 },
-  { what: 'focus ring on cream', text: 'bark', background: 'cream', minimum: 3 },
-  { what: 'focus ring on sunwarm buttons', text: 'bark', background: 'sunwarm', minimum: 3 },
-  { what: 'focus ring on wilder-green', text: 'cream', background: 'wilder-green', minimum: 3 },
-  { what: 'invalid field border on patches', text: 'error', background: 'elevated', minimum: 3 },
-]
+// WCAG 2.2 AA minimums: 4.5 for body text (1.4.3), 3 for outlines such as the
+// focus ring and invalid-field borders (1.4.11).
+const TEXT = 4.5
+const OUTLINE = 3
 
-// Pairings the design rules out. If one of these starts passing, the rule can
-// be relaxed; until then nothing should use it.
-const ruledOut: { what: string; text: string; background: string; below: number }[] = [
-  { what: 'sunwarm focus ring on cream', text: 'sunwarm', background: 'cream', below: 3 },
-  { what: 'wilder-green text on meadow', text: 'wilder-green', background: 'meadow', below: 4.5 },
-  { what: 'bark focus ring on wilder-green', text: 'bark', background: 'wilder-green', below: 3 },
-]
-
-function palette(css: string): Map<string, string> {
-  const colours = new Map<string, string>()
-  for (const match of css.matchAll(/--colour-([a-z-]+):\s*(#[0-9a-f]{6})\s*;/gi)) {
-    colours.set(match[1]!, match[2]!)
+/** Custom properties declared in one CSS block, values as written. */
+function declarations(block: string): Map<string, string> {
+  const found = new Map<string, string>()
+  for (const match of block.matchAll(/--colour-([a-z-]+):\s*([^;]+);/gi)) {
+    found.set(match[1]!, match[2]!.trim())
   }
-  return colours
+  return found
+}
+
+/** The body of the first rule whose selector is exactly `selector`. */
+function ruleBody(css: string, selector: string): string {
+  const start = css.indexOf(`${selector} {`)
+  if (start === -1) throw new Error(`No "${selector}" rule in components.css`)
+  return css.slice(start, css.indexOf('}', start))
+}
+
+const root = declarations(tokens)
+
+/** Resolves a token to a hex colour, following var() through a scope's overrides. */
+function resolve(name: string, scope: Map<string, string> = new Map()): string {
+  const value = scope.get(name) ?? root.get(name)
+  if (!value) throw new Error(`--colour-${name} is not defined`)
+  if (/^#[0-9a-f]{6}$/i.test(value)) return value
+  const reference = value.match(/^var\(--colour-([a-z-]+)\)$/)
+  if (!reference) throw new Error(`--colour-${name} has a value the test cannot read: ${value}`)
+  // A scope's override points at a palette colour or root role, never at itself.
+  return resolve(reference[1]!, reference[1] === name ? new Map() : scope)
 }
 
 function luminance(hex: string): number {
@@ -56,27 +47,96 @@ function contrast(a: string, b: string): number {
   return (light! + 0.05) / (dark! + 0.05)
 }
 
-const colours = palette(tokens)
+// Each surface, with the role tokens it re-points. Every role colour must
+// pass on its own surface, so nothing inside the footer or a band can turn
+// green on green or cream on cream.
+const surfaces = [
+  { name: 'cream page', background: 'cream', scope: new Map<string, string>() },
+  { name: 'sand band', background: 'sand', scope: new Map<string, string>() },
+  {
+    name: 'meadow band (.band)',
+    background: 'meadow',
+    scope: declarations(ruleBody(components, '.band')),
+  },
+  {
+    name: 'wilder-green surface (.on-dark)',
+    background: 'wilder-green',
+    scope: declarations(ruleBody(components, '.on-dark')),
+  },
+  {
+    name: 'patch, note, field or choice',
+    background: 'elevated',
+    scope: declarations(
+      ruleBody(components, ':is(.patch, .note, .error-summary, .input, .choice)'),
+    ),
+  },
+]
 
-function colour(name: string): string {
-  const value = colours.get(name)
-  if (!value) throw new Error(`--colour-${name} is not defined in tokens.css`)
-  return value
-}
+const roles = [
+  { role: 'text', minimum: TEXT },
+  { role: 'text-muted', minimum: TEXT },
+  { role: 'heading', minimum: TEXT },
+  { role: 'link', minimum: TEXT },
+  { role: 'link-hover', minimum: TEXT },
+  { role: 'error', minimum: TEXT },
+  { role: 'focus', minimum: OUTLINE },
+]
+
+const roleChecks = surfaces.flatMap((surface) => roles.map((role) => ({ ...surface, ...role })))
+
+// Components that set their own colours, whatever surface they sit on.
+const fixedPairings: { what: string; text: string; background: string; minimum: number }[] = [
+  { what: 'primary button text', text: 'bark', background: 'sunwarm', minimum: TEXT },
+  { what: 'secondary button text', text: 'bark', background: 'elevated', minimum: TEXT },
+  { what: 'green button text', text: 'cream', background: 'wilder-green', minimum: TEXT },
+  { what: 'disabled button text', text: 'disabled-text', background: 'disabled', minimum: TEXT },
+  { what: 'selected choice text', text: 'bark', background: 'selected', minimum: TEXT },
+  { what: 'paid tag', text: 'cream', background: 'wilder-green', minimum: TEXT },
+  { what: 'step-free tag', text: 'bark', background: 'meadow', minimum: TEXT },
+  { what: 'warning tag and sticker', text: 'bark', background: 'sunwarm', minimum: TEXT },
+  { what: 'cancelled tag', text: 'bark-muted', background: 'sand', minimum: TEXT },
+  { what: 'group tag', text: 'wilder-green', background: 'elevated', minimum: TEXT },
+  { what: 'skip link', text: 'cream', background: 'wilder-green', minimum: TEXT },
+  { what: 'focus ring on primary buttons', text: 'bark', background: 'sunwarm', minimum: OUTLINE },
+  { what: 'invalid field border', text: 'error-base', background: 'elevated', minimum: OUTLINE },
+  { what: 'error summary links', text: 'error-base', background: 'elevated', minimum: TEXT },
+]
+
+// Pairings the design rules out. If one starts passing, the rule can be
+// relaxed; until then nothing should use it.
+const ruledOut: { what: string; text: string; background: string; below: number }[] = [
+  { what: 'sunwarm focus ring on cream', text: 'sunwarm', background: 'cream', below: OUTLINE },
+  { what: 'wilder-green text on meadow', text: 'wilder-green', background: 'meadow', below: TEXT },
+  { what: 'bark-muted text on meadow', text: 'bark-muted', background: 'meadow', below: TEXT },
+  { what: 'error text on meadow', text: 'error-base', background: 'meadow', below: TEXT },
+  {
+    what: 'bark focus ring on wilder-green',
+    text: 'bark',
+    background: 'wilder-green',
+    below: OUTLINE,
+  },
+]
 
 describe('design token contrast', () => {
   it('reads the palette from tokens.css', () => {
-    expect(colours.size).toBeGreaterThanOrEqual(10)
+    expect(root.size).toBeGreaterThanOrEqual(10)
   })
 
-  it.each(pairings)('$what meets $minimum:1', ({ text, background, minimum }) => {
-    expect(contrast(colour(text), colour(background))).toBeGreaterThanOrEqual(minimum)
+  it.each(roleChecks)(
+    '$role on the $name meets $minimum:1',
+    ({ role, minimum, background, scope }) => {
+      expect(contrast(resolve(role, scope), resolve(background))).toBeGreaterThanOrEqual(minimum)
+    },
+  )
+
+  it.each(fixedPairings)('$what meets $minimum:1', ({ text, background, minimum }) => {
+    expect(contrast(resolve(text), resolve(background))).toBeGreaterThanOrEqual(minimum)
   })
 
   it.each(ruledOut)(
     '$what is below $below:1, so stays ruled out',
     ({ text, background, below }) => {
-      expect(contrast(colour(text), colour(background))).toBeLessThan(below)
+      expect(contrast(resolve(text), resolve(background))).toBeLessThan(below)
     },
   )
 })
