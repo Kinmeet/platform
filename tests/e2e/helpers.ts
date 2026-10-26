@@ -72,3 +72,14 @@ export async function watchPage(
 
   return problems
 }
+
+/**
+ * Waits until Vue has taken over the server's HTML. A click before then is
+ * an ordinary browser navigation, so tests about client-side links must
+ * wait for this first.
+ */
+export async function waitForApp(page: Page) {
+  await page.waitForFunction(() =>
+    Boolean((document.querySelector('#__nuxt') as { __vue_app__?: unknown } | null)?.__vue_app__),
+  )
+}
