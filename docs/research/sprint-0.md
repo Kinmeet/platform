@@ -16,23 +16,23 @@ Every version below was read from the npm registry (`npm view <package>`) on 25 
 
 ## Package versions
 
-| Package | Plan said | Verified latest | Notes |
-| --- | --- | --- | --- |
-| `nuxt` | 4.6.2 | 4.6.2 | `engines.node`: `^22.22.3 \|\| ^24.15.0 \|\| >=26.0.0`. Depends on `@nuxt/nitro-server` 4.6.2, which depends on `nitropack` `^2.13.4` (latest 2.13.5), so Nitro 2 is correct. |
-| `wrangler` | 4.152.0 | 4.152.0 | `engines.node`: `>=22.0.0`. |
-| `@cloudflare/vitest-plugin` | 1.4.7 | 1.4.7 | Peer `vitest`: `^4.1.0 \|\| ^5.0.0`. Rename confirmed (see below). |
-| `@cloudflare/vitest-pool-workers` | (renamed) | 0.23.0, deprecated | npm deprecation notice: "has been renamed to @cloudflare/vitest-plugin. This package will not receive future updates." Do not install. |
-| `vitest` | 5.0.5 | 5.0.5 | Also accepted by `@nuxt/test-utils` 4.3.4 (peer `^4.0.2 \|\| ^5.0.0`). |
-| `@nuxt/test-utils` | not listed | 4.3.4 | Peer `nuxt` `^3.21.0 \|\| ^4.0.0`, `@playwright/test` `^1.43.1`. |
-| `@playwright/test` | 1.64.1 | 1.64.1 | `engines.node`: `>=20`. Published 25 October 2026. |
-| `@axe-core/playwright` | 4.14 | 4.14.0 | Peer `playwright-core` `>= 1.0.0`. |
-| `@nuxtjs/i18n` | 10.6 | 10.6.0 | `engines.node`: `>=20.11.1`. |
-| `@nuxt/eslint` | 1.17 | 1.17.0 | Peer `eslint` `^9.0.0 \|\| ^10.0.0` (latest eslint 10.13.0). |
-| `typescript` | 7.0.2 | 7.0.2 latest; 6.0.3 latest 6.x; 7.1.0-beta | **Flag 2.** Use 6.0.x. |
-| `vue-tsc` | not listed | 3.3.13 | Peer `typescript` `>=5.0.0`. Built on `@volar/typescript`, which needs the TypeScript JavaScript API. |
-| `@typescript-eslint/parser` | not listed | 8.72.0 | Peer `typescript` `>=4.8.4 <6.1.0`. This is what rules out TypeScript 7 for linting. |
-| `bun` (package manager and script runner) | 1.4.4 | 1.4.4 | Replaces pnpm (Matt's decision, 25 October 2026). Published 22 October 2026. Pin with `packageManager` in `package.json`. Node 24 is still required: see [Bun and Node](#bun-and-node). |
-| `vue` | not listed | 3.5.44 | Comes with Nuxt. |
+| Package                                   | Plan said  | Verified latest                            | Notes                                                                                                                                                                                          |
+| ----------------------------------------- | ---------- | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `nuxt`                                    | 4.6.2      | 4.6.2                                      | `engines.node`: `^22.22.3 \|\| ^24.15.0 \|\| >=26.0.0`. Depends on `@nuxt/nitro-server` 4.6.2, which depends on `nitropack` `^2.13.4` (latest 2.13.5), so Nitro 2 is correct.                  |
+| `wrangler`                                | 4.152.0    | 4.152.0                                    | `engines.node`: `>=22.0.0`.                                                                                                                                                                    |
+| `@cloudflare/vitest-plugin`               | 1.4.7      | 1.4.7                                      | Peer `vitest`: `^4.1.0 \|\| ^5.0.0`. Rename confirmed (see below).                                                                                                                             |
+| `@cloudflare/vitest-pool-workers`         | (renamed)  | 0.23.0, deprecated                         | npm deprecation notice: "has been renamed to @cloudflare/vitest-plugin. This package will not receive future updates." Do not install.                                                         |
+| `vitest`                                  | 5.0.5      | 5.0.5                                      | Also accepted by `@nuxt/test-utils` 4.3.4 (peer `^4.0.2 \|\| ^5.0.0`).                                                                                                                         |
+| `@nuxt/test-utils`                        | not listed | 4.3.4                                      | Peer `nuxt` `^3.21.0 \|\| ^4.0.0`, `@playwright/test` `^1.43.1`.                                                                                                                               |
+| `@playwright/test`                        | 1.64.1     | 1.64.1                                     | `engines.node`: `>=20`. Published 25 October 2026.                                                                                                                                             |
+| `@axe-core/playwright`                    | 4.14       | 4.14.0                                     | Peer `playwright-core` `>= 1.0.0`.                                                                                                                                                             |
+| `@nuxtjs/i18n`                            | 10.6       | 10.6.0                                     | `engines.node`: `>=20.11.1`.                                                                                                                                                                   |
+| `@nuxt/eslint`                            | 1.17       | 1.17.0                                     | Peer `eslint` `^9.0.0 \|\| ^10.0.0` (latest eslint 10.13.0).                                                                                                                                   |
+| `typescript`                              | 7.0.2      | 7.0.2 latest; 6.0.3 latest 6.x; 7.1.0-beta | **Flag 2.** Use 6.0.x.                                                                                                                                                                         |
+| `vue-tsc`                                 | not listed | 3.3.13                                     | Peer `typescript` `>=5.0.0`. Built on `@volar/typescript`, which needs the TypeScript JavaScript API.                                                                                          |
+| `@typescript-eslint/parser`               | not listed | 8.72.0                                     | Peer `typescript` `>=4.8.4 <6.1.0`. This is what rules out TypeScript 7 for linting.                                                                                                           |
+| `bun` (package manager and script runner) | 1.4.4      | 1.4.4                                      | Replaces pnpm (the founder's decision, 25 October 2026). Published 22 October 2026. Pin with `packageManager` in `package.json`. Node 24 is still required: see [Bun and Node](#bun-and-node). |
+| `vue`                                     | not listed | 3.5.44                                     | Comes with Nuxt.                                                                                                                                                                               |
 
 ### TypeScript 7
 
@@ -44,11 +44,11 @@ Recommendation: `"typescript": "~6.0.3"`. Revisit when vue-tsc and typescript-es
 
 From the [Node.js release schedule](https://github.com/nodejs/Release/blob/main/schedule.json) and [nodejs.org/dist/index.json](https://nodejs.org/dist/index.json):
 
-| Line | Status on 25 Oct 2026 | End of life | Latest |
-| --- | --- | --- | --- |
-| 22 | Maintenance | 30 April 2027 | 22.23.4 |
-| 24 | Maintenance since 20 October 2026 | 30 April 2028 | 24.22.1 |
-| 26 | Current; Active LTS from 28 October 2026 | 30 April 2029 | 26.12.1 |
+| Line | Status on 25 Oct 2026                    | End of life   | Latest  |
+| ---- | ---------------------------------------- | ------------- | ------- |
+| 22   | Maintenance                              | 30 April 2027 | 22.23.4 |
+| 24   | Maintenance since 20 October 2026        | 30 April 2028 | 24.22.1 |
+| 26   | Current; Active LTS from 28 October 2026 | 30 April 2029 | 26.12.1 |
 
 Recommendation (**Flag 1**): pin `24` in `.nvmrc` and `engines` for Sprint 0 (meets Nuxt's `^24.15.0` and Wrangler's `>=22`). Nuxt already lists `>=26.0.0`, so moving to 26 after 28 October should be a one-line change once CI passes on it.
 
@@ -66,12 +66,12 @@ We use Bun as the package manager and script runner, but Nuxt, Vitest and Wrangl
 - Configuration uses the `cloudflareTest()` Vite plugin inside Vitest's `defineConfig` ([Configuration](https://developers.cloudflare.com/workers/testing/vitest-integration/configuration/)):
 
   ```ts
-  import { cloudflareTest } from "@cloudflare/vitest-plugin";
-  import { defineConfig } from "vitest/config";
+  import { cloudflareTest } from '@cloudflare/vitest-plugin'
+  import { defineConfig } from 'vitest/config'
 
   export default defineConfig({
-    plugins: [cloudflareTest({ wrangler: { configPath: "./wrangler.jsonc" } })],
-  });
+    plugins: [cloudflareTest({ wrangler: { configPath: './wrangler.jsonc' } })],
+  })
   ```
 
 - TypeScript `types` entry is `@cloudflare/vitest-plugin/types` ([Migrate to Vitest plugin](https://developers.cloudflare.com/workers/testing/vitest-integration/migration-guides/migrate-to-vitest-plugin/)).
@@ -140,14 +140,14 @@ Recommendation: create every staging and live D1 database, R2 bucket and KV name
 
 From [Workers CI/CD](https://developers.cloudflare.com/workers/ci-cd/) (updated 1 October 2026), [Workers Builds configuration](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/) and [GitHub Actions](https://developers.cloudflare.com/workers/ci-cd/external-cicd/github-actions/) (updated 18 October 2026):
 
-| | Workers Builds | GitHub Actions + `cloudflare/wrangler-action@v4` |
-| --- | --- | --- |
-| Where it runs | Cloudflare | GitHub runners |
-| Gating on our CI | Separate system: builds on push to a branch, not tied to our required checks | Deploy job can `needs:` the test, accessibility and no-third-party jobs in the same workflow |
-| Credentials | Cloudflare generates an API token automatically by default | We create a scoped API token (Edit Cloudflare Workers, Kinmeet account only) and store it as a GitHub secret |
-| Wrangler environments | One connected Worker per environment, each with `--env` in its deploy command ([advanced setups](https://developers.cloudflare.com/workers/ci-cd/builds/advanced-setups/#wrangler-environments)) | `command: deploy --env staging` per job |
-| Nitro | Turns on `deployConfig` (Flag 5) | `deployConfig` stays off |
-| Other notes | Does not honour Wrangler custom builds | Live deploy can sit behind a GitHub environment with Matt as required reviewer (firm rule 6) |
+|                       | Workers Builds                                                                                                                                                                                   | GitHub Actions + `cloudflare/wrangler-action@v4`                                                             |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| Where it runs         | Cloudflare                                                                                                                                                                                       | GitHub runners                                                                                               |
+| Gating on our CI      | Separate system: builds on push to a branch, not tied to our required checks                                                                                                                     | Deploy job can `needs:` the test, accessibility and no-third-party jobs in the same workflow                 |
+| Credentials           | Cloudflare generates an API token automatically by default                                                                                                                                       | We create a scoped API token (Edit Cloudflare Workers, Kinmeet account only) and store it as a GitHub secret |
+| Wrangler environments | One connected Worker per environment, each with `--env` in its deploy command ([advanced setups](https://developers.cloudflare.com/workers/ci-cd/builds/advanced-setups/#wrangler-environments)) | `command: deploy --env staging` per job                                                                      |
+| Nitro                 | Turns on `deployConfig` (Flag 5)                                                                                                                                                                 | `deployConfig` stays off                                                                                     |
+| Other notes           | Does not honour Wrangler custom builds                                                                                                                                                           | Live deploy can sit behind a GitHub environment with the founder as required reviewer (firm rule 6)          |
 
 Recommendation: **GitHub Actions with `cloudflare/wrangler-action@v4`**. It lets the deploy wait for every required check, keeps the API token scoped to the Kinmeet account, and gives us a clean approval gate for live releases.
 
@@ -157,12 +157,12 @@ Current tags (from `git ls-remote --tags`, 25 October 2026): `cloudflare/wrangle
 
 The firm rule is no third-party requests on any page (except Turnstile on form pages). These Cloudflare features can add scripts to HTML:
 
-| Feature | What it injects | Scope | Source |
-| --- | --- | --- | --- |
-| Web Analytics automatic setup | `beacon.min.js` RUM beacon, reporting to `/cdn-cgi/rum` | Sites proxied through a Cloudflare zone | [RUM beacon](https://developers.cloudflare.com/speed/observatory/rum-beacon/), [FAQ](https://developers.cloudflare.com/web-analytics/faq/) |
-| Email Address Obfuscation | `email-decode.min.js` (deferred since 14 April 2026), and rewrites addresses in HTML | Zone setting, on by default for new zones | [Email Address Obfuscation](https://developers.cloudflare.com/waf/tools/scrape-shield/email-address-obfuscation/) |
-| Rocket Loader | Rewrites `<script>` tags and adds its loader | Zone setting, or per hostname via configuration rules | [Rocket Loader](https://developers.cloudflare.com/speed/optimization/content/rocket-loader/), [configuration rules](https://developers.cloudflare.com/rules/configuration-rules/settings/) |
-| Zaraz | Third-party tool loader | Zone setting (configured per zone; I found no workers.dev option) | [Zaraz](https://developers.cloudflare.com/zaraz/) |
+| Feature                       | What it injects                                                                      | Scope                                                             | Source                                                                                                                                                                                     |
+| ----------------------------- | ------------------------------------------------------------------------------------ | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Web Analytics automatic setup | `beacon.min.js` RUM beacon, reporting to `/cdn-cgi/rum`                              | Sites proxied through a Cloudflare zone                           | [RUM beacon](https://developers.cloudflare.com/speed/observatory/rum-beacon/), [FAQ](https://developers.cloudflare.com/web-analytics/faq/)                                                 |
+| Email Address Obfuscation     | `email-decode.min.js` (deferred since 14 April 2026), and rewrites addresses in HTML | Zone setting, on by default for new zones                         | [Email Address Obfuscation](https://developers.cloudflare.com/waf/tools/scrape-shield/email-address-obfuscation/)                                                                          |
+| Rocket Loader                 | Rewrites `<script>` tags and adds its loader                                         | Zone setting, or per hostname via configuration rules             | [Rocket Loader](https://developers.cloudflare.com/speed/optimization/content/rocket-loader/), [configuration rules](https://developers.cloudflare.com/rules/configuration-rules/settings/) |
+| Zaraz                         | Third-party tool loader                                                              | Zone setting (configured per zone; I found no workers.dev option) | [Zaraz](https://developers.cloudflare.com/zaraz/)                                                                                                                                          |
 
 Nuxt's own [deployment docs](https://nuxt.com/docs/4.x/getting-started/deployment) also tell you to turn off Rocket Loader and Email Address Obfuscation because they cause hydration errors.
 
