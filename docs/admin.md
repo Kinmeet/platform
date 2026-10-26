@@ -23,4 +23,4 @@ Each environment needs two variables, which are not secrets, once its Access app
 
 ## Audit log
 
-`audit_log` holds the time, the Access user id (`sub`, an opaque id, never an email address), the action and the target row's id. It never copies anything from the row. Database triggers refuse every update and delete.
+`audit_log` holds the time, the Access user id (`sub`, an opaque id, never an email address), the action and the target row's id. It never copies anything from the row. Each entry is kept for 2 years (a Phase 1 rule, pending a P3 row) and has its own `delete_after`. Database triggers refuse every update, and refuse a delete until the entry's `delete_after` has passed, so the deletion job can remove expired entries but nothing can remove a current one.

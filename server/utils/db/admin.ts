@@ -1,6 +1,11 @@
 import type { D1Database } from '@cloudflare/workers-types'
 import type { AdminApplication, AdminHelloMessage } from '../../../shared/admin'
-import { applicationDeleteAfterOutcome, helloDeleteAfterReply, nowSeconds } from '../retention'
+import {
+  applicationDeleteAfterOutcome,
+  auditLogDeleteAfter,
+  helloDeleteAfterReply,
+  nowSeconds,
+} from '../retention'
 
 /**
  * Reads and the two actions for the founder's admin page (#32).
@@ -88,11 +93,11 @@ export async function markReplied(
       .bind(now, helloDeleteAfterReply(now), id),
     db
       .prepare(
-        `INSERT INTO audit_log (id, at, actor, action, target_table, target_id)
-         SELECT ?, ?, ?, 'mark_replied', 'hello_messages', ?
+        `INSERT INTO audit_log (id, at, actor, action, target_table, target_id, delete_after)
+         SELECT ?, ?, ?, 'mark_replied', 'hello_messages', ?, ?
          WHERE EXISTS (SELECT 1 FROM hello_messages WHERE id = ?)`,
       )
-      .bind(crypto.randomUUID(), now, actor, id, id),
+      .bind(crypto.randomUUID(), now, actor, id, auditLogDeleteAfter(now), id),
   ])
   return (update?.meta.changes ?? 0) === 1
 }
@@ -126,15 +131,15 @@ export async function markOutcomeTold(
     // exactly this time, and no entry for it exists yet.
     db
       .prepare(
-        `INSERT INTO audit_log (id, at, actor, action, target_table, target_id)
-         SELECT ?, ?, ?, 'mark_outcome_told', 'applications', ?
+        `INSERT INTO audit_log (id, at, actor, action, target_table, target_id, delete_after)
+         SELECT ?, ?, ?, 'mark_outcome_told', 'applications', ?, ?
          WHERE EXISTS (SELECT 1 FROM applications WHERE id = ? AND outcome_told_at = ?)
            AND NOT EXISTS (
              SELECT 1 FROM audit_log
              WHERE action = 'mark_outcome_told' AND target_table = 'applications' AND target_id = ?
            )`,
       )
-      .bind(crypto.randomUUID(), now, actor, id, id, now, id),
+      .bind(crypto.randomUUID(), now, actor, id, auditLogDeleteAfter(now), id, now, id),
   ])
   return (update?.meta.changes ?? 0) === 1
 }

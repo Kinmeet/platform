@@ -8,6 +8,7 @@ import {
 } from '../../../../../server/utils/db/admin'
 import {
   applicationDeleteAfterOutcome,
+  auditLogDeleteAfter,
   helloDeleteAfterReply,
 } from '../../../../../server/utils/retention'
 
@@ -155,6 +156,33 @@ describe('audit log', () => {
     await expect(env.DB.prepare('DELETE FROM audit_log').run()).rejects.toThrow(
       /audit_log_append_only/,
     )
+  })
+
+  it('keeps each entry for 2 years', async () => {
+    await markReplied(env.DB, HELLO_ID, ACTOR, NOW)
+    const row = await env.DB.prepare(
+      'SELECT delete_after FROM audit_log ORDER BY rowid DESC LIMIT 1',
+    ).first<{ delete_after: number }>()
+    expect(row?.delete_after).toBe(auditLogDeleteAfter(NOW))
+    expect(auditLogDeleteAfter(NOW)).toBe(NOW + 731 * 24 * 60 * 60)
+  })
+
+  it('allows deleting entries only once their deletion date has passed', async () => {
+    await markReplied(env.DB, HELLO_ID, ACTOR, NOW)
+    // Made-up expired entry, from long before the test clock.
+    await env.DB.prepare(
+      `INSERT INTO audit_log (id, at, actor, action, target_table, target_id, delete_after)
+       VALUES ('00000000-0000-4000-8000-0000000000aa', 1000, ?, 'mark_replied', 'hello_messages', ?, 2000)`,
+    )
+      .bind(ACTOR, HELLO_ID)
+      .run()
+    const expired = await env.DB.prepare(
+      'DELETE FROM audit_log WHERE delete_after <= unixepoch()',
+    ).run()
+    expect(expired.meta.changes).toBe(1)
+    await expect(
+      env.DB.prepare('DELETE FROM audit_log WHERE delete_after > unixepoch()').run(),
+    ).rejects.toThrow(/audit_log_append_only/)
   })
 
   it('holds no names, emails or messages', async () => {

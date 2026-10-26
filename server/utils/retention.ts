@@ -15,6 +15,8 @@ export const HELLO_RETENTION_MONTHS = 12
 export const APPLICATION_RETENTION_MONTHS = 6
 /** Email sending log: 30 days. */
 export const EMAIL_LOG_RETENTION_DAYS = 30
+/** Admin audit log: 2 years (Phase 1 rule, pending a P3 row). */
+export const AUDIT_LOG_RETENTION_MONTHS = 24
 
 /** The current time in Unix-epoch seconds. */
 export function nowSeconds(date: Date = new Date()): number {
@@ -68,4 +70,9 @@ export function applicationDeleteAfterOutcome(outcomeToldAt: number): number {
 /** Email sending log: 30 days after sending. */
 export function emailLogDeleteAfter(sentAt: number): number {
   return addDays(sentAt, EMAIL_LOG_RETENTION_DAYS)
+}
+
+/** Admin audit log: 2 years after the action. */
+export function auditLogDeleteAfter(at: number): number {
+  return addMonths(at, AUDIT_LOG_RETENTION_MONTHS)
 }
