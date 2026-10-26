@@ -15,8 +15,7 @@ const leaveTo = computed(() => {
     <header class="site-header">
       <SiteWordmark />
       <NuxtLink :to="leaveTo" class="site-header__leave">
-        {{ t('site.leave.visible')
-        }}<span class="visually-hidden">{{ t('site.leave.hidden') }}</span>
+        {{ t('site.leave') }}
       </NuxtLink>
     </header>
     <main id="main" class="site__main site__main--focused" tabindex="-1">

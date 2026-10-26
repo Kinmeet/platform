@@ -11,10 +11,7 @@
       "promise": "Our all-ages promise",
       "data": "How we handle data"
     },
-    "leave": {
-      "visible": "Leave (answers won't be kept)",
-      "hidden": " the application"
-    },
+    "leave": "Leave the application (answers won't be kept)",
     "footer": {
       "tagline": "Free, all-ages park meets for the alterhuman family. Being founded in the open, autumn 2026.",
       "no_tracking": "No cookies, no trackers. The only outside script is a spam check on our forms.",
