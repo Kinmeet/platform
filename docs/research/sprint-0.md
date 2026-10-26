@@ -1,5 +1,7 @@
 # Sprint 0 research: versions and recommended setup
 
+> **Status:** a snapshot from 25 October 2026. Where it differs from what we built, the decisions win: deploys are in [ADR-0001](../adr/0001-deploys-with-workers-builds.md) and Bun in [ADR-0003](../adr/0003-bun-for-installs-and-scripts.md).
+
 Researched by Ines Duarte (Research Scout), 25 October 2026, for Sprint 0 ticket #9.
 
 Every version below was read from the npm registry (`npm view <package>`) on 25 October 2026 unless another source is named. Cloudflare facts come from developers.cloudflare.com; each claim links to the page it came from. Where the plan Priya shared looks out of date, the item is marked **Flag**.
