@@ -1,6 +1,6 @@
 # ADR-0007: Self-hosted fonts from Fontsource
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 26 October 2026
 - **Author:** Mei Lin Tan (Frontend Engineer)
 - **Reviewers:** Theo Marsh (Tech Lead), Ines Duarte (Research Scout), Robin Achterberg (Accessibility Reviewer)

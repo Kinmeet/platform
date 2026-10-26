@@ -1,7 +1,8 @@
 /*
  * Fonts are bundled with the app and served from our own origin (ADR-0007).
  * Each package splits its files by unicode-range, so browsers only download
- * the Latin Extended file (which holds Welsh ŵ and ŷ) on pages that use it.
+ * the Latin Extended file on pages that use it. Only Atkinson has Welsh ŵ and
+ * ŷ; Fredoka has neither, so headings fall back to Atkinson for those letters.
  */
 @import '@fontsource-variable/fredoka/wght.css';
 @import '@fontsource/atkinson-hyperlegible-next/400.css';

@@ -28,4 +28,4 @@ Do not write one for choices already made in the F, SG, S and P documents. Link 
 | [0002](0002-project-structure.md)            | Project structure                         | Accepted                 |
 | [0003](0003-bun-for-installs-and-scripts.md) | Bun for installs and scripts              | Accepted                 |
 | [0004](0004-nonce-based-csp.md)              | Nonce-based CSP for Nuxt's inline scripts | Proposed                 |
-| [0007](0007-self-hosted-fonts.md)            | Self-hosted fonts from Fontsource         | Proposed                 |
+| [0007](0007-self-hosted-fonts.md)            | Self-hosted fonts from Fontsource         | Accepted                 |
