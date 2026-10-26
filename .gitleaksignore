@@ -1,0 +1,4 @@
+# Public Cloudflare Access AUD tags on the abandoned branch of PR #86, which
+# the full-history scan still reads until that branch is deleted. Not secrets.
+dc30a265091506564ac7fd767fbb2d4ebacce383:wrangler.jsonc:generic-api-key:74
+dc30a265091506564ac7fd767fbb2d4ebacce383:wrangler.jsonc:generic-api-key:108
