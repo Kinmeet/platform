@@ -53,6 +53,10 @@ openssl rand -base64 32 | bunx wrangler secret put RATE_LIMIT_HMAC_KEY --env liv
 
 Generate a fresh value for every environment and every secret; never reuse one. Previews get their secrets from the Preview base config (`wrangler preview base-config secret`), which every new Preview starts with, separately from staging. `TURNSTILE_SECRET_KEY` and `RATE_LIMIT_HMAC_KEY` are listed in `secrets.required` for local, staging and live, because the form routes read them: a deploy fails until both are set for that environment.
 
+### Local development
+
+`wrangler dev` reads local values from `.dev.vars`, which is ignored and never committed. Use Cloudflare's dummy Turnstile keys (the always-passes test secret `1x0000000000000000000000000000000AA`) and `KINMEET_ENV=local`. With `KINMEET_ENV=local`, and only then, the form routes also accept what the dummy keys report from siteverify: the hostnames `localhost` or `example.com`, and the action `test`. Staging, Previews and live set `KINMEET_ENV` in `wrangler.jsonc`, so they always check the real hostname and the form's own action. A test checks that they refuse the dummy values.
+
 ## Logging (P5)
 
 Workers Logs keep only what the code logs, which is errors without personal data. Invocation logs (one line per request, with its URL and headers) and traces are off, Logpush is off, and there are no Tail Workers. The same settings are repeated in each environment so they never depend on inheritance.

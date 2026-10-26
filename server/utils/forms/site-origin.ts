@@ -21,6 +21,13 @@ export interface SitePattern {
   environment: string | undefined
 }
 
+/**
+ * Hostnames Cloudflare's dummy test keys can report from siteverify
+ * (developers.cloudflare.com/turnstile/troubleshooting/testing). Accepted only
+ * when `KINMEET_ENV` is `local`, never on staging, Previews or live.
+ */
+export const TURNSTILE_TEST_HOSTNAMES: readonly string[] = ['localhost', 'example.com']
+
 function hostMatches(host: string, patternHost: string, allowWildcard: boolean): boolean {
   if (!patternHost.includes('*')) return host === patternHost
   if (!allowWildcard) return false
@@ -53,6 +60,7 @@ export function hostnameAllowed(
   hostname: string,
   { siteOrigin, environment }: SitePattern,
 ): boolean {
+  if (environment === 'local' && TURNSTILE_TEST_HOSTNAMES.includes(hostname)) return true
   const expected = splitOrigin(siteOrigin)
   if (expected === null) return false
   // siteverify reports a hostname without a port.

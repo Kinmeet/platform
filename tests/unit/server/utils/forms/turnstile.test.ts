@@ -19,7 +19,7 @@ function fakeFetch(response: Response | Error) {
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status })
 const verify = (
   response: Response | Error,
-  overrides: { secret?: string; token?: string } = {},
+  overrides: { secret?: string; token?: string; acceptTestAction?: boolean } = {},
 ) => {
   const fake = fakeFetch(response)
   return {
@@ -72,5 +72,19 @@ describe('verifyTurnstile', () => {
     expect(await verify(new Response('oops', { status: 500 })).result).toBe('unavailable')
     expect(await verify(new Response('not json')).result).toBe('unavailable')
     expect(await verify(json({ success: true }), { secret: '' }).result).toBe('unavailable')
+  })
+})
+
+describe('verifyTurnstile with the dummy test action', () => {
+  it('accepts the test action only when asked to (local development)', async () => {
+    const dummy = { success: true, hostname: HOST, action: 'test' }
+    expect(await verify(json(dummy), { acceptTestAction: true }).result).toBe('passed')
+    expect(await verify(json(dummy)).result).toBe('failed')
+    expect(await verify(json(dummy), { acceptTestAction: false }).result).toBe('failed')
+  })
+
+  it("still refuses another form's action locally", async () => {
+    const other = { success: true, hostname: HOST, action: 'apply' }
+    expect(await verify(json(other), { acceptTestAction: true }).result).toBe('failed')
   })
 })
