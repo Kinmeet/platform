@@ -65,9 +65,7 @@
       // Needed for Worker Previews to be served on workers.dev.
       "preview_urls": true,
       "vars": { "KINMEET_ENV": "staging" },
-      // No secrets.required on staging yet: the first staging deploy happens
-      // before the secrets can be set (Rowan, #44). Until they are set, the
-      // form routes answer 503 and store nothing. A follow-up PR adds it back.
+      "secrets": { "required": ["TURNSTILE_SECRET_KEY", "RATE_LIMIT_HMAC_KEY"] },
       "d1_databases": [
         {
           "binding": "DB",
