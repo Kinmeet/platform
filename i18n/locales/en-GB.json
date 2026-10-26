@@ -92,7 +92,7 @@
           },
           "checks": {
             "label": "Checks",
-            "value": "A basic DBS check, which we arrange and pay for, or enhanced if our checking body confirms the role is eligible"
+            "value": "A basic DBS (criminal record) check, which we arrange and pay for, or enhanced if our checking body confirms the role is eligible"
           },
           "you_need": {
             "label": "You need to be",

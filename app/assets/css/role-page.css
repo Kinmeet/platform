@@ -133,8 +133,11 @@
   font: var(--weight-display) 1.125rem / 1 var(--font-display);
 }
 
+/* A heading for navigation, set like the body text it sits above. */
 .role-next__title {
-  font-weight: var(--weight-bold);
+  color: inherit;
+  font: var(--weight-bold) 1rem / var(--leading-body) var(--font-body);
+  letter-spacing: normal;
 }
 
 @media (min-width: 56rem) {

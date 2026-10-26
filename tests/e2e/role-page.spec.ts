@@ -30,6 +30,22 @@ test.describe('role page', () => {
     await expect(steps).toHaveCount(Object.keys(trustee.page.next).length)
   })
 
+  test('gives each step a heading, so people can jump between them', async ({ page }) => {
+    await page.goto('/roles/trustee')
+    const next = page.getByRole('region', { name: en.role_page.next })
+    await expect(next.getByRole('heading', { level: 3 })).toHaveCount(
+      Object.keys(trustee.page.next).length,
+    )
+  })
+
+  test('keeps the landmark list short: body sections are not regions', async ({ page }) => {
+    await page.goto('/roles/trustee')
+    for (const { heading } of Object.values(trustee.page.sections)) {
+      await expect(page.getByRole('heading', { level: 2, name: heading })).toBeVisible()
+      await expect(page.getByRole('region', { name: heading })).toHaveCount(0)
+    }
+  })
+
   test('links back to the roles list on the home page', async ({ page }) => {
     await page.goto('/roles/trustee')
     await page.getByRole('link', { name: en.role_page.all_roles }).click()

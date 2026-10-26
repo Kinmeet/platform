@@ -61,7 +61,7 @@ useHead({
       </aside>
 
       <div class="role-sections">
-        <section v-for="id in role.page.sections" :key="id" :aria-labelledby="`section-${id}`">
+        <section v-for="id in role.page.sections" :key="id">
           <h2 :id="`section-${id}`">{{ t(`${key}.page.sections.${id}.heading`) }}</h2>
           <p>{{ t(`${key}.page.sections.${id}.body`) }}</p>
         </section>
@@ -75,7 +75,7 @@ useHead({
         <li v-for="(id, index) in role.page.next" :key="id">
           <span class="role-next__number" aria-hidden="true">{{ index + 1 }}</span>
           <div>
-            <p class="role-next__title">{{ t(`${key}.page.next.${id}.title`) }}</p>
+            <h3 class="role-next__title">{{ t(`${key}.page.next.${id}.title`) }}</h3>
             <p>{{ t(`${key}.page.next.${id}.body`) }}</p>
           </div>
         </li>
