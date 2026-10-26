@@ -12,34 +12,6 @@
 @import './base.css';
 @import './components.css';
 @import './forms.css';
-
-/* Holding page, until the pre-launch home page replaces it (#12). */
-.placeholder {
-  max-width: 40rem;
-  min-height: 100vh;
-  margin: 0 auto;
-  padding: var(--space-8) var(--gutter);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.placeholder__name {
-  margin: 0;
-  color: var(--colour-heading);
-  font-family: var(--font-display);
-  font-size: 1.5rem;
-  font-weight: var(--weight-display);
-}
-
-.placeholder__title {
-  margin: var(--space-2) 0 var(--space-4);
-  color: var(--colour-text);
-  font-size: var(--text-title);
-  line-height: 1.15;
-}
-
-.placeholder__lead {
-  margin: 0 0 var(--space-4);
-  color: var(--colour-text-muted);
-}
+@import './layout.css';
+@import './home.css';
+@import './role-page.css';

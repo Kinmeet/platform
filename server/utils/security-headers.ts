@@ -1,7 +1,7 @@
 import { isFormRoute, type PublicRoute } from '../../shared/routes'
+import { TURNSTILE_ORIGIN } from '../../shared/turnstile'
 
-/** The only third-party origin any page may load, and only on form pages (S5). */
-export const TURNSTILE_ORIGIN = 'https://challenges.cloudflare.com'
+export { TURNSTILE_ORIGIN }
 
 export interface SecurityHeaderOptions {
   /** Request path, used to decide whether Turnstile is allowed. */
