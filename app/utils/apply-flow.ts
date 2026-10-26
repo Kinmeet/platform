@@ -68,6 +68,11 @@ export function stopReason(draft: ApplicationDraft, role: PublishedRole): StopRe
   return undefined
 }
 
+// Zod compiles object schemas with `new Function` unless told not to. Our
+// security policy forbids eval in the browser (P5), so even its feature test
+// is reported as a violation. Set before any object schema is made.
+z.config({ jitless: true })
+
 // Step 2's fields, checked with the same schemas as the API (#44).
 const aboutYou = z.object({ callName, email })
 
