@@ -1,0 +1,36 @@
+name: Ticket
+description: A piece of planned work for a sprint
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This repository is public. Never include personal data, secrets or safeguarding details.
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What this ticket achieves and why. Link the decision it follows.
+    validations:
+      required: true
+  - type: textarea
+    id: tasks
+    attributes:
+      label: Tasks
+      description: A checklist of the work.
+      value: |
+        - [ ]
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: Done when
+      description: How we will know the ticket is finished.
+    validations:
+      required: true
+  - type: input
+    id: owner
+    attributes:
+      label: Owner
+      description: Persona name. Also add the owner label.

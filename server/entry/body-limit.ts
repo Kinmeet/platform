@@ -48,8 +48,11 @@ export async function limitRequestBody(
     body.set(chunk, offset)
     offset += chunk.byteLength
   }
-  // GET and HEAD may not carry a body at all, even an empty one.
-  return new Request(request, { body: total === 0 ? null : body })
+  // GET and HEAD may not carry a body at all, even an empty one. The copy
+  // drops Content-Length, which may not match what actually arrived.
+  const accepted = new Request(request, { body: total === 0 ? null : body })
+  accepted.headers.delete('Content-Length')
+  return accepted
 }
 
 function tooLarge(path: string): Response {

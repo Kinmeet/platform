@@ -49,6 +49,17 @@ describe('request body limits', () => {
     await refused(await limitRequestBody(request, limitFor))
   })
 
+  it('drops a Content-Length that does not match the body passed on', async () => {
+    const limitFor = () => 100
+    const result = await limitRequestBody(
+      post('/api/hello', chunked([8, 8]), { 'Content-Length': '5' }),
+      limitFor,
+    )
+    expect(result).toBeInstanceOf(Request)
+    expect((result as Request).headers.get('Content-Length')).toBeNull()
+    expect((await (result as Request).arrayBuffer()).byteLength).toBe(16)
+  })
+
   it('accepts a body of exactly the limit and passes it on unchanged', async () => {
     const body = bytes(22 * 1024)
     const result = await limitRequestBody(post('/api/hello', chunked([11 * 1024, 11 * 1024])))
