@@ -42,6 +42,12 @@
       "read_promise": "Read the promise"
     }
   },
+  "role_page": {
+    "all_roles": "All roles",
+    "glance": "At a glance",
+    "questions": "Questions first? {link}",
+    "next": "What happens after you apply"
+  },
   "roles": {
     "trustee": {
       "title": "Trustee",
