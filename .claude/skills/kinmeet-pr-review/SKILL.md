@@ -25,6 +25,12 @@ Work through every section. Note "n/a" rather than skipping silently.
 - Commits carry the `Kinmeet-Persona:` trailer.
 - Files sit where ADR-0002 says they belong.
 
+**Existing modules**
+
+- Does the PR build something a Nuxt module, a Nuxt or Nitro built-in, or a maintained package already does? Check nuxt.com/modules and the docs yourself; do not rely only on the description.
+- The description has an "Existing modules checked" section naming what was adopted, or why each candidate was rejected (third-party requests, not Workers-compatible, unmaintained, too heavy, conflicts with a decision). Missing or unconvincing is **Must fix**.
+- A module adopted is a new dependency: pinned in `bun.lock`, with a reason given, and passes the firm rules.
+
 **Firm rules**
 
 - No new third-party request, script, font, image or CDN link. Turnstile only on routes marked as form pages.
