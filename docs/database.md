@@ -23,6 +23,10 @@ The main D1 database, bound to the Worker as `DB`. Its migrations live in `migra
 
 `server/tasks/retention/delete-expired.ts` runs daily at 03:17 UTC (the cron is in both `nuxt.config.ts` and `wrangler.jsonc`, and a test checks they match). It deletes every row in the three tables whose `delete_after` has passed, in one batch, and logs counts only (`{"code":"deletion_done","deleted":{...}}`). A row is deleted at most about a day after its date.
 
+A run that cannot delete (no `DB` binding, or a D1 error) logs `deletion_db_missing` or `deletion_failed` and then throws, so the cron run shows as an exception in Workers Logs and the Worker's cron history rather than as a success.
+
+The job uses Nitro's scheduled tasks, which are still experimental (`experimental: { tasks: true }` in `nuxt.config.ts`). If an upgrade breaks them, the fallback is a plain `scheduled` handler in the Worker entry (`worker/index.mjs`, ADR-0008) that calls `deleteExpiredRows` with the `DB` binding.
+
 To run it locally: `bun run build`, then `bunx wrangler dev --test-scheduled` and open `/__scheduled?cron=17+3+*+*+*`.
 
 ### Copies outside the tables

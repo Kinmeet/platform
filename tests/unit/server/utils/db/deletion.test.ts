@@ -85,6 +85,18 @@ describe('deleteExpiredRows (retention)', () => {
     expect((await deleteExpiredRows(env.DB, NOW + 365 * DAY)).hello_messages).toBe(1)
   })
 
+  it('deletes an application whose date the told outcome moved on only when the new date passes', async () => {
+    await addApplication(NOW - DAY)
+    // Recording the outcome replaces the backstop with a later date.
+    await env.DB.prepare('UPDATE applications SET outcome_told_at = ?, delete_after = ?')
+      .bind(NOW - 10 * DAY, NOW + DAY)
+      .run()
+    await deleteExpiredRows(env.DB, NOW)
+    expect(await remaining('applications')).toEqual([NOW + DAY])
+    await deleteExpiredRows(env.DB, NOW + DAY)
+    expect(await remaining('applications')).toEqual([])
+  })
+
   it('does nothing on an empty database', async () => {
     expect(await deleteExpiredRows(env.DB, NOW)).toEqual({
       hello_messages: 0,
@@ -94,13 +106,57 @@ describe('deleteExpiredRows (retention)', () => {
   })
 })
 
+/**
+ * Reads wrangler.jsonc as JSON: drops comments and trailing commas outside
+ * strings, then parses it. Enough for our own config file.
+ */
+function parseJsonc(text: string): unknown {
+  let out = ''
+  let inString = false
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i]!
+    if (inString) {
+      out += char
+      if (char === '\\') out += text[++i] ?? ''
+      else if (char === '"') inString = false
+    } else if (char === '"') {
+      inString = true
+      out += char
+    } else if (char === '/' && text[i + 1] === '/') {
+      while (i < text.length && text[i] !== '\n') i++
+      out += '\n'
+    } else if (char === '/' && text[i + 1] === '*') {
+      i = text.indexOf('*/', i + 2) + 1
+    } else {
+      out += char
+    }
+  }
+  return JSON.parse(out.replace(/,(\s*[}\]])/g, '$1'))
+}
+
+interface WranglerLevel {
+  triggers?: { crons?: string[] }
+  previews?: WranglerLevel
+}
+
 describe('deletion schedule', () => {
-  it('has the same cron in nuxt.config.ts and in every deployed wrangler environment', () => {
-    const cron = /'([^']+)': \['retention:delete-expired'\]/.exec(nuxtConfig)?.[1]
+  const cron = /'([^']+)': \['retention:delete-expired'\]/.exec(nuxtConfig)?.[1]
+  const config = parseJsonc(wranglerConfig) as WranglerLevel & {
+    env: Record<string, WranglerLevel>
+  }
+
+  it('runs daily at 03:17 UTC, as set in nuxt.config.ts', () => {
     expect(cron).toBe('17 3 * * *')
-    const triggers = wranglerConfig.match(/"triggers": \{ "crons": \["([^"]+)"\] \}/g) ?? []
-    // Top level (local), staging and live.
-    expect(triggers).toHaveLength(3)
-    for (const trigger of triggers) expect(trigger).toContain(`"${cron}"`)
+  })
+
+  it('has the same cron at the top level (local) and in staging and live, by name', () => {
+    expect(config.triggers?.crons).toEqual([cron])
+    expect(config.env.staging?.triggers?.crons).toEqual([cron])
+    expect(config.env.live?.triggers?.crons).toEqual([cron])
+  })
+
+  it('has no cron in Previews or any other environment', () => {
+    expect(config.env.staging?.previews?.triggers).toBeUndefined()
+    expect(Object.keys(config.env).sort()).toEqual(['live', 'staging'])
   })
 })
