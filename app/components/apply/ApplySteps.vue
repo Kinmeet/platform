@@ -6,8 +6,9 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <nav class="apply-steps" :aria-label="t('apply.steps_label')">
-    <ol class="apply-steps__list">
+  <!-- A labelled list rather than a nav: the steps aren't links (Robin, #81). -->
+  <div class="apply-steps">
+    <ol class="apply-steps__list" :aria-label="t('apply.steps_label')">
       <li
         v-for="n in STEPS"
         :key="n"
@@ -26,5 +27,5 @@ const { t } = useI18n()
         </span>
       </li>
     </ol>
-  </nav>
+  </div>
 </template>

@@ -218,7 +218,7 @@ test.describe('apply flow progress', () => {
   test('shows the step list on a wide screen, with the current step marked', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 })
     await open(page)
-    const steps = page.getByRole('navigation', { name: en.apply.steps_label })
+    const steps = page.getByRole('list', { name: en.apply.steps_label })
     await expect(steps).toBeVisible()
     await expect(steps.locator('[aria-current="step"]')).toContainText(en.apply.steps['1'])
     await expect(steps.locator('[aria-current="step"]')).toContainText(en.apply.step_status.current)
@@ -229,7 +229,7 @@ test.describe('apply flow progress', () => {
     await page.setViewportSize({ width: 390, height: 800 })
     await open(page)
     await expect(page.getByText('Step 1 of 4: Check it fits')).toBeVisible()
-    await expect(page.getByRole('navigation', { name: en.apply.steps_label })).toBeHidden()
+    await expect(page.getByRole('list', { name: en.apply.steps_label })).toBeHidden()
     const width = await page.evaluate(() => document.documentElement.scrollWidth)
     expect(width).toBeLessThanOrEqual(390)
   })
