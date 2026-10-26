@@ -77,6 +77,7 @@ Docs links are read with the Claude Docs tools (or the Artifact tool's read acti
 - Code, tests and docs in one PR on a branch `<squad>/<issue-number>-<slug>`, linked to its issue.
 - CI green: type check, lint, unit and integration tests, end-to-end browser tests, accessibility scan, the no-third-party-requests test.
 - Reviewed by the squad's tech-lead review and, where relevant, security, privacy and accessibility reviewers; every comment answered.
+- Existing modules checked before building: nuxt.com/modules, the Nuxt and Nitro docs, and current maintained packages. The PR description names what was adopted, or why each candidate was rejected (`.claude/rules/existing-modules.md`).
 - Decision record added for any non-obvious technical choice (`docs/adr/`).
 - Deployed to staging by the merge.
 
