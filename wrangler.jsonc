@@ -31,6 +31,8 @@
   // Turnstile site keys are public. Local runs use Cloudflare's always-pass
   // test key; each deployed environment has its own widget (#20).
   "vars": { "NUXT_PUBLIC_TURNSTILE_SITE_KEY": "1x00000000000000000000AA" },
+  // Must match nitro.scheduledTasks in nuxt.config.ts (daily deletion job, #31).
+  "triggers": { "crons": ["17 3 * * *"] },
   // Local bindings are simulated on this machine; the ids only label them.
   "d1_databases": [
     {
@@ -71,6 +73,7 @@
         "KINMEET_ENV": "staging",
         "NUXT_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAFl6M8Q-UZBb029_",
       },
+      "triggers": { "crons": ["17 3 * * *"] },
       // No secrets.required on staging yet: the first staging deploy happens
       // before the secrets can be set (Rowan, #44). Until they are set, the
       // form routes answer 503 and store nothing. A follow-up PR adds it back.
@@ -143,6 +146,7 @@
         "KINMEET_ENV": "live",
         "NUXT_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAFl-e7Mi_U9gitR4",
       },
+      "triggers": { "crons": ["17 3 * * *"] },
       "secrets": {
         "required": ["TURNSTILE_SECRET_KEY", "RATE_LIMIT_HMAC_KEY", "EMAIL_LOG_HMAC_KEY"],
       },
