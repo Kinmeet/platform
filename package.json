@@ -18,6 +18,7 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:hooks": "node --test .claude/hooks/test/hooks.test.mjs",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv",
     "check:copy": "bun scripts/check-copy.ts"
   },
