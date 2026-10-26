@@ -269,9 +269,9 @@
   color: var(--colour-text);
 }
 
-/* Rings inside these boxes sit on white, so they go back to bark. A field's
-   own ring sits outside it, on the surrounding surface, so .input keeps the
-   surface's ring colour. */
-:is(.patch, .note, .error-summary, .choice) {
+/* Rings inside these boxes sit on white, so they go back to bark. Fields and
+   choices draw their ring outside themselves, on the surrounding surface, so
+   they keep the surface's ring colour. */
+:is(.patch, .note, .error-summary) {
   --colour-focus: var(--colour-bark);
 }
