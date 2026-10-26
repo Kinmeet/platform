@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { publicRoutes } from '../../shared/routes'
+import { TURNSTILE_ORIGIN } from '../../shared/turnstile'
 import { allowedOrigins, watchPage } from './helpers'
 
 // Firm rule 1: no tracking, analytics or third-party requests on any page.
@@ -9,7 +10,11 @@ for (const route of publicRoutes) {
     page,
     baseURL,
   }) => {
-    const problems = await watchPage(page, allowedOrigins(route, baseURL!))
+    const problems = await watchPage(
+      page,
+      allowedOrigins(route, baseURL!),
+      new URL(baseURL!).origin,
+    )
 
     const response = await page.goto(route.path, { waitUntil: 'networkidle' })
     expect(response?.status(), 'page should load').toBe(200)
@@ -21,6 +26,11 @@ for (const route of publicRoutes) {
     expect.soft(problems.thirdPartyRequests, 'requests to other origins').toEqual([])
     expect.soft(problems.cspViolations, 'content security policy violations').toEqual([])
     expect.soft(problems.pageErrors, 'script errors').toEqual([])
+    // Two-sided: form pages load Turnstile (so the widget really appeared)
+    // and nothing else; every other page loads nothing from elsewhere.
+    expect
+      .soft(problems.otherOrigins, 'origins other than our own')
+      .toEqual(route.form ? [TURNSTILE_ORIGIN] : [])
   })
 }
 

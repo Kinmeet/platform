@@ -26,6 +26,14 @@ export default defineNuxtConfig({
     inlineStyles: false,
   },
 
+  runtimeConfig: {
+    public: {
+      // Set per environment by NUXT_PUBLIC_TURNSTILE_SITE_KEY in wrangler.jsonc
+      // (#20). Empty means the spam check can't load and forms say so.
+      turnstileSiteKey: '',
+    },
+  },
+
   typescript: {
     strict: true,
     typeCheck: false,

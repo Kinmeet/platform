@@ -23,6 +23,9 @@
     "traces": { "enabled": false },
   },
   "logpush": false,
+  // Turnstile site keys are public. Local runs use Cloudflare's always-pass
+  // test key; each deployed environment has its own widget (#20).
+  "vars": { "NUXT_PUBLIC_TURNSTILE_SITE_KEY": "1x00000000000000000000AA" },
   // Must match nitro.scheduledTasks in nuxt.config.ts (daily deletion job, #31).
   "triggers": { "crons": ["17 3 * * *"] },
   // Local bindings are simulated on this machine; the ids only label them.
@@ -64,7 +67,10 @@
       "workers_dev": true,
       // Needed for Worker Previews to be served on workers.dev.
       "preview_urls": true,
-      "vars": { "KINMEET_ENV": "staging" },
+      "vars": {
+        "KINMEET_ENV": "staging",
+        "NUXT_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAFl6M8Q-UZBb029_",
+      },
       "triggers": { "crons": ["17 3 * * *"] },
       "d1_databases": [
         {
@@ -93,7 +99,10 @@
       ],
       // Pull request Previews. Separate made-up data, never staging or live.
       "previews": {
-        "vars": { "KINMEET_ENV": "preview" },
+        "vars": {
+          "KINMEET_ENV": "preview",
+          "NUXT_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAFl6NMpfqLbGGZRZ",
+        },
         "d1_databases": [
           {
             "binding": "DB",
@@ -134,7 +143,10 @@
       "logpush": false,
       "workers_dev": true,
       "preview_urls": false,
-      "vars": { "KINMEET_ENV": "live" },
+      "vars": {
+        "KINMEET_ENV": "live",
+        "NUXT_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAFl-e7Mi_U9gitR4",
+      },
       "triggers": { "crons": ["17 3 * * *"] },
       "d1_databases": [
         {
