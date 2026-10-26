@@ -94,6 +94,9 @@ export async function handleFormSubmission<Schema extends z.ZodType<{ submission
         token,
         hostnameAllowed: (hostname) => hostnameAllowed(hostname, site),
         expectedAction: route.form,
+        // Only `wrangler dev` with KINMEET_ENV=local in .dev.vars, where
+        // Cloudflare's dummy test keys are used.
+        acceptTestAction: site.environment === 'local',
       }),
     exists: (submissionId) => route.exists(event, submissionId),
     store: (submission) => route.store(event, submission),
