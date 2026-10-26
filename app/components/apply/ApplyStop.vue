@@ -6,11 +6,13 @@ import { hasPage } from '#shared/site-nav'
 // or living with someone on the founding team (Rowan, F3). Both use the same
 // pattern. Back returns to step 1 with the answers kept, in case one was a
 // slip. The page focuses the heading when this appears.
-defineProps<{ reason: StopReason }>()
+const props = defineProps<{ reason: StopReason }>()
 defineEmits<{ back: [] }>()
 
 const { t } = useI18n()
-const sayHello = hasPage('/say-hello')
+// Not on the under-18 page until area 5 decides how we handle messages from
+// under-13s (Theo and Callum, #82).
+const sayHello = computed(() => props.reason === 'not_independent' && hasPage('/say-hello'))
 const heading = ref<HTMLElement | null>(null)
 defineExpose({ focus: () => heading.value?.focus() })
 </script>
@@ -20,9 +22,9 @@ defineExpose({ focus: () => heading.value?.focus() })
     <h1 ref="heading" tabindex="-1">{{ t(`apply.stop.${reason}.title`) }}</h1>
     <p>{{ t(`apply.stop.${reason}.body`) }}</p>
     <p>{{ t(`apply.stop.${reason}.next`) }}</p>
-    <div v-if="reason === 'not_independent' || sayHello" class="apply-stop__links">
+    <div v-if="reason === 'not_independent'" class="apply-stop__links">
       <!-- Every role needs an adult, so the roles list only helps here. -->
-      <NuxtLink v-if="reason === 'not_independent'" to="/#roles" class="button button--secondary">
+      <NuxtLink to="/#roles" class="button button--secondary">
         {{ t('apply.stop.see_roles') }}
       </NuxtLink>
       <NuxtLink v-if="sayHello" to="/say-hello" class="button button--secondary">
