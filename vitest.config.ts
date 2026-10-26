@@ -28,6 +28,8 @@ export default defineConfig({
           name: 'unit',
           include: ['tests/unit/**/*.test.ts'],
           setupFiles: ['tests/unit/setup/apply-migrations.ts'],
+          // Vitest blanks CSS imports by default; the contrast test reads these two.
+          css: { include: [/(tokens|components)\.css/] },
         },
       },
       await defineVitestProject({
