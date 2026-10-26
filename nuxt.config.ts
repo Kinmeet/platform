@@ -66,6 +66,12 @@ export default defineNuxtConfig({
       if (pages.length > 0) {
         throw new Error(`Prerendered pages are not allowed: ${pages.join(', ')}`)
       }
+      // OFL condition 2: the font licences ship with the fonts (ADR-0007).
+      const licences = ['fonts/Fredoka-OFL.txt', 'fonts/AtkinsonHyperlegibleNext-OFL.txt']
+      const missing = licences.filter((licence) => !files.includes(licence))
+      if (missing.length > 0) {
+        throw new Error(`Font licences missing from the build: ${missing.join(', ')}`)
+      }
       await writeFile(join(publicDir, '_headers'), staticAssetHeaders())
     },
   },
