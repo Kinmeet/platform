@@ -26,6 +26,9 @@ interface Jwk extends JsonWebKey {
 
 const CLOCK_SKEW_SECONDS = 60
 const KEYS_TTL_MS = 10 * 60 * 1000
+// An unknown kid forces a fresh fetch at most once a minute, so tokens with
+// made-up kids cannot make every request fetch the keys again.
+const KEYS_REFRESH_MIN_MS = 60 * 1000
 const keyCache = new Map<string, { keys: Jwk[]; fetchedAt: number }>()
 
 function base64UrlDecode(value: string): Uint8Array<ArrayBuffer> {
@@ -50,7 +53,8 @@ async function teamKeys(
   refresh: boolean,
 ): Promise<Jwk[]> {
   const cached = keyCache.get(teamDomain)
-  if (!refresh && cached && Date.now() - cached.fetchedAt < KEYS_TTL_MS) return cached.keys
+  const age = cached ? Date.now() - cached.fetchedAt : Infinity
+  if (cached && age < (refresh ? KEYS_REFRESH_MIN_MS : KEYS_TTL_MS)) return cached.keys
   const response = await fetcher(`https://${teamDomain}/cdn-cgi/access/certs`, {
     signal: AbortSignal.timeout(5000),
   })

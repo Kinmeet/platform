@@ -10,7 +10,7 @@ How code reaches the Kinmeet Workers. The reasoning is in [ADR-0001](adr/0001-de
 
 ## Releasing to live
 
-Only Matt can do this.
+Only the founder can do this.
 
 1. On GitHub, open a pull request from `main` into `live`, titled with the date, and list what changed.
 2. Check staging looks right, then merge it.
@@ -18,9 +18,9 @@ Only Matt can do this.
 
 ## Rolling back
 
-Revert the merge on `live` (Matt), or in the Cloudflare dashboard open **Workers & Pages**, then `kinmeet-live`, then **Deployments**, and roll back to the previous version.
+Revert the merge on `live` (the founder), or in the Cloudflare dashboard open **Workers & Pages**, then `kinmeet-live`, then **Deployments**, and roll back to the previous version.
 
-## One-time setup (Matt)
+## One-time setup (the founder)
 
 Do these after the pull request that adds `env.staging` and `env.live` to `wrangler.jsonc` (#4) has merged, so the first builds find their config. No token is needed from you at any point.
 

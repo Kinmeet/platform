@@ -11,13 +11,31 @@ The main D1 database, bound to the Worker as `DB`. Its migrations live in `migra
 
 ## Tables
 
-| Table            | Holds                                                                                                                                                                        | `delete_after` (P3)                                                                                             |
-| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `hello_messages` | Say hello: call name, email, message, `submission_id`, `received_at`, `replied_at`                                                                                           | 12 months after receipt on insert; each reply moves it to 12 months after that reply                            |
-| `applications`   | Stage 1 role applications: role, call name, email, step 3 answers (JSON object), the `connection_to_founders` answer only, `submission_id`, `received_at`, `outcome_told_at` | 6 months after the round closes on insert (proposed backstop); 6 months after the outcome is told once recorded |
-| `email_log`      | Email sending log: an HMAC of the address (never the address), template id, `sent_at`                                                                                        | 30 days after sending                                                                                           |
+| Table            | Holds                                                                                                                                                                                                                                                                                           | `delete_after` (P3)                                                                                             |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `hello_messages` | Say hello: call name, email, message, `submission_id`, `received_at`, `replied_at`                                                                                                                                                                                                              | 12 months after receipt on insert; each reply moves it to 12 months after that reply                            |
+| `applications`   | Stage 1 role applications: role, call name, email, step 3 answers (JSON object), the `connection_to_founders` answer only, `submission_id`, `received_at`, `outcome_told_at`                                                                                                                    | 6 months after the round closes on insert (proposed backstop); 6 months after the outcome is told once recorded |
+| `email_log`      | Email sending log: an HMAC of the address (never the address), template id, `sent_at`                                                                                                                                                                                                           | 30 days after sending                                                                                           |
+| `audit_log`      | Admin actions and list views (P4, P5): when, the Cloudflare Access user id (`sub`, never a name or email), the action and the target row's table and id (no id for a list view); never anything from the row. Append-only: triggers refuse every update, and every delete before `delete_after` | 2 years after the action (Phase 1 rule, pending a P3 row)                                                       |
 
 `submission_id` is the form's idempotency key ([forms contract](api/forms.md)). It is unique and lives on the row, so it is deleted with the row.
+
+## Deletion job
+
+`server/tasks/retention/delete-expired.ts` runs daily at 03:17 UTC (the cron is in both `nuxt.config.ts` and `wrangler.jsonc`, and a test checks they match). It deletes every row in `hello_messages`, `applications`, `email_log` and `audit_log` whose `delete_after` has passed, in one batch, and logs counts only (`{"code":"deletion_done","deleted":{...}}`). A row is deleted at most about a day after its date. Audit log entries are deleted only once their date has also passed by the database's own clock, which their append-only trigger checks.
+
+A run that cannot delete (no `DB` binding, or a D1 error) logs `deletion_db_missing` or `deletion_failed` and then throws, so the cron run shows as an exception in Workers Logs and the Worker's cron history rather than as a success.
+
+The job uses Nitro's scheduled tasks, which are still experimental (`experimental: { tasks: true }` in `nuxt.config.ts`). If an upgrade breaks them, the fallback is a plain `scheduled` handler in the Worker entry (`worker/index.mjs`, ADR-0008) that calls `deleteExpiredRows` with the `DB` binding.
+
+To run it locally: `bun run build`, then `bunx wrangler dev --test-scheduled` and open `/__scheduled?cron=17+3+*+*+*`.
+
+### Copies outside the tables
+
+Deleting a row does not remove it from every copy at once:
+
+- **D1 Time Travel** keeps point-in-time history of the database for its retention window (up to 30 days, depending on plan). A deleted row can stay there for that long. We only ever restore from Time Travel to recover from a failure. After a restore, nobody uses the data until the deletion job has run again.
+- **Backups** (P2, a later ticket) will hold copies too. Each backup must be kept for no longer than the shortest P3 period it covers, or the deletion job must be re-run after any restore from it.
 
 `audit_log` entries for "Pass to safeguarding" (`pass_to_safeguarding`) hold the date, who acted, the action and the row id, never anything from the row (#36).
 

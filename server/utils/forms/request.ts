@@ -27,9 +27,10 @@ export function isSameOriginJsonPost(
 /**
  * Reads the body as UTF-8 text, counting bytes from the stream and stopping
  * as soon as `maxBytes` is passed. `Content-Length` is never trusted. This
- * limits what we accept, not what is read: Nitro's Cloudflare handler reads
- * every request body into memory before our code runs (Nadia's review of
- * #44; a pre-Nitro size limit is Platform ticket #54).
+ * is the second of two layers: the Worker entry in front of Nitro
+ * (`worker/index.mjs`, ADR-0008) has already refused anything over the
+ * route's `bodyLimits` entry before Nitro read it into memory, and this
+ * check holds each form to its schema's cap (docs/api/forms.md).
  */
 export async function readCappedBody(request: Request, maxBytes: number): Promise<BodyRead> {
   if (request.body === null) return { ok: false }

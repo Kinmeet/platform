@@ -76,6 +76,28 @@ export async function listApplications(db: D1Database): Promise<AdminApplication
   }))
 }
 
+export type AdminList = 'hello_messages' | 'applications'
+
+/**
+ * Records that someone opened one of the admin lists. The entry names the
+ * list but no rows: the lists hold full content, so each fetch is audited
+ * (Nadia, Ezra, #51), without the log becoming an index of the data.
+ */
+export async function recordListView(
+  db: D1Database,
+  list: AdminList,
+  actor: string,
+  now = nowSeconds(),
+): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO audit_log (id, at, actor, action, target_table, target_id, delete_after)
+       VALUES (?, ?, ?, ?, ?, NULL, ?)`,
+    )
+    .bind(crypto.randomUUID(), now, actor, `view_${list}`, list, auditLogDeleteAfter(now))
+    .run()
+}
+
 /**
  * Records a reply to a say hello message: `replied_at` is now and the
  * message is kept until 12 months after this reply. Each reply moves the
