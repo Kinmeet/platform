@@ -89,6 +89,9 @@ test.describe('apply stop pages', () => {
     await expect(page.getByRole('link', { name: en.apply.stop.see_roles })).toHaveCount(0)
     // No invitation to write in until area 5 decides on under-13s (#82).
     await expect(page.getByRole('link', { name: en.apply.stop.say_hello })).toHaveCount(0)
+    // The flow has ended, so there's no step progress (Robin).
+    await expect(page.getByText('Step 1 of 4: Check it fits')).toHaveCount(0)
+    await expect(page.getByRole('list', { name: en.apply.steps_label })).toHaveCount(0)
 
     await page.getByRole('button', { name: en.apply.back }).click()
     await expect(heading).toHaveText(en.apply.steps['1'])

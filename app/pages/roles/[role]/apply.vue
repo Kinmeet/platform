@@ -128,9 +128,12 @@ function stepLink(target: Step) {
       <div v-if="draft" class="apply__layout">
         <div class="apply__side">
           <p class="eyebrow">{{ t('apply.applying_for', { role: t(`${key}.title`) }) }}</p>
-          <ApplyProgress class="apply__progress" :step="step" />
-          <ApplySteps class="apply__steps" :step="step" />
-          <p class="apply__time muted small">{{ t('apply.time_note') }}</p>
+          <!-- The application has ended on a stop page, so no progress (Robin, #82). -->
+          <template v-if="!(showStop && stopped)">
+            <ApplyProgress class="apply__progress" :step="step" />
+            <ApplySteps class="apply__steps" :step="step" />
+            <p class="apply__time muted small">{{ t('apply.time_note') }}</p>
+          </template>
         </div>
 
         <ApplyStop
