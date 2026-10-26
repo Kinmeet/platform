@@ -7,6 +7,21 @@ export function requirePublishedRole(slug: unknown): PublishedRole {
   return role
 }
 
+/** What the sent page shows, kept once the draft is emptied (#17). */
+export interface ApplicationSent {
+  role: string
+  callName: string
+  receipt: Receipt
+}
+
+/**
+ * The sent page's state. Shared with the focused layout, which swaps Leave
+ * for "Back to the roles" once there's nothing left to leave (#17).
+ */
+export function useApplicationSent() {
+  return useState<ApplicationSent | null>('apply:sent', () => null)
+}
+
 /**
  * One visit's application for a role (#21). The draft is held in memory only:
  * never in localStorage, sessionStorage or a cookie. Reloading the page
@@ -29,6 +44,15 @@ export function useApplication(role: PublishedRole) {
   /** Why the guard last moved the visitor, for one announced line. Cleared by `goTo`. */
   const redirected = ref<RedirectReason>()
 
+  const sentState = useApplicationSent()
+  const sent = computed(() => (sentState.value?.role === role.slug ? sentState.value : null))
+  // The sent page lasts until the visitor goes somewhere else. Not a route
+  // guard: one would hold up Leave long enough for the step guard below to
+  // cancel it once Leave empties the draft.
+  onBeforeUnmount(() => {
+    sentState.value = null
+  })
+
   const step = computed<Step>(() =>
     draft.value ? allowedStep(route.query.step, draft.value, role) : 1,
   )
@@ -39,7 +63,8 @@ export function useApplication(role: PublishedRole) {
     () => [route.query.step, step.value] as const,
     ([asked, allowed]) => {
       if (!import.meta.client || !draft.value || String(asked ?? '1') === String(allowed)) return
-      redirected.value = redirectReason(asked, draft.value, role)
+      // Once sent, the emptied draft moves the URL back to step 1 with nothing to explain.
+      if (!sent.value) redirected.value = redirectReason(asked, draft.value, role)
       router.replace({ query: { ...route.query, step: allowed === 1 ? undefined : allowed } })
     },
     { immediate: true },
@@ -59,7 +84,14 @@ export function useApplication(role: PublishedRole) {
     if (draft.value) clearDraft(draft.value)
   }
 
-  return { draft, step, stopped, redirected, goTo, clear }
+  /** After a successful send: show the sent page, then empty the answers. */
+  function finish(receipt: Receipt) {
+    if (!draft.value) return
+    sentState.value = { role: role.slug, callName: draft.value.callName.trim(), receipt }
+    clear()
+  }
+
+  return { draft, step, stopped, redirected, sent, goTo, clear, finish }
 }
 
 /**
@@ -71,7 +103,9 @@ export function useLeaveApplication() {
   const drafts = publishedRoles().map((role) =>
     useState<ApplicationDraft | null>(`apply:${role.slug}`, () => null),
   )
+  const sent = useApplicationSent()
   return () => {
     for (const draft of drafts) if (draft.value) clearDraft(draft.value)
+    sent.value = null
   }
 }

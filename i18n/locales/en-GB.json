@@ -248,6 +248,7 @@
     "continue": "Continue",
     "back": "Back",
     "send": "Send application",
+    "sending": "Sending your application.",
     "change": "Change",
     "change_label": "Change your answers: {section}",
     "no_answer": "Not answered",
@@ -275,7 +276,8 @@
     },
     "fields": {
       "callName": "What to call you",
-      "email": "Email address"
+      "email": "Email address",
+      "spam_check": "Spam check"
     },
     "redirect": {
       "restarted": "We've started again at step 1, because answers aren't kept if the page reloads.",
@@ -295,6 +297,29 @@
       "see_roles": "See all the roles",
       "say_hello": "Say hello",
       "page_title": "{title}, {action}"
+    },
+    "send_again": "Try sending again",
+    "failed": {
+      "title": "That didn't send",
+      "unavailable": "Something went wrong at our end, so your application may not have reached us. Your answers are still here, and trying again won't send it twice.",
+      "rate_limited": "There have been a lot of tries from here in a short time. Your answers are still here. Please wait a minute, then try again.",
+      "spam_check": "The spam check couldn't load, so your application can't be sent at the moment. Your answers are still here, but they'll be lost if the page reloads.",
+      "copy_note": "If it still won't send, copy your answers so you don't lose them.",
+      "copy": "Copy my answers",
+      "copied": "Copied. Paste them somewhere safe, like a note or an email to yourself.",
+      "copy_fallback": "Your answers are in the box below, already selected. Use your device's copy command to copy them.",
+      "copy_box_label": "Your answers",
+      "say_hello_note": "You can also tell us it didn't work on the say hello page."
+    },
+    "sent": {
+      "label": "Sent",
+      "title": "Thanks, {name}. Your application is with us.",
+      "receipt_queued": "We've emailed you a short receipt. It doesn't repeat your answers, so keep a note of anything you'd like to remember.",
+      "receipt_not_requested": "We don't send your answers back to you, so keep a note of anything you'd like to remember.",
+      "next": "What happens next",
+      "back_to_roles": "Back to the roles",
+      "questions": "Questions in the meantime? You can ask on the say hello page.",
+      "page_title": "Application sent, {action}"
     }
   },
   "forms": {

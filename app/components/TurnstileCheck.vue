@@ -23,6 +23,10 @@ const status = ref<'loading' | 'ready' | 'unavailable'>('loading')
 const interactive = ref(false)
 let widget: TurnstileWidget | null = null
 let focusBefore: HTMLElement | null = null
+// Settles once the script has loaded or given up, so a Send pressed while
+// it's still loading waits for it rather than failing (#17).
+let settled: () => void
+const loaded = new Promise<void>((resolve) => (settled = resolve))
 
 // Status text lives in one region that is always on the page, so screen
 // readers announce each change (4.1.3). "Couldn't load" is polite here
@@ -44,6 +48,7 @@ onMounted(async () => {
   const siteKey = config.public.turnstileSiteKey
   if (!siteKey || !isFormRoute(route.path) || !root.value || !container.value) {
     status.value = 'unavailable'
+    settled()
     return
   }
   try {
@@ -59,6 +64,8 @@ onMounted(async () => {
     status.value = 'ready'
   } catch {
     status.value = 'unavailable'
+  } finally {
+    settled()
   }
 })
 
@@ -66,9 +73,10 @@ onBeforeUnmount(() => widget?.remove())
 
 defineExpose({
   /** A fresh token, or a TurnstileError with reason `unavailable` or `failed`. */
-  getToken: () => {
-    if (!widget) return Promise.reject(new TurnstileError('unavailable'))
+  getToken: async () => {
     if (document.activeElement instanceof HTMLElement) focusBefore = document.activeElement
+    await loaded
+    if (!widget) throw new TurnstileError('unavailable')
     return widget.getToken()
   },
   reset: () => widget?.reset(),

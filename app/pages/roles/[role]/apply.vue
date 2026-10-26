@@ -1,18 +1,20 @@
 <script setup lang="ts">
-import { roleKey } from '#shared/forms/roles'
+import { roleKey, type StopReason } from '#shared/forms/roles'
 
 // The apply flow's four steps (W6b, #15). State and routing live in
 // useApplication (#21); this page draws each step, checks it on Continue,
 // and shows errors the same way on every step. Steps 1 and 3 are drawn
 // from the role config. A step 1 answer that stops the flow shows its stop
-// page on Continue (#16). Sending and the other end pages are #17.
+// page on Continue (#16). Send gets a spam check token, posts the answers
+// and shows what came back: the sent page, errors on the step they belong
+// to, a stop page, or "That didn't send" with Copy my answers (#17).
 definePageMeta({ layout: 'focused' })
 
 const { t } = useI18n()
 const route = useRoute()
 const role = requirePublishedRole(route.params.role)
 const key = roleKey(role.slug)
-const { draft, step, stopped, redirected, goTo, clear } = useApplication(role)
+const { draft, step, stopped, redirected, sent, goTo, clear, finish } = useApplication(role)
 
 const errors = ref<FieldError[]>([])
 const summary = ref<{ focus: () => void } | null>(null)
@@ -20,14 +22,25 @@ const heading = ref<HTMLElement | null>(null)
 
 // The stop page, once Continue is pressed with an answer that stops the flow.
 const showStop = ref(false)
+// A stop the server found that the page didn't: its backstop (docs/api/forms.md).
+const serverStop = ref<StopReason>()
+const stopShown = computed(() => (showStop.value ? (stopped.value ?? serverStop.value) : undefined))
 const stopView = ref<{ focus: () => void } | null>(null)
+
+const turnstile = ref<{ getToken: () => Promise<string>; reset: () => void } | null>(null)
+const sending = ref(false)
+const problem = ref<SendProblem>()
+const failedView = ref<{ focus: () => void } | null>(null)
+const sentView = ref<{ focus: () => void } | null>(null)
+const copyText = computed(() => (draft.value ? answersText(draft.value, role, t) : ''))
 
 const stepTitle = computed(() => t(`apply.steps.${step.value}`))
 useHead({
   title: () => {
     const action = t(`${key}.page.apply`)
-    if (showStop.value && stopped.value) {
-      return t('apply.stop.page_title', { title: t(`apply.stop.${stopped.value}.title`), action })
+    if (sent.value) return t('apply.sent.page_title', { action })
+    if (stopShown.value) {
+      return t('apply.stop.page_title', { title: t(`apply.stop.${stopShown.value}.title`), action })
     }
     return t(errors.value.length ? 'apply.page_title_error' : 'apply.page_title', {
       step: step.value,
@@ -69,6 +82,10 @@ async function showErrors(found: FieldError[]) {
 watch(step, async () => {
   errors.value = []
   showStop.value = false
+  serverStop.value = undefined
+  problem.value = undefined
+  // Sending moves the URL back to step 1; the sent page takes focus instead.
+  if (sent.value) return
   await nextTick()
   heading.value?.focus()
 })
@@ -90,18 +107,84 @@ async function openStop() {
 
 async function closeStop() {
   showStop.value = false
+  serverStop.value = undefined
   await nextTick()
   heading.value?.focus()
 }
 
-function onSend() {
-  if (!draft.value) return
+async function onSend() {
+  if (!draft.value || sending.value) return
   // The guard keeps step 4 closed until steps 1 to 3 are done, so this only
   // matters if an answer changed some other way: go back to that step.
   const furthest = furthestStep(draft.value, role)
   if (furthest < 4) return goTo(furthest)
-  // Sending is #17. Until then Send stops here, after the checks, and makes
-  // no request (Callum, #15).
+
+  sending.value = true
+  try {
+    let token: string
+    try {
+      token = await turnstile.value!.getToken()
+    } catch (error) {
+      // A failed challenge can be tried again; a script that never loaded can't.
+      if (error instanceof TurnstileError && error.reason === 'failed') {
+        return show({ kind: 'turnstile_failed' })
+      }
+      return showProblem('spam_check')
+    }
+    const outcome = await post(toRequest(draft.value, role, token))
+    // Every token is single use, whatever came back (#20).
+    turnstile.value?.reset()
+    await show(outcome)
+  } finally {
+    sending.value = false
+  }
+}
+
+async function post(body: ReturnType<typeof toRequest>): Promise<SendOutcome> {
+  try {
+    const response = await fetch('/api/apply', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    const reply: unknown = await response.json().catch(() => null)
+    return readSendResponse(response.status, reply)
+  } catch {
+    return { kind: 'failed' }
+  }
+}
+
+async function show(outcome: SendOutcome) {
+  switch (outcome.kind) {
+    case 'sent':
+      finish(outcome.receipt)
+      await nextTick()
+      return sentView.value?.focus()
+    case 'invalid':
+      // Every answer is kept; the errors are shown on the step they belong to.
+      await goTo(outcome.step)
+      await nextTick()
+      return showErrors(outcome.errors)
+    case 'stopped':
+      await goTo(1)
+      await nextTick()
+      serverStop.value = outcome.reason
+      return openStop()
+    case 'turnstile_failed':
+      problem.value = undefined
+      return showErrors([{ field: TURNSTILE_FIELD, code: 'turnstile_failed' }])
+    case 'rate_limited':
+      return showProblem('rate_limited')
+    case 'failed':
+      return showProblem('unavailable')
+  }
+}
+
+async function showProblem(reason: SendProblem) {
+  errors.value = []
+  problem.value = reason
+  await nextTick()
+  failedView.value?.focus()
 }
 
 /** The words for one answer on "Check and send". */
@@ -125,7 +208,8 @@ function stepLink(target: Step) {
       <p class="note apply__noscript">{{ t('apply.noscript') }}</p>
     </noscript>
     <ClientOnly>
-      <div v-if="draft" class="apply__layout">
+      <ApplySent v-if="sent" ref="sentView" class="apply__sent" :role="role" :sent="sent" />
+      <div v-else-if="draft" class="apply__layout">
         <div class="apply__side">
           <p class="eyebrow">{{ t('apply.applying_for', { role: t(`${key}.title`) }) }}</p>
           <ApplyProgress class="apply__progress" :step="step" />
@@ -134,10 +218,10 @@ function stepLink(target: Step) {
         </div>
 
         <ApplyStop
-          v-if="showStop && stopped"
+          v-if="stopShown"
           ref="stopView"
           class="apply__main"
-          :reason="stopped"
+          :reason="stopShown"
           @back="closeStop"
         />
         <div v-else class="apply__main">
@@ -145,6 +229,7 @@ function stepLink(target: Step) {
             {{ redirected ? t(`apply.redirect.${redirected}`) : '' }}
           </p>
           <ErrorSummary v-if="errors.length" ref="summary" :items="summaryItems" />
+          <ApplyFailed v-else-if="problem" ref="failedView" :reason="problem" :answers="copyText" />
 
           <form
             class="apply__form"
@@ -266,10 +351,19 @@ function stepLink(target: Step) {
             </template>
 
             <div class="apply__actions">
-              <button type="submit" class="button button--primary">
-                {{ t(step === 4 ? 'apply.send' : 'apply.continue') }}
+              <button
+                :id="step === 4 ? fieldId(TURNSTILE_FIELD) : undefined"
+                type="submit"
+                class="button button--primary"
+              >
+                {{
+                  t(step === 4 ? (problem ? 'apply.send_again' : 'apply.send') : 'apply.continue')
+                }}
               </button>
-              <TurnstileCheck v-if="step === 4" action="apply" />
+              <p v-if="step === 4" class="apply__sending muted small" role="status">
+                {{ sending ? t('apply.sending') : '' }}
+              </p>
+              <TurnstileCheck v-if="step === 4" ref="turnstile" action="apply" />
               <NuxtLink
                 v-if="step === 1"
                 :to="`/roles/${role.slug}`"

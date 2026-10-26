@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   allowedStep,
+  answersText,
   clearDraft,
   createDraft,
   errorMessage,
@@ -211,8 +212,22 @@ describe('apply flow: sending', () => {
 
 describe('apply flow: reading the reply', () => {
   it('treats 201 and a repeat 200 as sent', () => {
-    expect(readSendResponse(201, { ok: true, receipt: 'queued' })).toEqual({ kind: 'sent' })
-    expect(readSendResponse(200, { ok: true, receipt: 'queued' })).toEqual({ kind: 'sent' })
+    expect(readSendResponse(201, { ok: true, receipt: 'queued' })).toEqual({
+      kind: 'sent',
+      receipt: 'queued',
+    })
+    expect(readSendResponse(200, { ok: true, receipt: 'queued' })).toEqual({
+      kind: 'sent',
+      receipt: 'queued',
+    })
+  })
+
+  it('only says a receipt was emailed when the server queued one', () => {
+    expect(readSendResponse(201, { ok: true, receipt: 'not_requested' })).toEqual({
+      kind: 'sent',
+      receipt: 'not_requested',
+    })
+    expect(readSendResponse(201, null)).toEqual({ kind: 'sent', receipt: 'not_requested' })
   })
 
   it("sends 422 field errors back to the earliest step with a problem, keeping only that step's errors", () => {
@@ -316,6 +331,14 @@ describe('apply flow: error wording', () => {
     expect(new Set(labels).size).toBe(labels.length)
   })
 
+  it('words a failed spam check as an item that links to Send', () => {
+    expect(errorMessage({ field: 'turnstileToken', code: 'turnstile_failed' }, trustee)).toEqual({
+      key: 'forms.turnstile.failed',
+      params: {},
+      questionKey: 'apply.fields.spam_check',
+    })
+  })
+
   it('uses the tick-box message for confirm questions', () => {
     expect(
       errorMessage({ field: 'checks.trustee_rules_confirmed', code: 'required' }, trustee).key,
@@ -335,5 +358,36 @@ describe('apply flow: error wording', () => {
     expect(errorMessage({ field: 'callName', code: 'too_long' }, trustee).params).toEqual({
       max: 60,
     })
+  })
+})
+
+describe('answersText', () => {
+  // Enough of vue-i18n for these keys: look up the message and fill {params}.
+  const t = (key: string, params: Record<string, unknown> = {}) =>
+    String(lookup(key)).replace(/\{(\w+)\}/g, (_, name: string) => String(params[name]))
+
+  it('lists every answer under its step, like Check and send', () => {
+    const text = answersText(draftUpTo(3), trustee, t)
+    const questions = en.roles.trustee.questions
+    expect(text.split('\n')).toEqual([
+      `Applying for: ${en.roles.trustee.title}`,
+      '',
+      en.apply.steps['1'],
+      `${questions.over_18.summary}: ${questions.over_18.choices.yes}`,
+      `${questions.connection_to_founders.summary}: ${questions.connection_to_founders.choices.no}`,
+      `${questions.trustee_rules_confirmed.summary}: ${questions.trustee_rules_confirmed.choices.yes}`,
+      '',
+      en.apply.steps['2'],
+      `${en.apply.fields.callName}: Test Applicant`,
+      `${en.apply.fields.email}: test.applicant@example.com`,
+      '',
+      en.apply.steps['3'],
+      `${questions.why_trustee.summary}: Made-up reason for testing.`,
+      `${questions.experience.summary}: ${en.apply.no_answer}`,
+    ])
+  })
+
+  it('names no Kinmeet address', () => {
+    expect(answersText(draftUpTo(3), trustee, t)).not.toMatch(/kinmeet\.|join@|@kinmeet/i)
   })
 })
