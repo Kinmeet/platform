@@ -13,14 +13,18 @@
  * Wording keys for every question, under `roles.<slug>.questions.<id>`:
  * - `label`: the question (a fieldset legend, or a field or checkbox label)
  * - `hint`: optional help under the label
- * - `summary`: the short label on "Check and send" and the admin page
+ * - `summary`: the short label on "Check and send"
  * - `choices.<choiceId>`: each choice; for a confirm question, `choices.yes`
  *   is what "Check and send" shows once it is ticked
  * - `notes.<choiceId>`: shown after a choice whose outcome is `{ note: true }`
  * - `link`: link text, for a confirm question with a `link`
  */
 
-/** Why a step 1 answer ends the application. Matches the API error codes. */
+/**
+ * Why a step 1 answer ends the application. Matches the API error codes.
+ * The stop page's wording is shared by every role, under `apply.stop.<reason>`
+ * (#17).
+ */
 export type StopReason = 'under_18' | 'not_independent'
 
 /** What happens after a step 1 choice. Choices not listed simply continue. */

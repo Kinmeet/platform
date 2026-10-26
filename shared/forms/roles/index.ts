@@ -30,6 +30,7 @@ const safeguardingLead = {
   published: false,
   tags: [
     { id: 'volunteer', style: 'info' },
+    { id: 'trustee', style: 'info' },
     { id: 'how_many', style: 'info' },
     { id: 'time', style: 'info' },
   ],
@@ -45,6 +46,8 @@ const treasurer = {
   ],
 } as const satisfies DraftRole
 
+// Must stay a draft until P3 has a row for pilot group lead applications.
+// Its form should then ask for a town or area, never an address.
 const pilotGroupLead = {
   slug: 'pilot-group-lead',
   published: false,

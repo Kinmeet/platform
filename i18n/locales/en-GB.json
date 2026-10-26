@@ -33,7 +33,7 @@
           },
           "good_to_know": {
             "heading": "Good to know",
-            "body": "We're registering Kinmeet as a charity (a CIO) straight away. We'll ask the Charity Commission to keep trustees' names off its public register, but it only agrees where there's evidence of risk. If it says no, your legal name will be on the register. That's the one place it would appear, and we'll talk it through before you commit."
+            "body": "We're registering Kinmeet as a charity (a CIO) straight away. We'll ask the Charity Commission to keep trustees' names off its public register, but it only agrees where there's evidence of risk. If it says no, your legal name will be on the register. That's the one place it would appear, and we'll talk it through before you commit. If you'd personally be at risk, you can ask for your own name to be withheld too, and we'll help with that."
           }
         },
         "glance": {
@@ -51,7 +51,7 @@
           },
           "checks": {
             "label": "Checks",
-            "value": "A basic DBS check, which we arrange and pay for, or enhanced if the role qualifies"
+            "value": "A basic DBS check, which we arrange and pay for, or enhanced if our checking body confirms the role is eligible"
           },
           "you_need": {
             "label": "You need to be",
@@ -80,7 +80,7 @@
       "apply": {
         "note": {
           "heading": "About the DBS check",
-          "body": "This role needs a basic DBS check, which we arrange and pay for. If the role qualifies for an enhanced check, we'll arrange that instead. Something on your record doesn't automatically rule you out; we'd talk it through privately."
+          "body": "This role needs a basic DBS check, which we arrange and pay for. If our checking body confirms the role is eligible for an enhanced check, we'll arrange that instead. Something on your record doesn't automatically rule you out; we'd talk it through in confidence. We never keep a copy of the certificate, only that we saw it, the date and the outcome."
         }
       },
       "questions": {
@@ -103,7 +103,7 @@
             "not_sure": "Not sure"
           },
           "notes": {
-            "friend_or_acquaintance": "That's fine. Trustees who know each other say so openly, and step out of any decision where it could matter.",
+            "friend_or_acquaintance": "That's fine. Trustees who know each other say so to the rest of the board, and step out of any decision where it could matter.",
             "not_sure": "That's fine. Carry on, and we'll talk it through when we chat."
           }
         },
@@ -147,16 +147,17 @@
     },
     "safeguarding-lead": {
       "title": "Safeguarding lead",
-      "summary": "The person a worried parent or group lead writes to. Trained before your first message.",
+      "summary": "The person anyone can turn to with a worry about someone's safety, including young people themselves. Trained before your first case, with a deputy to share the load.",
       "tags": {
         "volunteer": "Volunteer",
+        "trustee": "A trustee role",
         "how_many": "1 person",
-        "time": "Reply within 48 hours"
+        "time": "On call for concerns, with a deputy"
       }
     },
     "treasurer": {
       "title": "Treasurer",
-      "summary": "Keep the accounts, and publish a money summary every quarter so anyone can see where it goes.",
+      "summary": "Keep the accounts, and publish a money summary by category every quarter, so anyone can see where it goes.",
       "tags": {
         "volunteer": "Volunteer",
         "how_many": "1 person",
