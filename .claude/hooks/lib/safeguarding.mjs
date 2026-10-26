@@ -33,20 +33,47 @@ export function safeguardingIds(env = process.env, home = homedir()) {
 }
 
 /**
- * The D1 ids agents may use: every `database_id` in wrangler.jsonc whose
- * database is not a safeguarding one. Placeholder ids (all zeros) are left out.
+ * The D1 databases agents may use: every `database_name` and `database_id` in
+ * wrangler.jsonc that is not a safeguarding one, plus the `DB` binding.
+ * Placeholder ids (all zeros) are left out. Expects `database_name` directly
+ * before `database_id` in each entry, as in wrangler.jsonc today; a test reads
+ * the real file so a layout change is caught.
  */
-export function allowedDatabaseIds(projectDir) {
+export function allowedDatabases(projectDir) {
+  const ids = new Set()
+  const names = new Set(['db'])
   const path = join(projectDir, 'wrangler.jsonc')
-  if (!existsSync(path)) return new Set()
+  if (!existsSync(path)) return { ids, names }
   const config = readFileSync(path, 'utf8')
-  const allowed = new Set()
   const entry = /"database_name"\s*:\s*"([^"]+)"\s*,\s*"database_id"\s*:\s*"([0-9a-f-]{36})"/gi
   for (const [, name, id] of config.matchAll(entry)) {
-    if (SAFEGUARDING_NAME.test(name) || /^[0-]+$/.test(id)) continue
-    allowed.add(id.toLowerCase())
+    if (SAFEGUARDING_NAME.test(name)) continue
+    names.add(name.toLowerCase())
+    if (!/^[0-]+$/.test(id)) ids.add(id.toLowerCase())
   }
-  return allowed
+  return { ids, names }
+}
+
+/** The ids from `allowedDatabases`, for the D1 tools that take a bare id. */
+export function allowedDatabaseIds(projectDir) {
+  return allowedDatabases(projectDir).ids
+}
+
+/**
+ * Every D1 database path segment in `text` (`/d1/database/<segment>`) that is
+ * not a literal allowed id. A segment built at run time (`${d.uuid}`,
+ * `' + id`, a shell variable) is never allowed, because the hook cannot know
+ * what it will be. Listing `/d1/database` with no segment is allowed.
+ */
+export function unknownD1Paths(text, allowedIds) {
+  const unknown = []
+  for (const [, segment] of text.matchAll(/\/d1\/database\/([^/?#\s]*)/gi)) {
+    const id = segment.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)?.[0]
+    const literal = id && !/[$`{(+]/.test(segment.slice(id.length))
+    if (!literal || !allowedIds.has(id.toLowerCase()))
+      unknown.push(segment || '(built at run time)')
+  }
+  return unknown
 }
 
 /** Whether `text` contains one of the safeguarding database ids. */

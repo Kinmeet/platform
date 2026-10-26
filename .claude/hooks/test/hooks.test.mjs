@@ -271,12 +271,51 @@ describe('safeguarding databases: Bash', () => {
     assert.equal(sgBash(`echo ${fakeSafeguardingId} | xargs some-tool`).status, 2)
   })
 
+  it('checks heredocs and quoted text unless they are a commit message or PR text', () => {
+    for (const command of [
+      "bun - <<'EOF'\nconst name = 'kinmeet-live-safeguarding'\nEOF",
+      'bunx wrangler d1 execute "$(cat <<EOF\nkinmeet-live-safeguarding\nEOF\n)" --remote',
+      'git commit -m x && bun -e "query(\'SAFEGUARDING_DB\')"',
+      'grep -rn SAFEGUARDING_DB server/',
+    ]) {
+      assert.equal(sgBash(command).status, 2, command)
+    }
+    for (const command of [
+      "git commit -q -F - <<'EOF'\nAdd the SAFEGUARDING_DB binding\nEOF",
+      'gh pr create --title "Guard kinmeet-live-safeguarding" --body "Uses SAFEGUARDING_DB"',
+    ]) {
+      assert.equal(sgBash(command).status, 0, command)
+    }
+  })
+
+  it('allows wrangler d1 only on the DB binding or a main database', () => {
+    for (const command of [
+      'N=kinmeet-live-safe; bunx wrangler d1 execute "${N}guarding" --remote --command "SELECT 1"',
+      'bunx wrangler d1 execute `cat name.txt` --remote',
+      'bunx wrangler d1 export some-other-db --remote --output x.sql',
+      'bunx wrangler d1 migrations apply OTHER_DB --remote',
+      'bunx wrangler d1 time-travel restore other --timestamp 1',
+      `curl https://api.cloudflare.com/client/v4/accounts/x/d1/database/$ID/query`,
+      'curl https://api.cloudflare.com/client/v4/accounts/x/d1/database/0b5c0000-0000-4000-8000-000000000001/query',
+    ]) {
+      assert.equal(sgBash(command).status, 2, command)
+    }
+    for (const command of [
+      'bunx wrangler d1 list',
+      'bunx wrangler d1 migrations apply DB --local',
+      'bunx wrangler d1 execute kinmeet-local --local --command "SELECT 1"',
+      'bunx wrangler d1 migrations list kinmeet-live --env live --remote',
+      'curl https://api.cloudflare.com/client/v4/accounts/x/d1/database',
+    ]) {
+      assert.equal(sgBash(command).status, 0, command)
+    }
+  })
+
   it('allows the main DB and code that only names the binding', () => {
     for (const command of [
       'bunx wrangler d1 execute DB --env staging --remote --command "SELECT 1"',
       'bunx wrangler d1 migrations apply kinmeet-staging --env staging --remote',
       `bunx wrangler d1 execute ${stagingDbId} --remote --command "SELECT 1"`,
-      'grep -rn SAFEGUARDING_DB server/',
       'bun run test tests/unit/server/safeguarding',
       'git commit -m "Add the kinmeet-live-safeguarding binding to the d1 docs"',
     ]) {
@@ -286,6 +325,14 @@ describe('safeguarding databases: Bash', () => {
 })
 
 describe('safeguarding databases: Cloudflare MCP tools', () => {
+  it('reads the main DB ids from the real wrangler.jsonc', async () => {
+    const { allowedDatabaseIds } = await import('../lib/safeguarding.mjs')
+    const allowed = allowedDatabaseIds(projectDir)
+    // If this fails, the wrangler.jsonc layout changed and every D1 tool call would be refused.
+    assert.ok(allowed.has(stagingDbId))
+    assert.ok(![...allowed].some((id) => /^[0-]+$/.test(id)))
+  })
+
   it('blocks the API tool when its code names a safeguarding database or id', () => {
     for (const code of [
       "const dbs = await cf.get('/accounts/x/d1/database?name=kinmeet-live-safeguarding')",
@@ -296,10 +343,22 @@ describe('safeguarding databases: Cloudflare MCP tools', () => {
     }
   })
 
-  it('blocks D1 API calls on any id that is not a main DB', () => {
+  it('blocks D1 API calls on any id that is not a literal main DB id', () => {
     const otherId = '0b5c0000-0000-4000-8000-000000000001'
-    const code = `await cf.post('/accounts/x/d1/database/${otherId}/query', { sql: 'SELECT 1' })`
-    assert.equal(cloudflare('mcp__cloudflare__execute', { code }).status, 2)
+    for (const code of [
+      `await cf.post('/accounts/x/d1/database/${otherId}/query', { sql: 'SELECT 1' })`,
+      // Listing the databases and looping over them names no database at all.
+      [
+        "const list = await cf.get('/accounts/x/d1/database')",
+        'for (const d of list) await cf.post(`/accounts/x/d1/database/${d.uuid}/query`, { sql: "SELECT 1" })',
+      ].join('\n'),
+      "await cf.post('/accounts/x/d1/database/' + id + '/query', {})",
+      `await cf.post(\`/accounts/x/d1/database/${stagingDbId}\${suffix}\`, {})`,
+    ]) {
+      assert.equal(cloudflare('mcp__cloudflare__execute', { code }).status, 2, code)
+    }
+    const list = "const list = await cf.get('/accounts/x/d1/database')"
+    assert.equal(cloudflare('mcp__cloudflare__execute', { code: list }).status, 0)
   })
 
   it('blocks the D1 tools on a safeguarding or unknown database', () => {
