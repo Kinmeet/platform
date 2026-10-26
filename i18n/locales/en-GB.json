@@ -21,9 +21,26 @@
     }
   },
   "home": {
-    "title": "Kinmeet is coming soon",
-    "lead": "Small, free, all-ages meets in parks and public spaces, run by volunteers in local groups across the UK.",
-    "status": "We are getting ready. Please check back soon."
+    "title": "Help us start Kinmeet",
+    "hero": {
+      "sticker": "Founding now",
+      "title": "We're starting Kinmeet. Want to help?",
+      "lede": "Kinmeet will be free, all-ages meets in parks for the alterhuman family: games, crafts and good company, run by local volunteers. Before the first one, we need a few more people.",
+      "see_roles": "See the roles",
+      "art_button": "Make us some art! It's a paid role",
+      "art_label": "A picnic in a park: blankets in an open ring, everyone welcome"
+    },
+    "roles": {
+      "title": "Roles we're looking for",
+      "lede": "None of these need experience. Each one comes with a written role description and a handover note.",
+      "read_more": "Read more and apply",
+      "read_more_label": "Read more and apply: {role}"
+    },
+    "parents": {
+      "title": "Here as a parent?",
+      "body": "Our all-ages promise and safeguarding policy are being written now. Our trustees will adopt them before anyone volunteers at a meet, and they'll be public before the first meet.",
+      "read_promise": "Read the promise"
+    }
   },
   "roles": {
     "trustee": {

@@ -13,25 +13,4 @@
 @import './components.css';
 @import './forms.css';
 @import './layout.css';
-
-/* Holding page, until the pre-launch home page replaces it (#12). */
-.placeholder {
-  max-width: 40rem;
-  margin: 0 auto;
-  padding: var(--space-8) var(--gutter);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.placeholder__title {
-  margin: var(--space-2) 0 var(--space-4);
-  color: var(--colour-text);
-  font-size: var(--text-title);
-  line-height: 1.15;
-}
-
-.placeholder__lead {
-  margin: 0 0 var(--space-4);
-  color: var(--colour-text-muted);
-}
+@import './home.css';
