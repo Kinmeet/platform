@@ -5,11 +5,14 @@ import { publicRoutes } from '../../shared/routes'
 // can't drop the skip link, landmarks or title pattern.
 for (const route of publicRoutes) {
   test.describe(`${route.path} shell`, () => {
-    test('has one header, main and footer landmark', async ({ page }) => {
+    // The apply flow's focused layout has no footer, to keep the form clear (W6).
+    test(`has one header and main landmark, and ${route.focused ? 'no' : 'one'} footer`, async ({
+      page,
+    }) => {
       await page.goto(route.path)
       await expect(page.getByRole('banner')).toHaveCount(1)
       await expect(page.getByRole('main')).toHaveCount(1)
-      await expect(page.getByRole('contentinfo')).toHaveCount(1)
+      await expect(page.getByRole('contentinfo')).toHaveCount(route.focused ? 0 : 1)
     })
 
     test('has a skip link that is the first thing to focus', async ({ page }) => {

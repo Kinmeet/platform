@@ -216,6 +216,45 @@
     }
   },
   "apply": {
+    "applying_for": "Applying for: {role}",
+    "page_title": "Step {step} of 4: {title}, {action}",
+    "page_title_error": "Error: Step {step} of 4: {title}, {action}",
+    "progress": "Step {step} of 4: {title}",
+    "steps_label": "Application steps",
+    "steps": {
+      "1": "Check it fits",
+      "2": "About you",
+      "3": "About the role",
+      "4": "Check and send"
+    },
+    "step_status": {
+      "done": "Done",
+      "current": "Current step",
+      "todo": "Not started"
+    },
+    "intro": "Four short steps, about five minutes. Your answers stay in this browser tab until you send them.",
+    "time_note": "About five minutes. Your answers stay in this browser tab until you send them.",
+    "about_you": {
+      "callName": {
+        "label": "What should we call you?",
+        "hint": "Your name or your community name. This is what we'll use."
+      },
+      "email": {
+        "label": "Email address",
+        "hint": "We'll only use it to reply about your application."
+      }
+    },
+    "continue": "Continue",
+    "back": "Back",
+    "send": "Send application",
+    "change": "Change",
+    "change_label": "Change your answers: {section}",
+    "no_answer": "Not answered",
+    "where_it_goes": {
+      "heading": "Where this goes",
+      "body": "Your application is kept on our own system and read by the founding team. If you're not appointed, we delete it 6 months after we tell you."
+    },
+    "noscript": "This form needs JavaScript to work. Please turn it on, or come back in a browser that has it.",
     "errors": {
       "summary": "There is 1 thing to fix | There are {count} things to fix",
       "summary_item": "{question}: {message}",

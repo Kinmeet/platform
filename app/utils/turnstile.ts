@@ -3,6 +3,14 @@
  * (#20). Kept apart from the component so the token logic can be unit tested
  * without a browser.
  */
+import { TURNSTILE_ORIGIN } from '#shared/turnstile'
+
+/** Turnstile's script, rendered by our code rather than on load. */
+export const TURNSTILE_SCRIPT_SRC = `${TURNSTILE_ORIGIN}/turnstile/v0/api.js?render=explicit`
+
+/** Gives up if the script hasn't loaded in this time, so the form can say so. */
+export const TURNSTILE_LOAD_TIMEOUT_MS = 15_000
+
 export interface TurnstileRenderOptions {
   sitekey: string
   action: string
@@ -168,4 +176,14 @@ export function loadTurnstileScript(src: string, timeoutMs: number): Promise<Tur
     document.head.append(script)
   })
   return loading
+}
+
+/**
+ * Starts loading the script early, for a form whose spam check is a few
+ * steps away (apply, #15), so the widget is ready by the last step. Only
+ * call it on a form route. A failure here is ignored: TurnstileCheck tries
+ * again when it mounts and says so if it still can't load.
+ */
+export function preloadTurnstileScript(): void {
+  loadTurnstileScript(TURNSTILE_SCRIPT_SRC, TURNSTILE_LOAD_TIMEOUT_MS).catch(() => {})
 }
