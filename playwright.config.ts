@@ -15,6 +15,9 @@ export default defineConfig({
   use: {
     baseURL,
     trace: 'retain-on-failure',
+    // A service worker's requests can bypass page.route. The site has none
+    // yet; adding one on purpose needs an ADR and a deliberate test change.
+    serviceWorkers: 'block',
     // Lets a machine with its own Chromium build skip the browser download.
     launchOptions: process.env.PLAYWRIGHT_CHROMIUM_PATH
       ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH }

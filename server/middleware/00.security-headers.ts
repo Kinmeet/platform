@@ -12,7 +12,7 @@ export default defineEventHandler((event) => {
   const nonce = createNonce()
   event.context.securityNonce = nonce
   setResponseHeaders(event, {
-    ...buildSecurityHeaders({ path: event.path, nonce }),
+    ...buildSecurityHeaders({ path: event.path, nonce, dev: import.meta.dev }),
     // A response carrying a nonce must never be cached and shared.
     'Cache-Control': 'no-store',
   })

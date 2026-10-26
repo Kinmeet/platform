@@ -28,9 +28,11 @@ server/                 Nitro (runs on the Worker)
   api/                  JSON API routes (/api/...)
   routes/               Non-API server routes (for example feeds)
   middleware/           Request middleware, including security headers
+  entry/                Code that runs before Nitro, used by worker/ (ADR-0008)
   utils/                Server-only helpers (auto-imported)
   tasks/                Scheduled jobs (retention, backups), when added
 shared/                 Types and pure functions used by app/ and server/
+worker/                 The deployed Worker's entry, wrapping Nitro's output (ADR-0008)
 i18n/
   locales/              All user-facing text, one file per locale (en-GB first)
 content/                Published policies (Nuxt Content), from M1

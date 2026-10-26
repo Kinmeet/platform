@@ -28,12 +28,17 @@ export const footerNav: readonly NavLink[] = [
   { id: 'data', path: '/how-we-handle-data' },
 ]
 
+/** True once a page for this path is listed in `shared/routes.ts`. */
+export function hasPage(path: string, routes: readonly PublicRoute[] = publicRoutes): boolean {
+  return routes.some((route) => route.path === path)
+}
+
 /** The links whose pages exist. */
 export function liveLinks(
   links: readonly NavLink[],
   routes: readonly PublicRoute[] = publicRoutes,
 ): NavLink[] {
-  return links.filter((link) => routes.some((route) => route.path === link.path))
+  return links.filter((link) => hasPage(link.path, routes))
 }
 
 /** The `href` for a link. */
