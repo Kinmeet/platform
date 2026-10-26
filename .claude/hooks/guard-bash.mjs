@@ -7,10 +7,20 @@
 //   commit`, pathspec commits).
 // - Before a push, scans the commits the push would publish.
 // - Blocks pushes to main, skipping git hooks, and live deploys by hand.
+// - Blocks any command that names a safeguarding database or uses its id,
+//   and any `wrangler d1` or D1 API command on a database that is not a main
+//   DB database (#89).
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { isAbsolute, join } from 'node:path'
 import { block, findSecrets, isSecretFile, runGuard } from './lib/patterns.mjs'
+import {
+  SAFEGUARDING_MESSAGE,
+  allowedDatabases,
+  safeguardingIds,
+  safeguardingReason,
+  unknownD1Paths,
+} from './lib/safeguarding.mjs'
 
 const MAX_SCAN_BYTES = 1024 * 1024
 
@@ -21,6 +31,53 @@ function withoutMessages(command) {
   return command
     .replace(/<<-?\s*(['"]?)(\w+)\1[\s\S]*?\n\2(?=\s|$)/g, ' ')
     .replace(/(^|\s)(-m|--message|--body|--title|-b|-t)(\s+|=)("(?:[^"\\]|\\.)*"|'[^']*')/g, '$1')
+}
+
+// For the safeguarding check, only prose may be skipped: the message of a
+// `git commit` and the title or body of a `gh pr` or `gh issue` command. Any
+// other heredoc or quoted text is checked, because it could feed a query.
+const PROSE_COMMAND = /\b(git\b[^;&|\n]*\bcommit|gh\s+(pr|issue))\b/
+
+function withoutProse(command) {
+  // Heredoc bodies first, judged by the line that opens them.
+  const noProseHeredocs = command.replace(
+    /(^|\n)([^\n]*?)<<-?\s*(['"]?)(\w+)\3[\s\S]*?\n\4(?=\s|$)/g,
+    (heredoc, start, opener) => (PROSE_COMMAND.test(opener) ? `${start}${opener}` : heredoc),
+  )
+  // Then quoted -m, --body and --title values, within prose commands only.
+  return noProseHeredocs
+    .split(/(?=;|&&|\|\||\n)/)
+    .map((part) => (PROSE_COMMAND.test(part) ? withoutMessages(part) : part))
+    .join('')
+}
+
+// `wrangler d1 <command> <database>`: the database must be the DB binding, a
+// main database name or a literal main id from wrangler.jsonc. Anything else,
+// including a shell variable or command substitution, is refused.
+const D1_NO_DATABASE = new Set(['list', 'create', '--help', '-h'])
+
+function unknownD1Databases(command, projectDir) {
+  const { ids, names } = allowedDatabases(projectDir)
+  const words = command.match(/"[^"]*"|'[^']*'|\S+/g) ?? []
+  const unknown = []
+  for (let i = 0; i < words.length; i++) {
+    if (words[i] !== 'd1' || !words.slice(Math.max(0, i - 3), i).some((w) => /wrangler$/.test(w)))
+      continue
+    let j = i + 1
+    // `migrations apply`, `time-travel info` and similar take two words.
+    if (['migrations', 'time-travel', 'insights'].includes(words[j])) j++
+    if (D1_NO_DATABASE.has(words[i + 1])) continue
+    j++
+    while (j < words.length && words[j].startsWith('-')) j += words[j].includes('=') ? 1 : 2
+    const database = (words[j] ?? '').replace(/^['"]|['"]$/g, '')
+    if (!database || /[;&|]/.test(database)) {
+      unknown.push('(missing)')
+      continue
+    }
+    const known = names.has(database.toLowerCase()) || ids.has(database.toLowerCase())
+    if (!known || /[$`]/.test(words[j])) unknown.push(database)
+  }
+  return unknown
 }
 
 function tokens(command) {
@@ -124,6 +181,26 @@ await runGuard(async (input) => {
     block(
       `this command names a secret or environment file (${[...new Set(named)].join(', ')}). Agents never read, ` +
         'write, copy or move these files. Use a .example file, or ask your EM.',
+    )
+  }
+
+  // Any command naming a safeguarding database or binding is refused, prose
+  // aside: a heredoc or script could feed it to a query. To search the code
+  // for the binding, use the Grep tool, which is not a Bash command.
+  const checked = withoutProse(fullCommand)
+  const reason = safeguardingReason(checked, safeguardingIds())
+  if (reason) block(`this command is not allowed: ${reason}. ${SAFEGUARDING_MESSAGE}`)
+  const projectDir = process.env.CLAUDE_PROJECT_DIR || cwd
+  const unknown = [
+    ...unknownD1Databases(checked, projectDir),
+    ...(/api\.cloudflare\.com/i.test(checked)
+      ? unknownD1Paths(checked, allowedDatabases(projectDir).ids)
+      : []),
+  ]
+  if (unknown.length > 0) {
+    block(
+      `this D1 command uses database ${unknown.join(', ')}, which is not the DB binding or a main ` +
+        `database in wrangler.jsonc. ${SAFEGUARDING_MESSAGE}`,
     )
   }
 

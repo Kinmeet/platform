@@ -38,6 +38,16 @@
             "timeout": 30
           }
         ]
+      },
+      {
+        "matcher": "^mcp__.*[Cc]loudflare.*$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-cloudflare.mjs\"",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "PostToolUse": [
