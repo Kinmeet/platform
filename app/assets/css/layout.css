@@ -88,8 +88,21 @@
   display: block;
   width: 100%;
   height: 40px;
-  background: var(--colour-cream);
+  /* The colour of the section above the wave. */
+  background: var(--wave-behind, var(--colour-cream));
+}
+
+/* A page whose last section is sand marks it, so the footer's wave joins on. */
+.site:has(.ends-on-sand) .site-footer-wrap {
+  --wave-behind: var(--colour-sand);
+}
+
+.wave--green {
   fill: var(--colour-wilder-green);
+}
+
+.wave--sand {
+  fill: var(--colour-sand);
 }
 
 .site-footer {

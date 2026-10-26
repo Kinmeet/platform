@@ -54,6 +54,14 @@ export async function watchPage(
     if (!problems.thirdPartyRequests.includes(url.href)) problems.thirdPartyRequests.push(url.href)
   })
 
+  // page.route never sees WebSockets, so check each one as it opens. A
+  // ws: or wss: URL is compared with the matching http: or https: origin.
+  page.on('websocket', (socket) => {
+    const url = new URL(socket.url())
+    url.protocol = url.protocol === 'wss:' ? 'https:' : 'http:'
+    if (!allowed.has(url.origin)) problems.thirdPartyRequests.push(socket.url())
+  })
+
   page.on('console', (message) => {
     if (/content security policy/i.test(message.text())) {
       problems.cspViolations.push(message.text())
@@ -71,4 +79,15 @@ export async function watchPage(
   })
 
   return problems
+}
+
+/**
+ * Waits until Vue has taken over the server's HTML. A click before then is
+ * an ordinary browser navigation, so tests about client-side links must
+ * wait for this first.
+ */
+export async function waitForApp(page: Page) {
+  await page.waitForFunction(() =>
+    Boolean((document.querySelector('#__nuxt') as { __vue_app__?: unknown } | null)?.__vue_app__),
+  )
 }
