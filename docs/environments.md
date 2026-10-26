@@ -51,7 +51,11 @@ openssl rand -base64 32 | bunx wrangler preview base-config secret put RATE_LIMI
 openssl rand -base64 32 | bunx wrangler secret put RATE_LIMIT_HMAC_KEY --env live
 ```
 
-Generate a fresh value for every environment and every secret; never reuse one. `TURNSTILE_SECRET_KEY` must be the real secret of that environment's own widget, never Cloudflare's always-pass test secret; only local runs and CI use the test keys. The public site keys are `NUXT_PUBLIC_TURNSTILE_SITE_KEY` in each environment's `vars`, and each widget's hostname list holds only its own environment's host. Previews get their secrets from the Preview base config (`wrangler preview base-config secret`), which every new Preview starts with, separately from staging. They are not marked required in `wrangler.jsonc` yet, so the first deploys can happen before the forms exist; Services adds `secrets.required` when the code that reads them lands.
+Generate a fresh value for every environment and every secret; never reuse one. `TURNSTILE_SECRET_KEY` must be the real secret of that environment's own widget, never Cloudflare's always-pass test secret; only local runs and CI use the test keys. The public site keys are `NUXT_PUBLIC_TURNSTILE_SITE_KEY` in each environment's `vars`, and each widget's hostname list holds only its own environment's host. Previews get their secrets from the Preview base config (`wrangler preview base-config secret`), which every new Preview starts with, separately from staging. `TURNSTILE_SECRET_KEY` and `RATE_LIMIT_HMAC_KEY` are listed in `secrets.required` for local and live, because the form routes read them: a deploy fails until both are set for that environment. Staging leaves them out for now, because its first deploy comes before the secrets can be set. Until they are, its form routes answer `503 unavailable` and store nothing. A follow-up PR adds them back once the secrets exist.
+
+### Local development
+
+`wrangler dev` reads local values from `.dev.vars`, which is ignored and never committed. Use Cloudflare's dummy Turnstile keys (the always-passes test secret `1x0000000000000000000000000000000AA`) and `KINMEET_ENV=local`. With `KINMEET_ENV=local`, and only then, the form routes also accept what the dummy keys report from siteverify: the hostnames `localhost` or `example.com`, and the action `test`. Staging, Previews and live set `KINMEET_ENV` in `wrangler.jsonc`, so they always check the real hostname and the form's own action. A test checks that they refuse the dummy values.
 
 ## Logging (P5)
 
