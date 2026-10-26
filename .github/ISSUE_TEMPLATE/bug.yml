@@ -1,6 +1,6 @@
 name: Bug
 description: Something on the platform does not work as it should
-labels: ["type:bug"]
+labels: ['type:bug']
 body:
   - type: markdown
     attributes:
