@@ -22,9 +22,10 @@ Do not write one for choices already made in the F, SG, S and P documents. Link 
 
 ## Index
 
-| Number                                       | Title                                     | Status                   |
-| -------------------------------------------- | ----------------------------------------- | ------------------------ |
-| [0001](0001-deploy-route.md)                 | Deploy route                              | Proposed (deploy ticket) |
-| [0002](0002-project-structure.md)            | Project structure                         | Accepted                 |
-| [0003](0003-bun-for-installs-and-scripts.md) | Bun for installs and scripts              | Accepted                 |
-| [0004](0004-nonce-based-csp.md)              | Nonce-based CSP for Nuxt's inline scripts | Proposed                 |
+| Number                                         | Title                                                    | Status                   |
+| ---------------------------------------------- | -------------------------------------------------------- | ------------------------ |
+| [0001](0001-deploy-route.md)                   | Deploy route                                             | Proposed (deploy ticket) |
+| [0002](0002-project-structure.md)              | Project structure                                        | Accepted                 |
+| [0003](0003-bun-for-installs-and-scripts.md)   | Bun for installs and scripts                             | Accepted                 |
+| [0004](0004-nonce-based-csp.md)                | Nonce-based CSP for Nuxt's inline scripts                | Proposed                 |
+| [0008](0008-worker-entry-in-front-of-nitro.md) | A Worker entry in front of Nitro for request body limits | Proposed                 |
