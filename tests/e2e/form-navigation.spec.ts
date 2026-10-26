@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { publicRoutes } from '../../shared/routes'
 import { TURNSTILE_ORIGIN } from '../../shared/turnstile'
+import { waitForApp } from './helpers'
 
 // The security policy is set per document, so following a link onto or off a
 // form page must load a new document (#20, Nadia's review). These tests click
@@ -36,6 +37,7 @@ async function pageLinkingTo(page: Page, path: string) {
 
 test('links between ordinary pages stay in the app', async ({ page }) => {
   await page.goto('/')
+  await waitForApp(page)
   await markDocument(page)
   // The home link in the header is a client-side link to an ordinary page.
   await page.getByRole('banner').getByRole('link', { name: 'Kinmeet' }).click()
