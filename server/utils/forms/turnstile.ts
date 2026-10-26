@@ -26,14 +26,23 @@ export interface VerifyTurnstileOptions {
   hostnameAllowed: (hostname: string) => boolean
   /** The widget's `data-action`, which is the form name, so a token cannot cross forms. */
   expectedAction: string
+  /**
+   * Local development only: also accept the `test` action that Cloudflare's
+   * dummy test keys report. Never set on staging, Previews or live.
+   */
+  acceptTestAction?: boolean
   fetcher?: typeof fetch
 }
+
+/** The action Cloudflare's dummy test keys report from siteverify. */
+export const TURNSTILE_TEST_ACTION = 'test'
 
 export async function verifyTurnstile({
   secret,
   token,
   hostnameAllowed,
   expectedAction,
+  acceptTestAction = false,
   fetcher = fetch,
 }: VerifyTurnstileOptions): Promise<TurnstileResult> {
   if (!secret) return 'unavailable'
@@ -58,6 +67,8 @@ export async function verifyTurnstile({
 
   if (data.success !== true) return 'failed'
   if (typeof data.hostname !== 'string' || !hostnameAllowed(data.hostname)) return 'failed'
-  if (data.action !== expectedAction) return 'failed'
+  const actionOk =
+    data.action === expectedAction || (acceptTestAction && data.action === TURNSTILE_TEST_ACTION)
+  if (!actionOk) return 'failed'
   return 'passed'
 }

@@ -87,6 +87,21 @@ describe('originAllowed', () => {
 })
 
 describe('hostnameAllowed', () => {
+  it("accepts the dummy test keys' hostnames locally only", () => {
+    for (const hostname of ['localhost', 'example.com']) {
+      expect(hostnameAllowed(hostname, { ...LOCAL, siteOrigin: 'http://127.0.0.1:3000' })).toBe(
+        true,
+      )
+      for (const site of [STAGING, LIVE, PREVIEW]) {
+        expect(hostnameAllowed(hostname, site), `${hostname} on ${site.environment}`).toBe(false)
+      }
+    }
+    // A wrong hostname is still refused on staging and live.
+    expect(hostnameAllowed('kinmeet-staging.kinmeet.workers.dev', LIVE)).toBe(false)
+    expect(hostnameAllowed('evil.example', STAGING)).toBe(false)
+    expect(hostnameAllowed('evil.example', LOCAL)).toBe(false)
+  })
+
   it('follows the same rules for the siteverify hostname', () => {
     expect(hostnameAllowed('kinmeet-staging.kinmeet.workers.dev', STAGING)).toBe(true)
     expect(hostnameAllowed('kinmeet-live.kinmeet.workers.dev', STAGING)).toBe(false)
