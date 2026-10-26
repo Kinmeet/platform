@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { toFieldErrors } from '../../../../shared/forms/errors'
+import { MAX_FIELD_ERRORS, toFieldErrors } from '../../../../shared/forms/errors'
 import { HELLO_BODY_CAP, helloSchema } from '../../../../shared/forms/hello'
 
 // Made-up test data only.
@@ -75,6 +75,12 @@ describe('say hello schema', () => {
       { field: 'pronouns', code: 'unknown_field' },
       { field: 'location', code: 'unknown_field' },
     ])
+  })
+
+  it('returns at most a fixed number of field errors', () => {
+    const extra = Object.fromEntries(Array.from({ length: 50 }, (_, i) => [`made_up_${i}`, 'x']))
+    const errors = errorsFor({ ...valid, ...extra })
+    expect(errors).toHaveLength(MAX_FIELD_ERRORS)
   })
 
   it('treats a malformed submission id or wrong type as a bad request', () => {
