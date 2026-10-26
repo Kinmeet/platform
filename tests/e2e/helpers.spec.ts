@@ -22,7 +22,7 @@ test.afterAll(async () => {
 })
 
 test('the watcher records a WebSocket to another origin', async ({ page }) => {
-  const problems = await watchPage(page, new Set([OWN_ORIGIN]))
+  const problems = await watchPage(page, new Set([OWN_ORIGIN]), OWN_ORIGIN)
   const url = `ws://127.0.0.1:${otherPort}/socket`
 
   await page.setContent('<p>Test page</p>')
@@ -34,7 +34,7 @@ test('the watcher records a WebSocket to another origin', async ({ page }) => {
 })
 
 test('the watcher allows a WebSocket to our own origin', async ({ page }) => {
-  const problems = await watchPage(page, new Set([OWN_ORIGIN]))
+  const problems = await watchPage(page, new Set([OWN_ORIGIN]), OWN_ORIGIN)
   let opened = false
   page.on('websocket', () => (opened = true))
 
