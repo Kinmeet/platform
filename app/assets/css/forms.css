@@ -165,3 +165,30 @@ legend {
   font-size: var(--text-body);
   overflow-wrap: anywhere;
 }
+
+/* Spam check (#20): the widget only takes space when a box needs ticking. */
+.turnstile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: 100%;
+}
+
+.turnstile__widget:empty {
+  display: none;
+}
+
+.turnstile__prompt,
+.turnstile__unavailable,
+.turnstile__notice {
+  margin: 0;
+}
+
+.turnstile__prompt {
+  font-weight: var(--weight-bold);
+}
+
+.turnstile__unavailable {
+  color: var(--colour-error);
+  font-weight: var(--weight-bold);
+}

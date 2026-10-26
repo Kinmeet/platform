@@ -24,5 +24,13 @@
     "title": "Kinmeet is coming soon",
     "lead": "Small, free, all-ages meets in parks and public spaces, run by volunteers in local groups across the UK.",
     "status": "We are getting ready. Please check back soon."
+  },
+  "forms": {
+    "turnstile": {
+      "notice": "A Cloudflare spam check runs when you press Send. It's the only outside script on this site.",
+      "interactive": "One more step: tick the spam check box below to send.",
+      "unavailable": "The spam check couldn't load, so this form can't be sent at the moment. Your answers are still here. Check your connection, then reload the page.",
+      "failed": "The spam check didn't work that time. Your answers are still here. Please try sending again."
+    }
   }
 }
