@@ -40,6 +40,14 @@ export async function watchPage(page: Page, allowed: Set<string>): Promise<PageP
     if (!problems.thirdPartyRequests.includes(url.href)) problems.thirdPartyRequests.push(url.href)
   })
 
+  // page.route never sees WebSockets, so check each one as it opens. A
+  // ws: or wss: URL is compared with the matching http: or https: origin.
+  page.on('websocket', (socket) => {
+    const url = new URL(socket.url())
+    url.protocol = url.protocol === 'wss:' ? 'https:' : 'http:'
+    if (!allowed.has(url.origin)) problems.thirdPartyRequests.push(socket.url())
+  })
+
   page.on('console', (message) => {
     if (/content security policy/i.test(message.text())) {
       problems.cspViolations.push(message.text())
