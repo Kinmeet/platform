@@ -6,13 +6,10 @@ import {
   inboxAddress,
 } from '../../../../server/email/address-hmac'
 import { deliverEmail, emailErrorCode } from '../../../../server/email/send'
-import {
-  RECEIPT_WINDOW_SECONDS,
-  SEND_LOG_RETENTION_DAYS,
-  claimSend,
-} from '../../../../server/email/send-log'
+import { RECEIPT_WINDOW_SECONDS, claimSend } from '../../../../server/email/send-log'
 import { createCaptureTransport, transportFor } from '../../../../server/email/transport'
-import { createEmailLog, logRows } from './email-log'
+import { EMAIL_LOG_RETENTION_DAYS, emailLogDeleteAfter } from '../../../../server/utils/retention'
+import { clearEmailLog, logRows } from './email-log'
 
 const { DB: db } = env as unknown as { DB: D1Database }
 const hmacKey = 'test-only-key-not-a-secret'
@@ -69,7 +66,7 @@ describe('claimSend', () => {
   let toHmac: string
 
   beforeEach(async () => {
-    await createEmailLog()
+    await clearEmailLog()
     toHmac = await hmacAddress(hmacKey, inboxAddress(address))
   })
 
@@ -90,7 +87,14 @@ describe('claimSend', () => {
     expect(JSON.stringify(row).toLowerCase()).not.toContain('fernfox')
     expect(row.template_id).toBe('application_receipt')
     expect(row.sent_at).toBe(nowSeconds)
-    expect(row.delete_after - row.sent_at).toBe(SEND_LOG_RETENTION_DAYS * 86_400)
+    expect(row.delete_after - row.sent_at).toBe(EMAIL_LOG_RETENTION_DAYS * 86_400)
+  })
+
+  it('takes its deletion date from the shared retention rules', async () => {
+    await claimSend(db, toHmac, 'application_receipt', now)
+    const row = (await logRows())[0]!
+    expect(row.delete_after).toBe(emailLogDeleteAfter(row.sent_at))
+    expect(EMAIL_LOG_RETENTION_DAYS).toBe(30)
   })
 
   it('allows one per inbox in 24 hours, counting other inboxes separately', async () => {
