@@ -21,16 +21,23 @@ test.describe('home page', () => {
     }
   })
 
-  test('labels the placeholder illustration', async ({ page }) => {
+  test('labels the illustration', async ({ page }) => {
     await page.goto('/')
     await expect(page.getByRole('img', { name: en.home.hero.art_label })).toBeVisible()
   })
 
-  test('says the safeguarding policy will be public before the first meet', async ({ page }) => {
+  test('says the policies are adopted before anyone volunteers and public before the first meet', async ({
+    page,
+  }) => {
     await page.goto('/')
-    await expect(page.getByRole('region', { name: en.home.parents.title })).toContainText(
-      'will be public before the first meet',
-    )
+    const band = page.getByRole('region', { name: en.home.parents.title })
+    await expect(band).toContainText('adopt them before anyone volunteers at a meet')
+    await expect(band).toContainText('be public before the first meet')
+  })
+
+  test('has a title that says what the page is for', async ({ page }) => {
+    await page.goto('/')
+    await expect(page).toHaveTitle('Help us start Kinmeet – Kinmeet')
   })
 
   test('every link on the page goes somewhere that exists', async ({ page, request }) => {
