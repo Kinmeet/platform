@@ -7,5 +7,7 @@
 - **Reviews:** the Tech Lead reviews every PR last. Request the Security, Privacy and Safeguarding, and Accessibility reviewers where the change touches their area. A reviewer never reviews their own work. Sign every review comment with your persona name.
 - **Answer every review comment**, with a fix or a reason.
 - **Merge** only when CI is green and required reviews are approved. The squad EM merges.
+- **`main` requires an up-to-date branch.** After any merge, every other open PR is behind. Merge one PR at a time: update its branch, wait for CI, merge, then the next. Once a PR is approved, bring `main` in with a merge, not a rebase and force-push, so the approved commits stay the same.
+- **Labels:** updating an issue's labels through the GitHub tools replaces the whole set. Read the current labels first and send them all back with the new one.
 - **Never** use `--no-verify`, force-push someone else's branch, rewrite `main` history, or commit generated build output.
 - **ADRs:** a non-obvious technical choice gets an ADR in `docs/adr/` in the same PR.
