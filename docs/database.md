@@ -29,5 +29,5 @@ To run it locally: `bun run build`, then `bunx wrangler dev --test-scheduled` an
 
 Deleting a row does not remove it from every copy at once:
 
-- **D1 Time Travel** keeps point-in-time history of the database for its retention window (up to 30 days, depending on plan). A deleted row can stay there for that long. We only ever restore from Time Travel to recover from a failure. After a restore, the deletion job is run again (`/__scheduled` on the deployed Worker, or by waiting for the next run) before anyone uses the data.
+- **D1 Time Travel** keeps point-in-time history of the database for its retention window (up to 30 days, depending on plan). A deleted row can stay there for that long. We only ever restore from Time Travel to recover from a failure. After a restore, nobody uses the data until the deletion job has run again.
 - **Backups** (P2, a later ticket) will hold copies too. Each backup must be kept for no longer than the shortest P3 period it covers, or the deletion job must be re-run after any restore from it.
