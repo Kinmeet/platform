@@ -9,7 +9,7 @@ Resource ids are not secrets. They live in [`wrangler.jsonc`](../wrangler.jsonc)
 | Local                 | top level              | `kinmeet-local`, never deployed | your machine                        | simulated         | simulated         | simulated         | made-up |
 | Pull request Previews | `env.staging.previews` | Previews of `kinmeet-staging`   | any branch except `main` and `live` | `kinmeet-preview` | `kinmeet-preview` | `kinmeet-preview` | made-up |
 | Staging               | `env.staging`          | `kinmeet-staging`               | `main`                              | `kinmeet-staging` | `kinmeet-staging` | `kinmeet-staging` | made-up |
-| Live                  | `env.live`             | `kinmeet-live`                  | `live` (Matt only)                  | `kinmeet-live`    | `kinmeet-live`    | `kinmeet-live`    | real    |
+| Live                  | `env.live`             | `kinmeet-live`                  | `live` (the founder only)           | `kinmeet-live`    | `kinmeet-live`    | `kinmeet-live`    | real    |
 
 `KINMEET_ENV` is set to `staging`, `preview` or `live` so the app can tell where it is running.
 
@@ -27,7 +27,7 @@ Resource ids are not secrets. They live in [`wrangler.jsonc`](../wrangler.jsonc)
 | KV `kinmeet-preview-receipts` (`RECEIPTS`) | `3119a6ddccfe45c6910468d4685cd186`     |
 | KV `kinmeet-live-receipts` (`RECEIPTS`)    | `94c4f3e1ef6c402092221decd4e4373c`     |
 
-R2 buckets are named, not numbered: `kinmeet-staging`, `kinmeet-preview` and `kinmeet-live`. Matt creates them in the dashboard with jurisdiction EU (step 1 of the one-time setup in [deploys.md](deploys.md)), because the team's API connection cannot set an R2 jurisdiction. Deploys fail until they exist.
+R2 buckets are named, not numbered: `kinmeet-staging`, `kinmeet-preview` and `kinmeet-live`. The founder creates them in the dashboard with jurisdiction EU (step 1 of the one-time setup in [deploys.md](deploys.md)), because the team's API connection cannot set an R2 jurisdiction. Deploys fail until they exist.
 
 ## Other bindings
 
@@ -37,7 +37,7 @@ R2 buckets are named, not numbered: `kinmeet-staging`, `kinmeet-preview` and `ki
 
 ## Secrets
 
-Secrets are never in the repository. Each environment needs its own values, set by Matt (or another account admin) with Wrangler, never pasted into an issue, pull request or chat:
+Secrets are never in the repository. Each environment needs its own values, set by the founder (or another account admin) with Wrangler, never pasted into an issue, pull request or chat:
 
 | Secret                 | Used for                                                                         | How to make it                                 |
 | ---------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------- |

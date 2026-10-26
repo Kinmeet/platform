@@ -29,17 +29,17 @@ Moved to Sprint 1: #47 (hook follow-ups), #49 (generated Worker types), #54 (ref
 
 ## Decisions made during the sprint
 
-- Bun 1.4.4 for installs and scripts (Matt). Tools still run on Node 24 in CI.
+- Bun 1.4.4 for installs and scripts (the founder). Tools still run on Node 24 in CI.
 - TypeScript 6.0.3, because TypeScript 7 is not yet supported by `vue-tsc` and `typescript-eslint`.
-- Per-request nonce CSP (ADR-0004). The P5 wording change goes to Matt at the M1 review.
-- Deploys through Workers Builds with no Cloudflare token in GitHub. Live builds only from the protected `live` branch (ADR-0001, Matt and Rowan).
+- Per-request nonce CSP (ADR-0004). The P5 wording change goes to the founder at the M1 review.
+- Deploys through Workers Builds with no Cloudflare token in GitHub. Live builds only from the protected `live` branch (ADR-0001, the founder and Rowan).
 - All D1, KV and R2 resources use jurisdiction `eu`.
 
 ## Risks
 
 - The team's sessions cannot reach `workers.dev`, so headers on deployed sites are only checked from GitHub runners.
 - `wrangler d1 migrations apply` does not target Previews yet (#56). This matters from the first migration.
-- Previews and staging are public until Cloudflare Access is on. Matt has to turn on Zero Trust first.
+- Previews and staging are public until Cloudflare Access is on. The founder has to turn on Zero Trust first.
 
 ## Retro
 
@@ -51,8 +51,8 @@ Moved to Sprint 1: #47 (hook follow-ups), #49 (generated Worker types), #54 (ref
 
 ### To change
 
-- **Merge one at a time.** `main` requires an up-to-date branch, and several squads merge at once, so PRs went stale repeatedly. Agreed: merge one PR at a time and merge `main` in rather than force-pushing after approval (added to `.claude/rules/git-and-prs.md`). We'll ask Matt to allow auto-merge or a merge queue.
+- **Merge one at a time.** `main` requires an up-to-date branch, and several squads merge at once, so PRs went stale repeatedly. Agreed: merge one PR at a time and merge `main` in rather than force-pushing after approval (added to `.claude/rules/git-and-prs.md`). We'll ask the founder to allow auto-merge or a merge queue.
 - **Labels are replaced, not added**, when set through the GitHub tools. Added to the same rule.
 - **Messages between threads ran out.** The shared hourly limit was hit twice. Agreed: routine status goes on the PR or issue, and messages to other threads are batched into one stand-up to the Head of Delivery.
 - **Format everything CI formats.** A YAML template written before Prettier covered `.github/` failed CI after the merge. The format hook from #26 now runs on every file written, so this should not recur.
-- **Final reviews lagged behind EM reviews.** #39 and #22 merged on the EM's review so Matt could connect Workers Builds, and the tech lead read them after merge (no findings). From Sprint 1, ask for the tech lead's review when the PR opens, not after the EM's.
+- **Final reviews lagged behind EM reviews.** #39 and #22 merged on the EM's review so the founder could connect Workers Builds, and the tech lead read them after merge (no findings). From Sprint 1, ask for the tech lead's review when the PR opens, not after the EM's.
