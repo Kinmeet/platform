@@ -3,8 +3,7 @@
  *
  * The no-third-party-requests test loads each of these, and the security
  * headers use `form` to decide whether Cloudflare Turnstile may load. Every
- * new page must be added here; a route coverage test for this arrives with
- * issue #6.
+ * new page must be added here, or the route coverage test fails.
  */
 export interface PublicRoute {
   path: string
