@@ -33,13 +33,13 @@ function fakeApi({ renders = true } = {}) {
   }
 }
 
-const container = (width: number) => ({ clientWidth: width }) as unknown as HTMLElement
-const base = { sitekey: '1x00000000000000000000AA', action: 'hello', language: 'en-GB' }
+const element = {} as unknown as HTMLElement
+const base = { sitekey: '1x00000000000000000000AA', action: 'hello', language: 'en-GB', width: 400 }
 
 describe('Turnstile widget', () => {
   it('runs only when asked, is seen only when needed, and keeps no form field', () => {
     const fake = fakeApi()
-    createTurnstileWidget(fake.api, container(400), base)
+    createTurnstileWidget(fake.api, element, base)
     expect(fake.options).toMatchObject({
       sitekey: base.sitekey,
       action: 'hello',
@@ -54,13 +54,13 @@ describe('Turnstile widget', () => {
 
   it('uses the compact widget in narrow containers', () => {
     const fake = fakeApi()
-    createTurnstileWidget(fake.api, container(COMPACT_BELOW - 1), base)
+    createTurnstileWidget(fake.api, element, { ...base, width: COMPACT_BELOW - 1 })
     expect(fake.options.size).toBe('compact')
   })
 
   it('resolves getToken with the token from the challenge', async () => {
     const fake = fakeApi()
-    const widget = createTurnstileWidget(fake.api, container(400), base)
+    const widget = createTurnstileWidget(fake.api, element, base)
     const token = widget.getToken()
     expect(fake.calls).toContain('execute:widget-1')
     fake.options.callback('token-one')
@@ -69,7 +69,7 @@ describe('Turnstile widget', () => {
 
   it('shares one challenge between calls made while it runs', async () => {
     const fake = fakeApi()
-    const widget = createTurnstileWidget(fake.api, container(400), base)
+    const widget = createTurnstileWidget(fake.api, element, base)
     const first = widget.getToken()
     const second = widget.getToken()
     expect(fake.calls.filter((call) => call.startsWith('execute'))).toHaveLength(1)
@@ -80,7 +80,7 @@ describe('Turnstile widget', () => {
 
   it('gets a fresh token after a reset, because tokens are single-use', async () => {
     const fake = fakeApi()
-    const widget = createTurnstileWidget(fake.api, container(400), base)
+    const widget = createTurnstileWidget(fake.api, element, base)
     const first = widget.getToken()
     fake.options.callback('token-one')
     await first
@@ -97,7 +97,7 @@ describe('Turnstile widget', () => {
     'rejects with "failed" and resets on %s',
     async (name) => {
       const fake = fakeApi()
-      const widget = createTurnstileWidget(fake.api, container(400), base)
+      const widget = createTurnstileWidget(fake.api, element, base)
       const token = widget.getToken()
       if (name === 'error-callback') expect(fake.options[name]('300030')).toBe(true)
       else fake.options[name]()
@@ -108,7 +108,7 @@ describe('Turnstile widget', () => {
 
   it('rejects a waiting getToken when the widget is reset', async () => {
     const fake = fakeApi()
-    const widget = createTurnstileWidget(fake.api, container(400), base)
+    const widget = createTurnstileWidget(fake.api, element, base)
     const token = widget.getToken()
     widget.reset()
     await expect(token).rejects.toMatchObject({ reason: 'failed' })
@@ -117,7 +117,7 @@ describe('Turnstile widget', () => {
   it('says when a box needs ticking, and when it is done', () => {
     const fake = fakeApi()
     const seen: boolean[] = []
-    createTurnstileWidget(fake.api, container(400), {
+    createTurnstileWidget(fake.api, element, {
       ...base,
       onInteractive: (needed) => seen.push(needed),
     })
@@ -128,13 +128,13 @@ describe('Turnstile widget', () => {
 
   it('is unavailable if Turnstile could not render', async () => {
     const fake = fakeApi({ renders: false })
-    const widget = createTurnstileWidget(fake.api, container(400), base)
+    const widget = createTurnstileWidget(fake.api, element, base)
     await expect(widget.getToken()).rejects.toMatchObject({ reason: 'unavailable' })
   })
 
   it('removes the widget and rejects anything waiting', async () => {
     const fake = fakeApi()
-    const widget = createTurnstileWidget(fake.api, container(400), base)
+    const widget = createTurnstileWidget(fake.api, element, base)
     const token = widget.getToken()
     widget.remove()
     await expect(token).rejects.toMatchObject({ reason: 'unavailable' })

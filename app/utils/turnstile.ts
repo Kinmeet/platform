@@ -53,6 +53,8 @@ export interface TurnstileWidgetOptions {
   /** `hello` or `apply`; the server checks it matches the form. */
   action: string
   language: string
+  /** Width available to the widget, in CSS pixels. */
+  width: number
   /** Shown or hidden when Turnstile needs the visitor to tick a box. */
   onInteractive?: (needed: boolean) => void
 }
@@ -93,7 +95,7 @@ export function createTurnstileWidget(
     // Runs only when the visitor presses Send, and is seen only if a box needs ticking.
     execution: 'execute',
     appearance: 'interaction-only',
-    size: container.clientWidth < COMPACT_BELOW ? 'compact' : 'flexible',
+    size: options.width < COMPACT_BELOW ? 'compact' : 'flexible',
     language: options.language,
     theme: 'light',
     // We send the token ourselves, so no hidden form field.

@@ -174,21 +174,15 @@ legend {
   max-width: 100%;
 }
 
-.turnstile__widget:empty {
-  display: none;
-}
-
-.turnstile__prompt,
-.turnstile__unavailable,
+.turnstile__status,
 .turnstile__notice {
   margin: 0;
 }
 
-.turnstile__prompt {
+.turnstile__status {
   font-weight: var(--weight-bold);
 }
 
-.turnstile__unavailable {
+.turnstile__status--error {
   color: var(--colour-error);
-  font-weight: var(--weight-bold);
 }
