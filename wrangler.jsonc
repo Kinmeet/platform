@@ -23,8 +23,11 @@
     "traces": { "enabled": false },
   },
   "logpush": false,
-  // Read by the form routes. Deploys fail until both are set (docs/environments.md).
-  "secrets": { "required": ["TURNSTILE_SECRET_KEY", "RATE_LIMIT_HMAC_KEY"] },
+  // Read by the form routes and the email sender. Deploys fail until all are
+  // set (docs/environments.md).
+  "secrets": {
+    "required": ["TURNSTILE_SECRET_KEY", "RATE_LIMIT_HMAC_KEY", "EMAIL_LOG_HMAC_KEY"],
+  },
   // Turnstile site keys are public. Local runs use Cloudflare's always-pass
   // test key; each deployed environment has its own widget (#20).
   "vars": { "NUXT_PUBLIC_TURNSTILE_SITE_KEY": "1x00000000000000000000AA" },
@@ -37,10 +40,7 @@
       "migrations_dir": "migrations/db",
     },
   ],
-  "kv_namespaces": [
-    { "binding": "KV", "id": "00000000000000000000000000000000" },
-    { "binding": "RECEIPTS", "id": "00000000000000000000000000000001" },
-  ],
+  "kv_namespaces": [{ "binding": "KV", "id": "00000000000000000000000000000000" }],
   "r2_buckets": [{ "binding": "R2", "bucket_name": "kinmeet-local" }],
   // Rate limiters count per Cloudflare location. Ids are unique per
   // environment so counters are never shared.
@@ -82,10 +82,7 @@
           "migrations_dir": "migrations/db",
         },
       ],
-      "kv_namespaces": [
-        { "binding": "KV", "id": "5a9d7b8c548a4c3a8d596eec650a474b" },
-        { "binding": "RECEIPTS", "id": "ebb759901980452ab6415f7aeb1dff99" },
-      ],
+      "kv_namespaces": [{ "binding": "KV", "id": "5a9d7b8c548a4c3a8d596eec650a474b" }],
       "r2_buckets": [{ "binding": "R2", "bucket_name": "kinmeet-staging", "jurisdiction": "eu" }],
       "ratelimits": [
         {
@@ -113,10 +110,7 @@
             "migrations_dir": "migrations/db",
           },
         ],
-        "kv_namespaces": [
-          { "binding": "KV", "id": "87dfe82d807e49cf945334fbd17d7b26" },
-          { "binding": "RECEIPTS", "id": "3119a6ddccfe45c6910468d4685cd186" },
-        ],
+        "kv_namespaces": [{ "binding": "KV", "id": "87dfe82d807e49cf945334fbd17d7b26" }],
         "r2_buckets": [{ "binding": "R2", "bucket_name": "kinmeet-preview", "jurisdiction": "eu" }],
         "ratelimits": [
           {
@@ -149,7 +143,9 @@
         "KINMEET_ENV": "live",
         "NUXT_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAFl-e7Mi_U9gitR4",
       },
-      "secrets": { "required": ["TURNSTILE_SECRET_KEY", "RATE_LIMIT_HMAC_KEY"] },
+      "secrets": {
+        "required": ["TURNSTILE_SECRET_KEY", "RATE_LIMIT_HMAC_KEY", "EMAIL_LOG_HMAC_KEY"],
+      },
       "d1_databases": [
         {
           "binding": "DB",
@@ -158,10 +154,7 @@
           "migrations_dir": "migrations/db",
         },
       ],
-      "kv_namespaces": [
-        { "binding": "KV", "id": "90bba5907a604bc49aead31e93c939fc" },
-        { "binding": "RECEIPTS", "id": "94c4f3e1ef6c402092221decd4e4373c" },
-      ],
+      "kv_namespaces": [{ "binding": "KV", "id": "90bba5907a604bc49aead31e93c939fc" }],
       "r2_buckets": [{ "binding": "R2", "bucket_name": "kinmeet-live", "jurisdiction": "eu" }],
       "ratelimits": [
         {
