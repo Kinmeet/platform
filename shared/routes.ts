@@ -16,7 +16,10 @@ export interface PublicRoute {
   /**
    * False when the spam check only appears on a later step, so the page
    * contacts Cloudflare only once it's needed (apply step 4, Callum, #81).
-   * Form pages load it straight away otherwise.
+   * Form pages load it straight away otherwise. Any route that sets this
+   * must have a spec that reaches its spam-check step and asserts Turnstile
+   * loads there, as `tests/e2e/apply.spec.ts` does, because the
+   * no-third-party test no longer checks it on arrival (Nadia, #81).
    */
   spamCheckOnLoad?: boolean
 }
