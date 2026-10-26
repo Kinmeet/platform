@@ -1,37 +1,23 @@
-/* Fonts are bundled with the app and served from our own origin. */
+/*
+ * Fonts are bundled with the app and served from our own origin (ADR-0007).
+ * Each package splits its files by unicode-range, so browsers only download
+ * the Latin Extended file (which holds Welsh ŵ and ŷ) on pages that use it.
+ */
 @import '@fontsource-variable/fredoka/wght.css';
 @import '@fontsource/atkinson-hyperlegible-next/400.css';
 @import '@fontsource/atkinson-hyperlegible-next/700.css';
 
-:root {
-  --colour-ink: #3b3630;
-  --colour-ink-soft: #5e5850;
-  --colour-ground: #f7f3e8;
-  --colour-moss: #2e5d4b;
-  --font-display: 'Fredoka Variable', system-ui, sans-serif;
-  --font-body: 'Atkinson Hyperlegible Next', system-ui, sans-serif;
-}
+@import './tokens.css';
+@import './base.css';
+@import './components.css';
+@import './forms.css';
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-  background: var(--colour-ground);
-  color: var(--colour-ink);
-  font-family: var(--font-body);
-  font-size: 1.125rem;
-  line-height: 1.6;
-}
-
+/* Holding page, until the pre-launch home page replaces it (#12). */
 .placeholder {
   max-width: 40rem;
   min-height: 100vh;
   margin: 0 auto;
-  padding: 4rem 1rem;
+  padding: var(--space-8) var(--gutter);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -39,21 +25,20 @@ body {
 
 .placeholder__name {
   margin: 0;
-  color: var(--colour-moss);
+  color: var(--colour-heading);
   font-family: var(--font-display);
   font-size: 1.5rem;
-  font-weight: 600;
+  font-weight: var(--weight-display);
 }
 
 .placeholder__title {
-  margin: 0.5rem 0 1rem;
-  font-family: var(--font-display);
-  font-size: clamp(2.25rem, 6vw, 3.5rem);
-  font-weight: 600;
+  margin: var(--space-2) 0 var(--space-4);
+  color: var(--colour-text);
+  font-size: var(--text-title);
   line-height: 1.15;
 }
 
 .placeholder__lead {
-  margin: 0 0 1rem;
-  color: var(--colour-ink-soft);
+  margin: 0 0 var(--space-4);
+  color: var(--colour-text-muted);
 }

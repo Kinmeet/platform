@@ -1,0 +1,94 @@
+/*
+ * Design tokens for the patch language: chunky outlines, hard offset shadows,
+ * one tilted sticker per view. Names follow the design's own colour names so
+ * the design and the code use one vocabulary.
+ *
+ * Contrast ratios are checked by tests/unit/app/assets/css/contrast.test.ts.
+ * Change a colour here and that test tells you if a pairing stops passing.
+ */
+:root {
+  /* Palette */
+  --colour-bark: #3b3630;
+  --colour-bark-muted: #5e5850;
+  --colour-cream: #f7f3e8;
+  --colour-elevated: #ffffff;
+  --colour-sand: #efeadc;
+  --colour-wilder-green: #2e5d4b;
+  --colour-wilder-green-deep: #1f4436;
+  --colour-meadow: #8fbf88;
+  --colour-meadow-light: #9ecb96;
+  --colour-sunwarm: #e8a13d;
+  --colour-selected: #e4eddf;
+  --colour-rule: #ddd6c4;
+  --colour-stone: #b9b2a1;
+  --colour-disabled: #e5dfd0;
+  --colour-disabled-text: #67615a;
+  --colour-error: #a8380f;
+
+  /* What each colour is for */
+  --colour-text: var(--colour-bark);
+  --colour-text-muted: var(--colour-bark-muted);
+  --colour-heading: var(--colour-wilder-green);
+  --colour-link: var(--colour-wilder-green);
+  --colour-link-hover: var(--colour-wilder-green-deep);
+  --colour-outline: var(--colour-bark);
+  /* Focus ring: bark on light grounds, cream on wilder-green (see base.css). */
+  --colour-focus: var(--colour-bark);
+  --colour-focus-on-dark: var(--colour-cream);
+
+  /* Type */
+  /* Fredoka has no ŵ or ŷ, so those letters fall back to Atkinson (ADR-0007). */
+  --font-display: 'Fredoka Variable', 'Atkinson Hyperlegible Next', system-ui, sans-serif;
+  --font-body: 'Atkinson Hyperlegible Next', system-ui, sans-serif;
+  --weight-display: 600;
+  --weight-regular: 400;
+  --weight-bold: 700;
+
+  /* Sizes grow from the phone design (390px) to the desktop design (1280px). */
+  --text-display: clamp(2.625rem, 2.03rem + 2.47vw, 4rem); /* 42 to 64px */
+  --text-title: clamp(2.125rem, 1.52rem + 2.47vw, 3.5rem); /* 34 to 56px */
+  --text-section: clamp(2rem, 1.78rem + 0.9vw, 2.5rem); /* 32 to 40px */
+  --text-card: clamp(1.4375rem, 1.33rem + 0.45vw, 1.6875rem); /* 23 to 27px */
+  --text-band: clamp(1.5rem, 1.39rem + 0.45vw, 1.75rem); /* 24 to 28px */
+  --text-lede: clamp(1.125rem, 1.04rem + 0.34vw, 1.3125rem); /* 18 to 21px */
+  --text-body: 1.0625rem; /* 17px */
+  --text-body-large: 1.125rem; /* 18px */
+  --text-small: 0.9375rem; /* 15px */
+  --text-eyebrow: 0.875rem; /* 14px */
+  --leading-tight: 1.05;
+  --leading-body: 1.5;
+
+  /* Space */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4rem;
+  /* Page side margin: 16px on a phone, 64px on the desktop design. */
+  --gutter: clamp(1rem, -0.31rem + 5.39vw, 4rem);
+  --measure: 44ch;
+  --page-max: 80rem;
+
+  /* Shape */
+  --border: 3px solid var(--colour-outline);
+  --border-thin: 2px solid var(--colour-outline);
+  --radius-pill: 999px;
+  --radius-hero: 28px;
+  --radius-band: 24px;
+  --radius-patch: 22px;
+  --radius-note: 16px;
+  --radius-field: 14px;
+  --shadow-button: 4px 4px 0 var(--colour-outline);
+  --shadow-button-small: 3px 3px 0 var(--colour-outline);
+  --shadow-button-pressed: 2px 2px 0 var(--colour-outline);
+  --shadow-patch: 6px 6px 0 var(--colour-wilder-green);
+  --shadow-hero: 8px 8px 0 var(--colour-wilder-green);
+
+  /* Targets and motion */
+  --target-min: 44px;
+  --control-height: 52px;
+  --press-duration: 80ms;
+}

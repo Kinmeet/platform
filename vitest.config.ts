@@ -21,5 +21,7 @@ export default defineConfig({
   test: {
     include: ['tests/unit/**/*.test.ts'],
     setupFiles: ['tests/unit/setup/apply-migrations.ts'],
+    // Vitest blanks CSS imports by default; the contrast test reads tokens.css.
+    css: { include: [/tokens\.css/] },
   },
 })
