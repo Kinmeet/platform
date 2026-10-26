@@ -66,9 +66,10 @@ const surfaces = [
   {
     name: 'patch, note, field or choice',
     background: 'elevated',
-    scope: declarations(
-      ruleBody(components, ':is(.patch, .note, .error-summary, .input, .choice)'),
-    ),
+    scope: new Map([
+      ...declarations(ruleBody(components, ':is(.patch, .note, .error-summary, .input, .choice)')),
+      ...declarations(ruleBody(components, ':is(.patch, .note, .error-summary, .choice)')),
+    ]),
   },
 ]
 
@@ -83,6 +84,18 @@ const roles = [
 ]
 
 const roleChecks = surfaces.flatMap((surface) => roles.map((role) => ({ ...surface, ...role })))
+
+// A field's focus ring is drawn outside it, on the surface around it, so it
+// must take that surface's ring colour rather than reset to bark.
+const fieldRings = surfaces
+  .filter((surface) => surface.background !== 'elevated')
+  .map((surface) => ({
+    ...surface,
+    scope: new Map([
+      ...surface.scope,
+      ...declarations(ruleBody(components, ':is(.patch, .note, .error-summary, .input, .choice)')),
+    ]),
+  }))
 
 // Components that set their own colours, whatever surface they sit on.
 const fixedPairings: { what: string; text: string; background: string; minimum: number }[] = [
@@ -128,6 +141,10 @@ describe('design token contrast', () => {
       expect(contrast(resolve(role, scope), resolve(background))).toBeGreaterThanOrEqual(minimum)
     },
   )
+
+  it.each(fieldRings)('a field focus ring on the $name meets 3:1', ({ background, scope }) => {
+    expect(contrast(resolve('focus', scope), resolve(background))).toBeGreaterThanOrEqual(OUTLINE)
+  })
 
   it.each(fixedPairings)('$what meets $minimum:1', ({ text, background, minimum }) => {
     expect(contrast(resolve(text), resolve(background))).toBeGreaterThanOrEqual(minimum)

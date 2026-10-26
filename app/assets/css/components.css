@@ -264,8 +264,14 @@
   --colour-heading: var(--colour-wilder-green);
   --colour-link: var(--colour-wilder-green);
   --colour-link-hover: var(--colour-wilder-green-deep);
-  --colour-focus: var(--colour-bark);
   --colour-error: var(--colour-error-base);
 
   color: var(--colour-text);
+}
+
+/* Rings inside these boxes sit on white, so they go back to bark. A field's
+   own ring sits outside it, on the surrounding surface, so .input keeps the
+   surface's ring colour. */
+:is(.patch, .note, .error-summary, .choice) {
+  --colour-focus: var(--colour-bark);
 }
