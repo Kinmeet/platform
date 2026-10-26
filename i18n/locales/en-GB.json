@@ -1,6 +1,24 @@
 {
   "site": {
-    "name": "Kinmeet"
+    "name": "Kinmeet",
+    "title_pattern": "{page} – {site}",
+    "skip_link": "Skip to main content",
+    "nav": {
+      "main_label": "Main",
+      "footer_label": "Footer",
+      "roles": "Roles",
+      "say_hello": "Say hello",
+      "promise": "Our all-ages promise",
+      "data": "How we handle data"
+    },
+    "leave": "Leave the application (answers won't be kept)",
+    "footer": {
+      "tagline": "Free, all-ages park meets for the alterhuman family. Being founded in the open, autumn 2026.",
+      "no_tracking": "No cookies, no trackers. The only outside script is a spam check on our forms.",
+      "fonts": "Fonts: {fredoka} and {atkinson}, shared under an open font licence.",
+      "fonts_fredoka": "Fredoka",
+      "fonts_atkinson": "Atkinson Hyperlegible Next"
+    }
   },
   "home": {
     "title": "Kinmeet is coming soon",
