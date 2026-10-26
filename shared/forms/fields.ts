@@ -8,6 +8,13 @@ import { z } from 'zod'
  * `shared/forms/errors.ts` turns into that code.
  */
 
+// Zod compiles object schemas with `new Function` unless told not to. Our
+// security policy forbids eval in the browser (P5), so even its feature test
+// is reported as a violation. Every form schema imports this file first, so
+// this runs before any object schema is made. The Worker can't eval either,
+// so it changes nothing there.
+z.config({ jitless: true })
+
 /** Length in Unicode code points, the same in the browser and on the server. */
 export function codePointLength(value: string): number {
   return [...value].length
