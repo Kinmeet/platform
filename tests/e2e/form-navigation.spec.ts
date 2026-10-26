@@ -56,9 +56,21 @@ for (const route of formRoutes) {
     await page.locator(`a[href="${route.path}"]`).first().click()
     await expect(page).toHaveURL(new RegExp(`${route.path}$`))
     expect(await isSameDocument(page), 'should be a new document').toBe(false)
-    await expect
-      .poll(() => requests.length, { message: 'spam check should load' })
-      .toBeGreaterThan(0)
+    const policy = await page.evaluate(async () => {
+      const response = await fetch(location.href)
+      return response.headers.get('content-security-policy') ?? ''
+    })
+    expect(policy, 'the new document should allow the spam check').toContain(TURNSTILE_ORIGIN)
+    if (route.spamCheckOnLoad === false) {
+      // Its spam check is on a later step; apply.spec.ts checks it loads there.
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      await page.waitForTimeout(1000)
+      expect(requests, 'no spam check before it is needed').toEqual([])
+    } else {
+      await expect
+        .poll(() => requests.length, { message: 'spam check should load' })
+        .toBeGreaterThan(0)
+    }
   })
 
   test(`leaving ${route.path} by a link loads a fresh page without the spam check`, async ({

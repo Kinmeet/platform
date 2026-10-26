@@ -1,5 +1,8 @@
 import { expect, test, type Page } from '@playwright/test'
 import en from '../../i18n/locales/en-GB.json' with { type: 'json' }
+import { publicRoutes } from '../../shared/routes'
+import { TURNSTILE_ORIGIN } from '../../shared/turnstile'
+import { allowedOrigins, watchPage } from './helpers'
 
 // The apply flow's step pages (#15). Test answers are made up.
 const trustee = en.roles.trustee
@@ -151,6 +154,34 @@ test.describe('apply flow steps', () => {
     await page.waitForTimeout(1000)
     expect(sends).toEqual([])
     await expect(page).toHaveURL(/step=4$/)
+  })
+
+  // The spam check loads only once it's needed (Callum, #81), so anyone who
+  // stops at step 1 never contacts Cloudflare. Reached by clicking through
+  // from the role page, so it also proves the new document's policy lets it
+  // load (Nadia, #74).
+  test('loads the spam check on Check and send, and not before', async ({ page, baseURL }) => {
+    const route = publicRoutes.find((item) => item.path === APPLY)!
+    const problems = await watchPage(
+      page,
+      allowedOrigins(route, baseURL!),
+      new URL(baseURL!).origin,
+    )
+    await page.goto('/roles/trustee')
+    await page.getByRole('link', { name: trustee.page.apply }).first().click()
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(en.apply.steps['1'])
+    await finishStep1(page)
+    await finishStep2(page)
+    await page.waitForLoadState('networkidle')
+    expect(problems.otherOrigins, 'nothing from Cloudflare before step 4').toEqual([])
+
+    await finishStep3(page)
+    await expect.poll(() => problems.otherOrigins).toEqual([TURNSTILE_ORIGIN])
+    await page.waitForLoadState('networkidle')
+    expect(problems.cspViolations).toEqual([])
+    expect(problems.pageErrors).toEqual([])
+    expect(problems.thirdPartyRequests).toEqual([])
+    await expect(page.getByText(en.forms.turnstile.unavailable)).toHaveCount(0)
   })
 
   test('a later step cannot be opened directly, and says why', async ({ page }) => {

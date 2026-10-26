@@ -27,10 +27,12 @@ for (const route of publicRoutes) {
     expect.soft(problems.cspViolations, 'content security policy violations').toEqual([])
     expect.soft(problems.pageErrors, 'script errors').toEqual([])
     // Two-sided: form pages load Turnstile (so the widget really appeared)
-    // and nothing else; every other page loads nothing from elsewhere.
+    // and nothing else; every other page loads nothing from elsewhere. A form
+    // whose spam check is on a later step loads nothing yet; its own spec
+    // checks the later step (apply.spec.ts, #81).
     expect
       .soft(problems.otherOrigins, 'origins other than our own')
-      .toEqual(route.form ? [TURNSTILE_ORIGIN] : [])
+      .toEqual(route.form && route.spamCheckOnLoad !== false ? [TURNSTILE_ORIGIN] : [])
   })
 }
 

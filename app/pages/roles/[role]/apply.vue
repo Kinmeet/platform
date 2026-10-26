@@ -80,10 +80,6 @@ function onSend() {
   // no request (Callum, #15).
 }
 
-// The spam check is on the last step, but the script starts loading now so
-// it's ready by then.
-onMounted(preloadTurnstileScript)
-
 /** The words for one answer on "Check and send". */
 function checkAnswer(id: string): string {
   const answer = draft.value?.checks[id]

@@ -177,13 +177,3 @@ export function loadTurnstileScript(src: string, timeoutMs: number): Promise<Tur
   })
   return loading
 }
-
-/**
- * Starts loading the script early, for a form whose spam check is a few
- * steps away (apply, #15), so the widget is ready by the last step. Only
- * call it on a form route. A failure here is ignored: TurnstileCheck tries
- * again when it mounts and says so if it still can't load.
- */
-export function preloadTurnstileScript(): void {
-  loadTurnstileScript(TURNSTILE_SCRIPT_SRC, TURNSTILE_LOAD_TIMEOUT_MS).catch(() => {})
-}
