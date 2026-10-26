@@ -17,23 +17,19 @@ Resource ids are not secrets. They live in [`wrangler.jsonc`](../wrangler.jsonc)
 
 ## Ids
 
-| Resource                                   | Id                                     |
-| ------------------------------------------ | -------------------------------------- |
-| D1 `kinmeet-staging`                       | `18c80f5f-3c72-4781-8d38-98ef6cc4a096` |
-| D1 `kinmeet-preview`                       | `74454f75-8b40-44d7-ac02-e6145d9e8ff6` |
-| D1 `kinmeet-live`                          | `3b253758-831e-4db9-bb90-fb4598f215db` |
-| KV `kinmeet-staging`                       | `5a9d7b8c548a4c3a8d596eec650a474b`     |
-| KV `kinmeet-preview`                       | `87dfe82d807e49cf945334fbd17d7b26`     |
-| KV `kinmeet-live`                          | `90bba5907a604bc49aead31e93c939fc`     |
-| KV `kinmeet-staging-receipts` (`RECEIPTS`) | `ebb759901980452ab6415f7aeb1dff99`     |
-| KV `kinmeet-preview-receipts` (`RECEIPTS`) | `3119a6ddccfe45c6910468d4685cd186`     |
-| KV `kinmeet-live-receipts` (`RECEIPTS`)    | `94c4f3e1ef6c402092221decd4e4373c`     |
+| Resource             | Id                                     |
+| -------------------- | -------------------------------------- |
+| D1 `kinmeet-staging` | `18c80f5f-3c72-4781-8d38-98ef6cc4a096` |
+| D1 `kinmeet-preview` | `74454f75-8b40-44d7-ac02-e6145d9e8ff6` |
+| D1 `kinmeet-live`    | `3b253758-831e-4db9-bb90-fb4598f215db` |
+| KV `kinmeet-staging` | `5a9d7b8c548a4c3a8d596eec650a474b`     |
+| KV `kinmeet-preview` | `87dfe82d807e49cf945334fbd17d7b26`     |
+| KV `kinmeet-live`    | `90bba5907a604bc49aead31e93c939fc`     |
 
 R2 buckets are named, not numbered: `kinmeet-staging`, `kinmeet-preview` and `kinmeet-live`. The founder creates them in the dashboard with jurisdiction EU (step 1 of the one-time setup in [deploys.md](deploys.md)), because the team's API connection cannot set an R2 jurisdiction. Deploys fail until they exist.
 
 ## Other bindings
 
-- `RECEIPTS` (KV): receipt-limit markers for the forms API, in its own namespace per environment so its retention can differ from `KV`.
 - `FORM_RATE_LIMITER` (5 per 60 seconds) and `FORM_GLOBAL_RATE_LIMITER` (100 per 60 seconds, to be tuned by Services). Counts are per Cloudflare location. Each environment has its own `namespace_id` (local 100x, staging 110x, Previews 120x, live 130x), because limiters with the same id share counters across Workers.
 - D1 migrations live in `migrations/db/`.
 
@@ -53,7 +49,7 @@ openssl rand -base64 32 | bunx wrangler preview base-config secret put RATE_LIMI
 openssl rand -base64 32 | bunx wrangler secret put RATE_LIMIT_HMAC_KEY --env live
 ```
 
-Generate a fresh value for every environment and every secret; never reuse one. `TURNSTILE_SECRET_KEY` must be the real secret of that environment's own widget, never Cloudflare's always-pass test secret; only local runs and CI use the test keys. The public site keys are `NUXT_PUBLIC_TURNSTILE_SITE_KEY` in each environment's `vars`, and each widget's hostname list holds only its own environment's host. Previews get their secrets from the Preview base config (`wrangler preview base-config secret`), which every new Preview starts with, separately from staging. `TURNSTILE_SECRET_KEY` and `RATE_LIMIT_HMAC_KEY` are listed in `secrets.required` for local and live, because the form routes read them: a deploy fails until both are set for that environment. Staging leaves them out for now, because its first deploy comes before the secrets can be set. Until they are, its form routes answer `503 unavailable` and store nothing. A follow-up PR adds them back once the secrets exist.
+Generate a fresh value for every environment and every secret; never reuse one. `TURNSTILE_SECRET_KEY` must be the real secret of that environment's own widget, never Cloudflare's always-pass test secret; only local runs and CI use the test keys. The public site keys are `NUXT_PUBLIC_TURNSTILE_SITE_KEY` in each environment's `vars`, and each widget's hostname list holds only its own environment's host. Previews get their secrets from the Preview base config (`wrangler preview base-config secret`), which every new Preview starts with, separately from staging. `TURNSTILE_SECRET_KEY`, `RATE_LIMIT_HMAC_KEY` and `EMAIL_LOG_HMAC_KEY` are listed in `secrets.required` for local and live, because the form routes and the email sender read them: a deploy fails until all three are set for that environment. Staging leaves them out for now, because its first deploy comes before the secrets can be set. Until they are, its form routes answer `503 unavailable` and store nothing. A follow-up PR adds them back once the secrets exist.
 
 ### Local development
 

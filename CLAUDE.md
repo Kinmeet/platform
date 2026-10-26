@@ -64,6 +64,7 @@ Every team member is an AI agent with a fictional persona ([docs/personas.md](do
 - Code, tests and docs in one PR on a branch `<squad>/<issue-number>-<slug>`, linked to its issue. Never push to `main`.
 - CI green: type check, lint, unit and integration tests, end-to-end tests, accessibility scan, the no-third-party-requests test.
 - Reviewed by the Tech Lead and, where relevant, the security, privacy and safeguarding, and accessibility reviewers; every comment answered.
+- Existing modules checked first: the PR description names the Nuxt module or built-in feature adopted, or why each candidate was rejected ([.claude/rules/existing-modules.md](.claude/rules/existing-modules.md)).
 - An ADR in `docs/adr/` for any non-obvious technical choice.
 - Deployed to staging by the merge.
 
