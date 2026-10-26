@@ -1,5 +1,7 @@
 import { env } from 'cloudflare:test'
 import { beforeEach, describe, expect, it } from 'vitest'
+import roleSlugsMigration from '../../../migrations/db/0002_applications_role_slugs.sql?raw'
+import { roles } from '../../../shared/forms/roles'
 
 // Made-up test data only.
 const RECEIVED = 1_793_000_000
@@ -205,5 +207,55 @@ describe('email log', () => {
       .bind(FAKE_HMAC, RECEIVED)
       .all<{ detail: string }>()
     expect(plan.results.map((row) => row.detail).join(' ')).toContain('email_log_to_hmac_sent_at')
+  })
+})
+
+describe('application roles (0002)', () => {
+  it('stores an application for every role in the role config', async () => {
+    for (const [index, role] of roles.entries()) {
+      const n = String(index).padStart(2, '0')
+      await insert('applications', {
+        ...application,
+        id: `00000000-0000-4000-8000-0000000001${n}`,
+        submission_id: `00000000-0000-4000-8000-0000000002${n}`,
+        role: role.slug,
+      })
+    }
+    const { results } = await env.DB.prepare('SELECT role FROM applications ORDER BY role').all<{
+      role: string
+    }>()
+    expect(results.map((row) => row.role)).toEqual(roles.map((role) => role.slug).sort())
+  })
+
+  it('still refuses slugs that are not lowercase', async () => {
+    for (const role of ['Trustee', 'safeguarding lead', '-trustee', 'trustee!', '']) {
+      await expect(insert('applications', { ...application, role }), role).rejects.toThrow()
+    }
+  })
+
+  it('keeps every row and constraint when the table is rebuilt', async () => {
+    await insert('applications', { ...application, outcome_told_at: RECEIVED + 10 })
+    const before = await env.DB.prepare('SELECT * FROM applications').all()
+    // Run the rebuild again on a table that holds a row.
+    const statements = roleSlugsMigration
+      .replace(/^--.*$/gm, '')
+      .split(';')
+      .map((sql) => sql.trim())
+      .filter(Boolean)
+    await env.DB.batch(statements.map((sql) => env.DB.prepare(sql)))
+    expect((await env.DB.prepare('SELECT * FROM applications').all()).results).toEqual(
+      before.results,
+    )
+    await expect(
+      insert('applications', { ...application, id: '00000000-0000-4000-8000-0000000000ff' }),
+    ).rejects.toThrow(/UNIQUE/)
+    await expect(
+      insert('applications', {
+        ...application,
+        id: '00000000-0000-4000-8000-0000000000fe',
+        submission_id: '00000000-0000-4000-8000-0000000000fd',
+        connection_to_founders: 'related_or_household',
+      }),
+    ).rejects.toThrow()
   })
 })
