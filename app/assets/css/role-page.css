@@ -1,0 +1,184 @@
+/* A role's page (#13). Phone first: "At a glance" comes first, then the
+   sections. From 56rem the glance panel moves to a right-hand column. */
+
+.role-intro {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 24px var(--gutter) 20px;
+}
+
+.role-intro :is(h1, p) {
+  margin: 0;
+}
+
+.role-intro .lede {
+  max-width: 52ch;
+}
+
+.role-intro__back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--target-min);
+  font-weight: var(--weight-bold);
+}
+
+.role-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: 0 var(--gutter) var(--space-6);
+}
+
+.role-glance {
+  gap: var(--space-2);
+}
+
+.role-glance h2 {
+  margin: 0;
+  font-size: var(--text-card);
+}
+
+.role-glance__list {
+  margin: 6px 0 0;
+}
+
+.role-glance__list dt {
+  color: var(--colour-text-muted);
+  font-size: var(--text-small);
+  font-weight: var(--weight-bold);
+}
+
+.role-glance__list dd {
+  margin: 0 0 var(--space-3);
+}
+
+.role-glance__questions {
+  margin: 6px 0 0;
+  text-align: center;
+}
+
+.role-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  max-width: 64ch;
+}
+
+.role-sections section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.role-sections :is(h2, p) {
+  margin: 0;
+}
+
+.role-sections h2 {
+  font-size: var(--text-band);
+}
+
+.role-next {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px var(--gutter) 36px;
+  background: var(--colour-sand);
+}
+
+.role-next h2 {
+  margin: 0;
+}
+
+.role-next__steps {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.role-next__steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.role-next__steps p {
+  margin: 0;
+}
+
+.role-next__steps div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 4px;
+}
+
+.role-next__number {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--colour-sunwarm);
+  color: var(--colour-bark);
+  font: var(--weight-display) 1.125rem / 1 var(--font-display);
+}
+
+/* A heading for navigation, set like the body text it sits above. */
+.role-next__title {
+  color: inherit;
+  font: var(--weight-bold) 1rem / var(--leading-body) var(--font-body);
+  letter-spacing: normal;
+}
+
+@media (min-width: 56rem) {
+  .role-intro {
+    gap: var(--space-4);
+    padding-top: 44px;
+    padding-bottom: 32px;
+  }
+
+  .role-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 25rem;
+    align-items: start;
+    gap: 56px;
+    padding-bottom: 56px;
+  }
+
+  .role-glance {
+    grid-row: 1;
+    grid-column: 2;
+  }
+
+  .role-sections {
+    grid-row: 1;
+    grid-column: 1;
+    gap: var(--space-6);
+  }
+
+  .role-next {
+    gap: var(--space-5);
+    padding: 28px var(--gutter) var(--space-8);
+  }
+
+  .role-next__steps {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--space-5);
+  }
+
+  /* The desktop design has the apply button only in the glance panel. */
+  .role-next__apply {
+    display: none;
+  }
+}

@@ -1,0 +1,168 @@
+/*
+ * The site shell (#11): header, main nav, footer and wave divider, plus the
+ * focused layout the apply flow uses. Phone first; the header and footer
+ * spread out from 48rem.
+ */
+
+.site {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.site__main {
+  flex: 1;
+}
+
+/* Focus moves here from the skip link; the page itself is not a control. */
+.site__main:focus {
+  outline: none;
+}
+
+.wordmark {
+  color: var(--colour-heading);
+  font-family: var(--font-display);
+  font-size: 1.4375rem; /* 23px */
+  font-weight: var(--weight-display);
+  line-height: 1;
+}
+
+/* Header */
+
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 14px var(--gutter);
+  border-bottom: 3px solid var(--colour-bark);
+  background: var(--colour-cream);
+}
+
+.site-header__home {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-min);
+  text-decoration: none;
+}
+
+.site-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.site-nav__link,
+.site-header__leave {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-min);
+  padding: 0 var(--space-2);
+  font-weight: var(--weight-bold);
+}
+
+.site-header__leave {
+  text-align: end;
+}
+
+.site-nav__link {
+  color: var(--colour-text);
+  text-decoration: none;
+}
+
+.site-nav__link:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+
+.site-nav .button--small {
+  min-height: var(--target-min);
+  padding: 0 14px;
+  font-size: 1rem;
+}
+
+/* Footer */
+
+.wave {
+  display: block;
+  width: 100%;
+  height: 40px;
+  /* The colour of the section above the wave. */
+  background: var(--wave-behind, var(--colour-cream));
+}
+
+/* A page whose last section is sand marks it, so the footer's wave joins on. */
+.site:has(.ends-on-sand) .site-footer-wrap {
+  --wave-behind: var(--colour-sand);
+}
+
+.wave--green {
+  fill: var(--colour-wilder-green);
+}
+
+.wave--sand {
+  fill: var(--colour-sand);
+}
+
+.site-footer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: 32px var(--gutter) 40px;
+}
+
+.site-footer__about {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: 27.5rem;
+}
+
+.site-footer__about p {
+  margin: 0;
+}
+
+.site-footer .wordmark {
+  font-size: 1.5rem;
+}
+
+.site-footer__nav {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+}
+
+.site-footer__nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-min);
+  font-weight: var(--weight-bold);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+
+@media (min-width: 48rem) {
+  .site-header {
+    padding-block: 20px;
+  }
+
+  .site-header .wordmark {
+    font-size: 1.875rem; /* 30px */
+  }
+
+  .site-nav .button--small {
+    margin-left: 10px;
+    min-height: 46px;
+    font-size: 1.0625rem;
+  }
+
+  .site-footer {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: var(--space-7);
+    padding-block: 48px;
+  }
+}

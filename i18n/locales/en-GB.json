@@ -1,11 +1,227 @@
 {
   "site": {
-    "name": "Kinmeet"
+    "name": "Kinmeet",
+    "title_pattern": "{page} – {site}",
+    "skip_link": "Skip to main content",
+    "nav": {
+      "main_label": "Main",
+      "footer_label": "Footer",
+      "roles": "Roles",
+      "say_hello": "Say hello",
+      "promise": "Our all-ages promise",
+      "data": "How we handle data"
+    },
+    "leave": "Leave the application (answers won't be kept)",
+    "footer": {
+      "tagline": "Free, all-ages park meets for the alterhuman family. Being founded in the open, autumn 2026.",
+      "no_tracking": "No cookies, no trackers. The only outside script is a spam check on our forms.",
+      "fonts": "Fonts: {fredoka} and {atkinson}, shared under an open font licence.",
+      "fonts_fredoka": "Fredoka",
+      "fonts_atkinson": "Atkinson Hyperlegible Next"
+    }
   },
   "home": {
-    "title": "Kinmeet is coming soon",
-    "lead": "Small, free, all-ages meets in parks and public spaces, run by volunteers in local groups across the UK.",
-    "status": "We are getting ready. Please check back soon."
+    "title": "Help us start Kinmeet",
+    "hero": {
+      "sticker": "Founding now",
+      "title": "We're starting Kinmeet. Want to help?",
+      "lede": "Kinmeet will be free, all-ages meets in parks for the alterhuman family: games, crafts and good company, run by local volunteers. Before the first one, we need a few more people.",
+      "see_roles": "See the roles",
+      "art_button": "Make us some art! It's a paid role",
+      "art_label": "A picnic in a park: blankets in an open ring, everyone welcome"
+    },
+    "roles": {
+      "title": "Roles we're looking for",
+      "lede": "None of these need experience. Each one comes with a written role description and a handover note.",
+      "read_more": "Read more and apply",
+      "read_more_label": "Read more and apply: {role}"
+    },
+    "parents": {
+      "title": "Here as a parent?",
+      "body": "Our all-ages promise and safeguarding policy are being written now. Our trustees will adopt them before anyone volunteers at a meet, and they'll be public before the first meet.",
+      "read_promise": "Read the promise"
+    }
+  },
+  "role_page": {
+    "all_roles": "All roles",
+    "glance": "At a glance",
+    "questions": "Questions first? {link}",
+    "next": "What happens after you apply"
+  },
+  "roles": {
+    "trustee": {
+      "title": "Trustee",
+      "summary": "Hold the keys with us: co-sign for the bank account, vote on big decisions, and say no when something's wrong.",
+      "tags": {
+        "volunteer": "Volunteer",
+        "how_many": "3 to 5 people",
+        "time": "An evening a month"
+      },
+      "page": {
+        "apply": "Apply to be a trustee",
+        "sections": {
+          "involves": {
+            "heading": "What it involves",
+            "body": "Trustees hold Kinmeet to account. You'll co-sign for the bank account with one other trustee, vote on the decisions that go in the decisions log, and read the minutes and the accounts with a critical eye. If something's wrong, you're one of the people who can say so and make it stop."
+          },
+          "asks": {
+            "heading": "What it asks",
+            "body": "An evening a month for a video meeting. Replying to messages within a week. Reading the minutes and the accounts when they're published."
+          },
+          "gets": {
+            "heading": "What you get",
+            "body": "A say in how Kinmeet works from the very beginning, a written role description and a handover note, and a first meeting with the agenda already written."
+          },
+          "good_to_know": {
+            "heading": "Good to know",
+            "body": "We're registering Kinmeet as a charity (a CIO) straight away. We'll ask the Charity Commission to keep trustees' names off its public register, but it only agrees where there's evidence of risk. If it says no, your legal name will be on the register. That's the one place it would appear, and we'll talk it through before you commit. If you'd personally be at risk, you can ask for your own name to be withheld too, and we'll help with that."
+          }
+        },
+        "glance": {
+          "paid": {
+            "label": "Paid?",
+            "value": "Volunteer"
+          },
+          "how_many": {
+            "label": "How many",
+            "value": "3 to 5 people"
+          },
+          "time": {
+            "label": "Time",
+            "value": "An evening a month, plus replies within a week"
+          },
+          "checks": {
+            "label": "Checks",
+            "value": "A basic DBS (criminal record) check, which we arrange and pay for, or enhanced if our checking body confirms the role is eligible"
+          },
+          "you_need": {
+            "label": "You need to be",
+            "value": "18 or over, and not related to, in a relationship with, or living with anyone already on the founding team"
+          }
+        },
+        "next": {
+          "reply": {
+            "title": "We reply within seven days",
+            "body": "Even if it's to say we need a bit longer."
+          },
+          "chat": {
+            "title": "A 30-minute chat",
+            "body": "On video or in a café, your choice. Bring questions; it's for you too."
+          },
+          "references": {
+            "title": "References, then we decide",
+            "body": "We ask two people who know you for a short reference. If it's a no, we tell you why."
+          },
+          "yes": {
+            "title": "If it's a yes",
+            "body": "A basic DBS check, which we arrange and pay for, a handover pack, and your appointment recorded in the minutes by role title."
+          }
+        }
+      },
+      "apply": {
+        "note": {
+          "heading": "About the DBS check",
+          "body": "This role needs a basic DBS check, which we arrange and pay for. If our checking body confirms the role is eligible for an enhanced check, we'll arrange that instead. Something on your record doesn't automatically rule you out; we'd talk it through in confidence. We never keep a copy of the certificate, only that we saw it, the date and the outcome."
+        }
+      },
+      "questions": {
+        "over_18": {
+          "label": "Are you 18 or over?",
+          "summary": "18 or over",
+          "choices": {
+            "yes": "Yes",
+            "no": "No"
+          }
+        },
+        "connection_to_founders": {
+          "label": "Are you connected to anyone already on the founding team?",
+          "hint": "Trustees need to be independent of each other. The other roles don't have this rule.",
+          "summary": "Connected to the founding team",
+          "choices": {
+            "no": "No",
+            "related_or_household": "Yes: we're related, in a relationship, or live together",
+            "friend_or_acquaintance": "Yes: we're friends, or know each other",
+            "not_sure": "Not sure"
+          },
+          "notes": {
+            "friend_or_acquaintance": "That's fine. Trustees who know each other say so to the rest of the board, and step out of any decision where it could matter.",
+            "not_sure": "That's fine. Carry on, and we'll talk it through when we chat."
+          }
+        },
+        "trustee_rules_confirmed": {
+          "label": "I've read the Charity Commission's rules on who can't be a trustee, and as far as I know none apply to me.",
+          "summary": "Trustee rules",
+          "link": "Read the rules on GOV.UK (opens in a new tab)",
+          "choices": {
+            "yes": "Read, none apply"
+          }
+        },
+        "why_trustee": {
+          "label": "Why would you like to be a trustee?",
+          "hint": "A few sentences is plenty. There's no right answer.",
+          "summary": "Why"
+        },
+        "experience": {
+          "label": "Anything you've done that feels relevant? (optional)",
+          "hint": "Committees, clubs, looking after money, moderating a server. Nothing is fine too.",
+          "summary": "Relevant experience"
+        }
+      }
+    },
+    "artist-mark": {
+      "title": "Artist: the mark",
+      "summary": "Draw our open-ring logo: leaves, stones and prints in a circle, with a gap for the door.",
+      "tags": {
+        "paid": "Paid",
+        "how_many": "1 person",
+        "time": "One commission"
+      }
+    },
+    "artist-illustration": {
+      "title": "Artist: illustration",
+      "summary": "The picnic scene on the front page, and a set of small spot drawings to go with it.",
+      "tags": {
+        "paid": "Paid",
+        "how_many": "1 or 2 people",
+        "time": "Paid per piece"
+      }
+    },
+    "safeguarding-lead": {
+      "title": "Safeguarding lead",
+      "summary": "The person anyone can turn to with a worry about someone's safety, including young people themselves. Trained before your first case, with a deputy to share the load.",
+      "tags": {
+        "volunteer": "Volunteer",
+        "trustee": "A trustee role",
+        "how_many": "1 person",
+        "time": "On call for concerns, with a deputy"
+      }
+    },
+    "treasurer": {
+      "title": "Treasurer",
+      "summary": "Keep the accounts, and publish a money summary by category every quarter, so anyone can see where it goes.",
+      "tags": {
+        "volunteer": "Volunteer",
+        "how_many": "1 person",
+        "time": "Minutes a week"
+      }
+    },
+    "pilot-group-lead": {
+      "title": "Pilot group lead",
+      "summary": "Run one of our first meets near you, with friends if you've got them. We haven't picked any places yet: tell us where you are and we'll choose from who applies.",
+      "tags": {
+        "volunteer": "Volunteer",
+        "how_many": "A few people, plus friends",
+        "time": "One Saturday a month"
+      }
+    }
+  },
+  "forms": {
+    "turnstile": {
+      "notice": "A Cloudflare spam check runs when you press Send. It's the only outside script on this site.",
+      "interactive": "One more step: tick the spam check box below to send.",
+      "unavailable": "The spam check couldn't load, so this form can't be sent at the moment. Your answers are still here. Check your connection, then reload the page.",
+      "failed": "The spam check didn't work that time. Your answers are still here. Please try sending again."
+    }
   },
   "email": {
     "greeting": "Hello,",

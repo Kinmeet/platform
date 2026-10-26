@@ -1,7 +1,7 @@
 import { isFormRoute, type PublicRoute } from '../../shared/routes'
+import { TURNSTILE_ORIGIN } from '../../shared/turnstile'
 
-/** The only third-party origin any page may load, and only on form pages (S5). */
-export const TURNSTILE_ORIGIN = 'https://challenges.cloudflare.com'
+export { TURNSTILE_ORIGIN }
 
 export interface SecurityHeaderOptions {
   /** Request path, used to decide whether Turnstile is allowed. */
@@ -10,20 +10,33 @@ export interface SecurityHeaderOptions {
   nonce?: string
   /** Route list to check against; defaults to every public route. */
   routes?: readonly PublicRoute[]
+  /**
+   * Local `nuxt dev` only. Vite injects styles at run time without a nonce and
+   * talks to its dev server over a WebSocket, so the dev policy allows inline
+   * styles and `ws:` connections. Never set for a built Worker.
+   */
+  dev?: boolean
 }
 
-export function buildContentSecurityPolicy({ path, nonce, routes }: SecurityHeaderOptions): string {
+export function buildContentSecurityPolicy({
+  path,
+  nonce,
+  routes,
+  dev = false,
+}: SecurityHeaderOptions): string {
   const form = isFormRoute(path, routes)
   const nonceSource = nonce ? ` 'nonce-${nonce}'` : ''
+  // A nonce makes browsers ignore 'unsafe-inline', so dev leaves it out of style-src.
+  const styleSource = dev ? "'self' 'unsafe-inline'" : `'self'${nonceSource}`
   const turnstile = form ? ` ${TURNSTILE_ORIGIN}` : ''
 
   const directives: Record<string, string> = {
     'default-src': "'self'",
     'script-src': `'self'${nonceSource}${turnstile}`,
-    'style-src': `'self'${nonceSource}`,
+    'style-src': styleSource,
     'img-src': "'self' data:",
     'font-src': "'self'",
-    'connect-src': "'self'",
+    'connect-src': dev ? "'self' ws:" : "'self'",
     'frame-src': form ? TURNSTILE_ORIGIN : "'none'",
     'worker-src': "'self'",
     'manifest-src': "'self'",

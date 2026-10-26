@@ -1,0 +1,277 @@
+/* Buttons, patches, tags, stickers and text styles from the patch language. */
+
+/* Buttons: pill shape, 3px bark outline, hard offset shadow. Pressing moves
+   the button into its shadow. Works on <a> and <button>. */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--control-height);
+  padding: 0 var(--space-5);
+  border: var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--colour-cream);
+  box-shadow: var(--shadow-button);
+  color: var(--colour-bark);
+  font: var(--weight-display) 1.1875rem / 1 var(--font-display);
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    transform var(--press-duration),
+    box-shadow var(--press-duration);
+}
+
+.button:hover {
+  color: var(--colour-bark);
+  transform: translate(2px, 2px);
+  box-shadow: var(--shadow-button-pressed);
+}
+
+.button:active {
+  transform: translate(4px, 4px);
+  box-shadow: none;
+}
+
+.button--primary {
+  background: var(--colour-sunwarm);
+}
+
+.button--secondary {
+  background: var(--colour-elevated);
+}
+
+.button--green {
+  border-color: var(--colour-wilder-green);
+  background: var(--colour-wilder-green);
+  box-shadow: 4px 4px 0 var(--colour-sunwarm);
+  color: var(--colour-cream);
+}
+
+.button--green:hover {
+  box-shadow: 2px 2px 0 var(--colour-sunwarm);
+  color: var(--colour-cream);
+}
+
+/* A link styled to sit beside buttons. */
+.button--ghost {
+  padding: 0 var(--space-2);
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  color: var(--colour-link);
+  text-decoration: underline;
+  text-decoration-thickness: 3px;
+  text-underline-offset: 5px;
+}
+
+.button--ghost:hover,
+.button--ghost:active {
+  color: var(--colour-link-hover);
+  transform: none;
+  box-shadow: none;
+}
+
+/* Smaller buttons in headers and lists; still a 44px target. */
+.button--small {
+  min-height: 46px;
+  padding: 0 var(--space-4);
+  box-shadow: var(--shadow-button-small);
+  font-size: 1.0625rem;
+}
+
+.button--block {
+  width: 100%;
+}
+
+.button:disabled,
+.button[aria-disabled='true'] {
+  border-color: var(--colour-stone);
+  background: var(--colour-disabled);
+  box-shadow: none;
+  color: var(--colour-disabled-text);
+  transform: none;
+  cursor: not-allowed;
+}
+
+/* Patches: white cards with a bark outline and a wilder-green shadow. */
+.patch {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border: var(--border);
+  border-radius: var(--radius-patch);
+  background: var(--colour-elevated);
+  box-shadow: var(--shadow-patch);
+}
+
+.patch--flat {
+  box-shadow: none;
+}
+
+/* A coloured band, such as "Here as a parent?". Wilder-green, bark-muted and
+   the usual error colour are all under 4.5:1 on meadow, so the role tokens
+   are re-pointed for everything inside the band. */
+.band {
+  --colour-heading: var(--colour-bark);
+  --colour-text-muted: var(--colour-bark);
+  --colour-link: var(--colour-wilder-green-deep);
+  --colour-link-hover: var(--colour-bark);
+  --colour-error: var(--colour-error-deep);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border: var(--border);
+  border-radius: var(--radius-band);
+  background: var(--colour-meadow);
+}
+
+.band :is(h2, h3) {
+  font-size: var(--text-band);
+}
+
+/* A dashed aside for "Where this goes" and similar notes. */
+.note {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  border: 2px dashed var(--colour-outline);
+  border-radius: var(--radius-note);
+  background: var(--colour-sand);
+  font-size: var(--text-small);
+}
+
+/* Tags: state is a word plus a colour, never a colour alone. */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border: var(--border-thin);
+  border-radius: var(--radius-pill);
+  background: var(--colour-elevated);
+  color: var(--colour-bark);
+  font-size: var(--text-small);
+  font-weight: var(--weight-bold);
+  line-height: 1.2;
+}
+
+.tag--paid {
+  border-color: var(--colour-wilder-green);
+  background: var(--colour-wilder-green);
+  color: var(--colour-cream);
+}
+
+.tag--ok {
+  background: var(--colour-meadow);
+}
+
+.tag--warn {
+  background: var(--colour-sunwarm);
+}
+
+.tag--off {
+  border-color: var(--colour-stone);
+  background: var(--colour-sand);
+  color: var(--colour-bark-muted);
+}
+
+.tag--group {
+  color: var(--colour-wilder-green);
+}
+
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: 0;
+  list-style: none;
+}
+
+/* One sticker per view, tilted 3 degrees. */
+.sticker {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  padding: 10px 18px;
+  border: var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--colour-sunwarm);
+  box-shadow: var(--shadow-button-small);
+  color: var(--colour-bark);
+  font: var(--weight-display) clamp(1rem, 0.95rem + 0.22vw, 1.125rem) / 1 var(--font-display);
+  transform: rotate(-3deg);
+}
+
+.sticker--meadow {
+  background: var(--colour-meadow);
+}
+
+/* Text styles */
+.eyebrow {
+  color: var(--colour-heading);
+  font-family: var(--font-display);
+  font-size: var(--text-eyebrow);
+  font-weight: var(--weight-display);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.lede {
+  max-width: var(--measure);
+  font-size: var(--text-lede);
+  line-height: 1.45;
+}
+
+.muted {
+  color: var(--colour-text-muted);
+}
+
+.small {
+  font-size: var(--text-small);
+}
+
+.numbers {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Wilder-green surfaces such as the footer. The role tokens are re-pointed,
+   so headings, eyebrows, hints, links and the focus ring turn cream and
+   errors light coral, while buttons and tags keep their own colours. */
+.on-dark {
+  --colour-text: var(--colour-cream);
+  --colour-text-muted: var(--colour-cream-muted);
+  --colour-heading: var(--colour-cream);
+  --colour-link: var(--colour-cream);
+  --colour-link-hover: var(--colour-cream);
+  --colour-focus: var(--colour-cream);
+  --colour-error: var(--colour-error-light);
+
+  background: var(--colour-wilder-green);
+  color: var(--colour-text);
+}
+
+/* Light surfaces put the role tokens back, so a patch, note or field inside
+   the footer or a meadow band still reads as it does on cream. */
+:is(.patch, .note, .error-summary, .input, .choice) {
+  --colour-text: var(--colour-bark);
+  --colour-text-muted: var(--colour-bark-muted);
+  --colour-heading: var(--colour-wilder-green);
+  --colour-link: var(--colour-wilder-green);
+  --colour-link-hover: var(--colour-wilder-green-deep);
+  --colour-error: var(--colour-error-base);
+
+  color: var(--colour-text);
+}
+
+/* Rings inside these boxes sit on white, so they go back to bark. Fields and
+   choices draw their ring outside themselves, on the surrounding surface, so
+   they keep the surface's ring colour. */
+:is(.patch, .note, .error-summary) {
+  --colour-focus: var(--colour-bark);
+}

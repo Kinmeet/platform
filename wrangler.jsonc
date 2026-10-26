@@ -6,7 +6,7 @@
   // Every D1, KV and R2 resource was created with jurisdiction eu (P3).
   "name": "kinmeet-local",
   "account_id": "0fa695ccf43f64b3eb9fae94520109b4",
-  "main": "./.output/server/index.mjs",
+  "main": "./worker/index.mjs",
   "compatibility_date": "2026-10-20",
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": false,
@@ -23,6 +23,11 @@
     "traces": { "enabled": false },
   },
   "logpush": false,
+  // Read by the form routes. Deploys fail until both are set (docs/environments.md).
+  "secrets": { "required": ["TURNSTILE_SECRET_KEY", "RATE_LIMIT_HMAC_KEY"] },
+  // Turnstile site keys are public. Local runs use Cloudflare's always-pass
+  // test key; each deployed environment has its own widget (#20).
+  "vars": { "NUXT_PUBLIC_TURNSTILE_SITE_KEY": "1x00000000000000000000AA" },
   // Local bindings are simulated on this machine; the ids only label them.
   "d1_databases": [
     {
@@ -62,7 +67,13 @@
       "workers_dev": true,
       // Needed for Worker Previews to be served on workers.dev.
       "preview_urls": true,
-      "vars": { "KINMEET_ENV": "staging" },
+      "vars": {
+        "KINMEET_ENV": "staging",
+        "NUXT_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAFl6M8Q-UZBb029_",
+      },
+      // No secrets.required on staging yet: the first staging deploy happens
+      // before the secrets can be set (Rowan, #44). Until they are set, the
+      // form routes answer 503 and store nothing. A follow-up PR adds it back.
       "d1_databases": [
         {
           "binding": "DB",
@@ -90,7 +101,10 @@
       ],
       // Pull request Previews. Separate made-up data, never staging or live.
       "previews": {
-        "vars": { "KINMEET_ENV": "preview" },
+        "vars": {
+          "KINMEET_ENV": "preview",
+          "NUXT_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAFl6NMpfqLbGGZRZ",
+        },
         "d1_databases": [
           {
             "binding": "DB",
@@ -131,7 +145,11 @@
       "logpush": false,
       "workers_dev": true,
       "preview_urls": false,
-      "vars": { "KINMEET_ENV": "live" },
+      "vars": {
+        "KINMEET_ENV": "live",
+        "NUXT_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAFl-e7Mi_U9gitR4",
+      },
+      "secrets": { "required": ["TURNSTILE_SECRET_KEY", "RATE_LIMIT_HMAC_KEY"] },
       "d1_databases": [
         {
           "binding": "DB",

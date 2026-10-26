@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "deny": [
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(**/.envrc)",
+      "Read(**/.dev.vars)",
+      "Read(**/.dev.vars.*)",
+      "Bash(wrangler deploy --env live:*)",
+      "Bash(wrangler deploy --env=live:*)",
+      "Bash(wrangler deploy -e live:*)",
+      "Bash(bunx wrangler deploy --env live:*)",
+      "Bash(bunx wrangler deploy --env=live:*)",
+      "Bash(bunx wrangler deploy -e live:*)",
+      "Bash(npx wrangler deploy --env live:*)",
+      "Bash(bun run wrangler deploy --env live:*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "^(Write|Edit|MultiEdit|NotebookEdit|mcp__github__create_or_update_file|mcp__github__push_files)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-secret-files.mjs\"",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "^Bash$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-bash.mjs\"",
+            "timeout": 30
+          }
+        ]
+      },
+      {
+        "matcher": "^mcp__.*[Cc]loudflare.*$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-cloudflare.mjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "^(Write|Edit|MultiEdit)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun \"$CLAUDE_PROJECT_DIR/.claude/hooks/format-after-edit.mjs\"",
+            "timeout": 60
+          }
+        ]
+      }
+    ]
+  }
+}
