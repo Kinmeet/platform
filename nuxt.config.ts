@@ -49,6 +49,13 @@ export default defineNuxtConfig({
 
   nitro: {
     preset: 'cloudflare_module',
+    // Scheduled jobs (ADR-0002: server/tasks/). Each cron here must also be
+    // listed under `triggers.crons` in wrangler.jsonc, which is kept by hand.
+    experimental: { tasks: true },
+    scheduledTasks: {
+      // Daily at 03:17 UTC: delete personal data past its deletion date (P3, #31).
+      '17 3 * * *': ['retention:delete-expired'],
+    },
     cloudflare: {
       // wrangler.jsonc is kept by hand so environments and bindings are reviewed.
       deployConfig: false,
