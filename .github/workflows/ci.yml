@@ -31,6 +31,7 @@ jobs:
       - run: bun run typecheck
       - run: bun run check:copy
       - run: bun run test
+      - run: bun run test:hooks
       - run: bun run build
 
   e2e:

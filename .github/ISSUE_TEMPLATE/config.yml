@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Worried about someone's safety? Do not post here.
+    url: https://www.nspcc.org.uk/keeping-children-safe/reporting-abuse/
+    about: GitHub issues are public. If anyone is in immediate danger, call 999. For other worries about a child or young person, contact the NSPCC helpline (0808 800 5000). Kinmeet's own safeguarding contact will be listed on the Kinmeet website when it launches.
