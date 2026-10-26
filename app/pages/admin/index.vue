@@ -19,17 +19,29 @@ const formatDate = (seconds: number | null) =>
   seconds === null ? '' : dateFormat.format(new Date(seconds * 1000))
 
 const {
-  data: hello,
+  data: helloData,
   status: helloStatus,
   error: helloError,
   refresh: refreshHello,
 } = useFetch<{ messages: AdminHelloMessage[] }>('/api/admin/messages', { server: false })
 const {
-  data: apply,
+  data: applyData,
   status: applyStatus,
   error: applyError,
   refresh: refreshApply,
 } = useFetch<{ applications: AdminApplication[] }>('/api/admin/applications', { server: false })
+
+// The last list that loaded. A failed refresh clears useFetch's data, and the
+// list must stay on the page so focus is not lost; the status message says
+// the refresh failed instead.
+const hello = ref<{ messages: AdminHelloMessage[] } | null>(null)
+const apply = ref<{ applications: AdminApplication[] } | null>(null)
+watch(helloData, (value) => {
+  if (value) hello.value = value
+})
+watch(applyData, (value) => {
+  if (value) apply.value = value
+})
 
 // Role and question wording comes from the role config's translations (#19).
 // A slug or question id with no wording (a question since removed, or a role
