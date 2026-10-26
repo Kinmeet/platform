@@ -8,6 +8,10 @@ Closes #<!-- issue number -->
 
 <!-- Plain English: what and why. Link the decision (F, SG, S or P document, ADR) it follows. -->
 
+## Existing modules checked
+
+<!-- The Nuxt module, built-in feature or package adopted, or each candidate considered and why it was rejected, or "None found" and where you looked. See .claude/rules/existing-modules.md. -->
+
 ## How it was tested
 
 <!-- Commands run and what they showed. -->
@@ -18,6 +22,7 @@ Closes #<!-- issue number -->
 - [ ] No personal data or secrets in code, tests, fixtures, logs or this description
 - [ ] No new third-party requests (Turnstile only on form pages)
 - [ ] User-facing text is in the translation files, in British English, and uses Kinmeet terms
+- [ ] Existing modules were checked before building (section above)
 - [ ] An ADR is added for any non-obvious technical choice
 - [ ] Docs updated
 
