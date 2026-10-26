@@ -14,14 +14,28 @@ export interface PublicRoute {
 export const publicRoutes: readonly PublicRoute[] = [{ path: '/', form: false }]
 
 /**
- * Pages behind Cloudflare Access (the founder's admin page). They are never
- * public: without a valid Access token they must refuse, and the end-to-end
- * tests check that they do, with the same security headers as every page.
- * A page here must not also be in `publicRoutes`.
+ * Pages behind Cloudflare Access (P4), such as the founder's admin page. They
+ * are never public, so they can't be loaded like the routes above. Instead,
+ * the end-to-end tests check that each one refuses a visitor without an
+ * Access token, with the P5 headers and no third-party requests. A page here
+ * must not also be in `publicRoutes`.
  */
-export const adminRoutes: readonly string[] = []
+export const accessRoutes: readonly string[] = []
 
 export function isFormRoute(path: string, routes: readonly PublicRoute[] = publicRoutes): boolean {
   const clean = path.split('?')[0]?.replace(/\/+$/, '') || '/'
   return routes.some((route) => route.form && route.path === clean)
+}
+
+/**
+ * True when moving between these paths goes onto or off a form page. The
+ * security policy is set once per document from the first path loaded, so
+ * such a move must load a new document to get the right policy (#20, P5).
+ */
+export function crossesFormBoundary(
+  to: string,
+  from: string,
+  routes: readonly PublicRoute[] = publicRoutes,
+): boolean {
+  return isFormRoute(to, routes) !== isFormRoute(from, routes)
 }

@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { adminRoutes, publicRoutes } from '../../../shared/routes'
+import { accessRoutes, crossesFormBoundary, publicRoutes } from '../../../shared/routes'
 
 // Every page must be listed in shared/routes.ts, as a public route (loaded
-// by the no-third-party and accessibility tests) or an admin route (checked
-// to refuse without an Access token). The glob is resolved when the test is built,
-// so this works inside workerd without file system access.
+// by the no-third-party and accessibility tests) or an Access route (checked
+// to refuse without an Access token). The glob is resolved when the test is
+// built, so this works inside workerd without file system access.
 const pageFiles = Object.keys(import.meta.glob('../../../app/pages/**/*.vue'))
-const listedPaths = [...publicRoutes.map((route) => route.path), ...adminRoutes]
+const listedPaths = [...publicRoutes.map((route) => route.path), ...accessRoutes]
 
 /** Turns a page file name into its route pattern, e.g. groups/[slug].vue → /groups/:slug */
 function routePattern(file: string): string {
@@ -57,7 +57,29 @@ describe('route list', () => {
     expect(stale, 'remove these routes or add their pages').toEqual([])
   })
 
-  it('lists each route once, and never as both public and admin', () => {
+  it('lists each route once, and never as both public and Access', () => {
     expect(new Set(listedPaths).size).toBe(listedPaths.length)
+  })
+})
+
+describe('form page boundary', () => {
+  // Made-up routes, so this holds whatever the real list contains.
+  const routes = [
+    { path: '/', form: false },
+    { path: '/about', form: false },
+    { path: '/write-to-us', form: true },
+    { path: '/apply-here', form: true },
+  ]
+
+  it('needs a new document going onto or off a form page', () => {
+    expect(crossesFormBoundary('/write-to-us', '/', routes)).toBe(true)
+    expect(crossesFormBoundary('/', '/write-to-us', routes)).toBe(true)
+    expect(crossesFormBoundary('/write-to-us/', '/about', routes)).toBe(true)
+  })
+
+  it('keeps in-app navigation between pages of the same kind', () => {
+    expect(crossesFormBoundary('/about', '/', routes)).toBe(false)
+    expect(crossesFormBoundary('/apply-here', '/write-to-us', routes)).toBe(false)
+    expect(crossesFormBoundary('/write-to-us?step=2', '/write-to-us', routes)).toBe(false)
   })
 })
