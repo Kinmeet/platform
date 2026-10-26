@@ -1,6 +1,7 @@
 import { env } from 'cloudflare:test'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { handOver } from '../../../../server/safeguarding/handover'
+import { d1Store } from '../../../../server/safeguarding/store'
 import {
   listApplications,
   listHelloMessages,
@@ -57,6 +58,8 @@ beforeEach(async () => {
   ])
 })
 
+const store = () => d1Store(env.SAFEGUARDING_DB)
+
 async function items() {
   const { results } = await env.SAFEGUARDING_DB.prepare(
     `SELECT id, source_form, content, received_at, handed_over_at FROM handed_over_items
@@ -104,9 +107,7 @@ const mainWithFailingBatch = new Proxy(env.DB, {
 
 describe('pass to safeguarding', () => {
   it('moves a message into the store, out of the main database, with one audit entry', async () => {
-    expect(await handOver(env.DB, env.SAFEGUARDING_DB, 'hello', HELLO_ID, ACTOR, NOW)).toBe(
-      'handed_over',
-    )
+    expect(await handOver(env.DB, store(), 'hello', HELLO_ID, ACTOR, NOW)).toBe('handed_over')
     expect(await items()).toEqual([
       {
         id: HELLO_ID,
@@ -135,9 +136,7 @@ describe('pass to safeguarding', () => {
   })
 
   it('moves an application with its answers', async () => {
-    expect(await handOver(env.DB, env.SAFEGUARDING_DB, 'apply', APPLICATION_ID, ACTOR, NOW)).toBe(
-      'handed_over',
-    )
+    expect(await handOver(env.DB, store(), 'apply', APPLICATION_ID, ACTOR, NOW)).toBe('handed_over')
     const [item] = await items()
     expect(item!.source_form).toBe('apply')
     expect(JSON.parse(item!.content)).toEqual({
@@ -154,28 +153,22 @@ describe('pass to safeguarding', () => {
   })
 
   it('writes nothing from the row into the audit log', async () => {
-    await handOver(env.DB, env.SAFEGUARDING_DB, 'hello', HELLO_ID, ACTOR, NOW)
-    await handOver(env.DB, env.SAFEGUARDING_DB, 'apply', APPLICATION_ID, ACTOR, NOW)
+    await handOver(env.DB, store(), 'hello', HELLO_ID, ACTOR, NOW)
+    await handOver(env.DB, store(), 'apply', APPLICATION_ID, ACTOR, NOW)
     const text = JSON.stringify(await handOverAudit())
     for (const word of [...SECRET_WORDS, 'trustee']) expect(text).not.toContain(word)
   })
 
   it('counts only once', async () => {
-    await handOver(env.DB, env.SAFEGUARDING_DB, 'hello', HELLO_ID, ACTOR, NOW)
-    expect(await handOver(env.DB, env.SAFEGUARDING_DB, 'hello', HELLO_ID, ACTOR, NOW + 100)).toBe(
-      'not_found',
-    )
+    await handOver(env.DB, store(), 'hello', HELLO_ID, ACTOR, NOW)
+    expect(await handOver(env.DB, store(), 'hello', HELLO_ID, ACTOR, NOW + 100)).toBe('not_found')
     expect(await items()).toHaveLength(1)
     expect(await handOverAudit()).toHaveLength(1)
   })
 
   it('changes nothing for an unknown row, or an id from the other form', async () => {
-    expect(await handOver(env.DB, env.SAFEGUARDING_DB, 'hello', UNKNOWN_ID, ACTOR, NOW)).toBe(
-      'not_found',
-    )
-    expect(await handOver(env.DB, env.SAFEGUARDING_DB, 'apply', HELLO_ID, ACTOR, NOW)).toBe(
-      'not_found',
-    )
+    expect(await handOver(env.DB, store(), 'hello', UNKNOWN_ID, ACTOR, NOW)).toBe('not_found')
+    expect(await handOver(env.DB, store(), 'apply', HELLO_ID, ACTOR, NOW)).toBe('not_found')
     expect(await items()).toEqual([])
     expect(await handOverAudit()).toEqual([])
     expect(
@@ -187,8 +180,8 @@ describe('pass to safeguarding', () => {
   })
 
   it('leaves no other action able to reach a passed row', async () => {
-    await handOver(env.DB, env.SAFEGUARDING_DB, 'hello', HELLO_ID, ACTOR, NOW)
-    await handOver(env.DB, env.SAFEGUARDING_DB, 'apply', APPLICATION_ID, ACTOR, NOW)
+    await handOver(env.DB, store(), 'hello', HELLO_ID, ACTOR, NOW)
+    await handOver(env.DB, store(), 'apply', APPLICATION_ID, ACTOR, NOW)
     expect(await markReplied(env.DB, HELLO_ID, ACTOR, NOW + 100)).toBe(false)
     expect(await markOutcomeTold(env.DB, APPLICATION_ID, ACTOR, NOW + 100)).toBe(false)
     const { results } = await env.DB.prepare(
@@ -202,23 +195,21 @@ describe('pass to safeguarding', () => {
 
 describe('a failure part-way', () => {
   it('leaves the row where it was if the store cannot be written', async () => {
-    await expect(handOver(env.DB, broken, 'hello', HELLO_ID, ACTOR, NOW)).rejects.toThrow()
+    await expect(handOver(env.DB, d1Store(broken), 'hello', HELLO_ID, ACTOR, NOW)).rejects.toThrow()
     expect((await listHelloMessages(env.DB)).map((m) => m.id)).toContain(HELLO_ID)
     expect(await handOverAudit()).toEqual([])
   })
 
   it('keeps the row, and a retry finishes the move without a second copy', async () => {
     await expect(
-      handOver(mainWithFailingBatch, env.SAFEGUARDING_DB, 'hello', HELLO_ID, ACTOR, NOW),
+      handOver(mainWithFailingBatch, store(), 'hello', HELLO_ID, ACTOR, NOW),
     ).rejects.toThrow()
     // Copied, but still in the main database: visible and retryable.
     expect(await items()).toHaveLength(1)
     expect((await listHelloMessages(env.DB)).map((m) => m.id)).toContain(HELLO_ID)
     expect(await handOverAudit()).toEqual([])
 
-    expect(await handOver(env.DB, env.SAFEGUARDING_DB, 'hello', HELLO_ID, ACTOR, NOW + 60)).toBe(
-      'handed_over',
-    )
+    expect(await handOver(env.DB, store(), 'hello', HELLO_ID, ACTOR, NOW + 60)).toBe('handed_over')
     const stored = await items()
     expect(stored).toHaveLength(1)
     // The first copy stands, with its own hand-over time.
@@ -234,9 +225,9 @@ describe('a failure part-way', () => {
     )
       .bind(HELLO_ID, RECEIVED, NOW)
       .run()
-    await expect(
-      handOver(env.DB, env.SAFEGUARDING_DB, 'hello', HELLO_ID, ACTOR, NOW),
-    ).rejects.toThrow(/handover_copy_mismatch/)
+    await expect(handOver(env.DB, store(), 'hello', HELLO_ID, ACTOR, NOW)).rejects.toThrow(
+      /handover_copy_mismatch/,
+    )
     expect((await listHelloMessages(env.DB)).map((m) => m.id)).toContain(HELLO_ID)
     expect(await handOverAudit()).toEqual([])
   })
@@ -244,7 +235,7 @@ describe('a failure part-way', () => {
 
 describe('the safeguarding store', () => {
   it('refuses every update and delete', async () => {
-    await handOver(env.DB, env.SAFEGUARDING_DB, 'hello', HELLO_ID, ACTOR, NOW)
+    await handOver(env.DB, store(), 'hello', HELLO_ID, ACTOR, NOW)
     await expect(
       env.SAFEGUARDING_DB.prepare(`UPDATE handed_over_items SET content = '{}'`).run(),
     ).rejects.toThrow(/handed_over_items_insert_only/)

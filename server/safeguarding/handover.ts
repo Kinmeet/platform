@@ -1,16 +1,16 @@
 import type { D1Database } from '@cloudflare/workers-types'
 import type { H3Event } from 'h3'
 import { auditLogDeleteAfter, nowSeconds } from '../utils/retention'
+import { storeFromEnv, type HandoverStore, type SourceForm } from './store'
 
 /**
  * "Pass to safeguarding" (#36, SG6, SG-03 section 4).
  *
  * Moves a say hello message or an application out of the main database and
- * into the interim safeguarding store, in one audited step. Only code in
- * server/safeguarding/ may use the SAFEGUARDING_DB binding (Nadia's
- * conditions on #36; tests/unit/server/safeguarding/binding.test.ts). This
- * module only writes to it: the read-back below checks the copy and returns
- * nothing, so the admin role can never read from the store.
+ * into the interim safeguarding store (./store.ts), in one audited step. It
+ * is given only the store's insert and read-back, and the read-back checks
+ * the copy and returns nothing, so the admin role can never read from the
+ * store.
  *
  * D1 has no transaction across two databases, so the order matters:
  * 1. copy the row into the store (doing nothing if the copy already exists),
@@ -22,13 +22,12 @@ import { auditLogDeleteAfter, nowSeconds } from '../utils/retention'
  * carries on.
  */
 
-export type HandoverSource = 'hello' | 'apply'
+export type HandoverSource = SourceForm
 
 export type HandoverResult = 'handed_over' | 'not_found' | 'unavailable'
 
-interface SafeguardingEnv {
+interface HandoverEnv {
   DB?: D1Database
-  SAFEGUARDING_DB?: D1Database
 }
 
 /**
@@ -62,11 +61,6 @@ const STATEMENTS = {
               )`,
   },
 } as const
-
-const INSERT_ITEM = `INSERT INTO handed_over_items (id, source_form, content, received_at, handed_over_at)
-                     VALUES (?, ?, ?, ?, ?)
-                     ON CONFLICT (id) DO NOTHING`
-const READ_BACK = `SELECT source_form, content FROM handed_over_items WHERE id = ?`
 
 /** The submission as it was sent, in a fixed key order so a retry builds the same text. */
 async function readSubmission(main: D1Database, source: HandoverSource, id: string) {
@@ -107,7 +101,7 @@ async function readSubmission(main: D1Database, source: HandoverSource, id: stri
  */
 export async function handOver(
   main: D1Database,
-  store: D1Database,
+  store: HandoverStore,
   source: HandoverSource,
   id: string,
   actor: string,
@@ -116,15 +110,15 @@ export async function handOver(
   const submission = await readSubmission(main, source, id)
   if (submission === null) return 'not_found'
 
-  await store
-    .prepare(INSERT_ITEM)
-    .bind(id, source, submission.content, submission.receivedAt, now)
-    .run()
-  const copy = await store
-    .prepare(READ_BACK)
-    .bind(id)
-    .first<{ source_form: string; content: string }>()
-  if (copy === null || copy.source_form !== source || copy.content !== submission.content) {
+  await store.insert({
+    id,
+    sourceForm: source,
+    content: submission.content,
+    receivedAt: submission.receivedAt,
+    handedOverAt: now,
+  })
+  const copy = await store.readBack(id)
+  if (copy === null || copy.sourceForm !== source || copy.content !== submission.content) {
     throw new Error('handover_copy_mismatch')
   }
 
@@ -150,13 +144,14 @@ export async function handOverFromEvent(
   id: string,
   actor: string,
 ): Promise<HandoverResult> {
-  const env = (event.context as { cloudflare?: { env?: SafeguardingEnv } }).cloudflare?.env
-  if (!env?.DB || !env.SAFEGUARDING_DB) {
+  const env = (event.context as { cloudflare?: { env?: HandoverEnv } }).cloudflare?.env
+  const store = storeFromEnv(env)
+  if (!env?.DB || !store) {
     console.error(JSON.stringify({ code: 'safeguarding_db_missing' }))
     return 'unavailable'
   }
   try {
-    return await handOver(env.DB, env.SAFEGUARDING_DB, source, id, actor)
+    return await handOver(env.DB, store, source, id, actor)
   } catch {
     console.error(JSON.stringify({ code: 'safeguarding_handover_failed' }))
     return 'unavailable'

@@ -22,7 +22,7 @@ describe('the safeguarding binding', () => {
   it('is read in one place only', () => {
     const naming = Object.entries(sources).filter(([, text]) => text.includes(NAME))
     expect(naming.map(([path]) => path.replace(/^(\.\.\/)+/, ''))).toEqual([
-      'server/safeguarding/handover.ts',
+      'server/safeguarding/store.ts',
     ])
   })
 })
