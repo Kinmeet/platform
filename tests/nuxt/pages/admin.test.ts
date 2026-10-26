@@ -78,6 +78,14 @@ registerEndpoint('/api/admin/applications/application-1/outcome-told', {
   }),
 })
 
+registerEndpoint('/api/admin/hello/hello-1/safeguarding', {
+  method: 'POST',
+  handler: defineEventHandler(() => {
+    messages = messages.filter((m) => m.id !== 'hello-1')
+    return { ok: true }
+  }),
+})
+
 async function mountPage() {
   const wrapper = await mountSuspended(AdminPage, { attachTo: document.body })
   wrappers.push(wrapper)
@@ -154,5 +162,53 @@ describe('admin page', () => {
     )
     // The list stays on the page, so focus has somewhere to stay.
     expect(wrapper.findAll('h3').map((h) => h.text())).toContain('Test Fox')
+  })
+
+  it('asks once before passing to safeguarding, with the 999 and tell-the-lead reminders', async () => {
+    const wrapper = await mountPage()
+    const open = buttonNamed(wrapper, 'Pass to safeguarding')
+    ;(open.element as HTMLButtonElement).focus()
+    await open.trigger('click')
+    await flushPromises()
+    const panel = wrapper.find('[role="group"]')
+    expect(document.activeElement).toBe(panel.element)
+    expect(panel.text()).toContain('If anyone is in immediate danger, call 999 first.')
+    expect(panel.text()).toContain('tell the safeguarding lead')
+    expect(panel.text()).toContain('Do not reply to it, forward it, copy it, screenshot it')
+    // Nothing has been sent yet.
+    expect(wrapper.findAll('h3').map((h) => h.text())).toContain('Test Fox')
+  })
+
+  it('puts focus back on the button when cancelled', async () => {
+    const wrapper = await mountPage()
+    await buttonNamed(wrapper, 'Pass to safeguarding').trigger('click')
+    await flushPromises()
+    await buttonNamed(wrapper, 'Cancel').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[role="group"]').exists()).toBe(false)
+    expect(document.activeElement).toBe(buttonNamed(wrapper, 'Pass to safeguarding').element)
+  })
+
+  it('takes the message off the page, moves focus to the list heading and announces it', async () => {
+    const wrapper = await mountPage()
+    await buttonNamed(wrapper, 'Pass to safeguarding').trigger('click')
+    await flushPromises()
+    await buttonNamed(wrapper, 'Yes, pass it to safeguarding').trigger('click')
+    await settled(wrapper)
+    expect(wrapper.findAll('h3').map((h) => h.text())).not.toContain('Test Fox')
+    expect(document.activeElement?.id).toBe('hello-heading')
+    expect(wrapper.find('[role="status"]').text()).toBe(
+      'Passed to safeguarding. Now tell the safeguarding lead.',
+    )
+  })
+
+  it('offers no copy, export or forward control', async () => {
+    const wrapper = await mountPage()
+    await buttonNamed(wrapper, 'Pass to safeguarding').trigger('click')
+    await flushPromises()
+    const labels = wrapper.findAll('button, a').map((b) => b.text().toLowerCase())
+    for (const word of ['copy', 'export', 'forward', 'download', 'print']) {
+      expect(labels.some((label) => label.startsWith(word))).toBe(false)
+    }
   })
 })

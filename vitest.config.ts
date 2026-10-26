@@ -4,11 +4,13 @@ import { defineConfig } from 'vitest/config'
 
 // Two projects. Unit and integration tests run inside workerd, the same
 // runtime as the deployed Worker; each test file gets a fresh local D1
-// database with every migration in migrations/db applied
+// database with every migration in migrations/db applied, and a fresh
+// safeguarding database with migrations/safeguarding applied
 // (tests/unit/setup/apply-migrations.ts). Component tests mount Vue pages in
 // a Nuxt environment (happy-dom) with mocked API endpoints. End-to-end browser
 // tests live in tests/e2e (Playwright).
 const dbMigrations = await readD1Migrations('migrations/db')
+const safeguardingMigrations = await readD1Migrations('migrations/safeguarding')
 
 export default defineConfig({
   test: {
@@ -19,8 +21,11 @@ export default defineConfig({
             miniflare: {
               compatibilityDate: '2026-10-20',
               compatibilityFlags: ['nodejs_compat'],
-              d1Databases: ['DB'],
-              bindings: { TEST_DB_MIGRATIONS: dbMigrations },
+              d1Databases: ['DB', 'SAFEGUARDING_DB'],
+              bindings: {
+                TEST_DB_MIGRATIONS: dbMigrations,
+                TEST_SAFEGUARDING_MIGRATIONS: safeguardingMigrations,
+              },
             },
           }),
         ],

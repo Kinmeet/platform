@@ -33,7 +33,8 @@ R2 buckets are named, not numbered: `kinmeet-staging`, `kinmeet-preview` and `ki
 
 - `RECEIPTS` (KV): receipt-limit markers for the forms API, in its own namespace per environment so its retention can differ from `KV`.
 - `FORM_RATE_LIMITER` (5 per 60 seconds) and `FORM_GLOBAL_RATE_LIMITER` (100 per 60 seconds, to be tuned by Services). Counts are per Cloudflare location. Each environment has its own `namespace_id` (local 100x, staging 110x, Previews 120x, live 130x), because limiters with the same id share counters across Workers.
-- D1 migrations live in `migrations/db/`.
+- D1 migrations live in `migrations/db/`, and those for the interim safeguarding store in `migrations/safeguarding/`.
+- `SAFEGUARDING_DB` (D1, #36): the interim safeguarding store ([database.md](database.md#interim-safeguarding-store-safeguarding_db)). It is bound only for local runs and tests so far. Staging, Previews and live get their own `kinmeet-<env>-safeguarding` databases (jurisdiction EU, made-up data only outside live) once Jun has created them and chosen how to bind them without putting their ids in the repository. Until then, "Pass to safeguarding" answers `503` and moves nothing, and the message or application stays in the list.
 
 ## Secrets
 

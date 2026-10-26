@@ -36,6 +36,15 @@
       "database_id": "00000000-0000-0000-0000-000000000000",
       "migrations_dir": "migrations/db",
     },
+    // Interim safeguarding store (#36). Only server/safeguarding/ may use it.
+    // Not yet bound on staging, Previews or live: until it is, "Pass to
+    // safeguarding" answers 503 and moves nothing (docs/environments.md).
+    {
+      "binding": "SAFEGUARDING_DB",
+      "database_name": "kinmeet-local-safeguarding",
+      "database_id": "00000000-0000-0000-0000-000000000001",
+      "migrations_dir": "migrations/safeguarding",
+    },
   ],
   "kv_namespaces": [
     { "binding": "KV", "id": "00000000000000000000000000000000" },
