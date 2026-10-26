@@ -1,0 +1,59 @@
+import { findRole, type PublishedRole } from '#shared/forms/roles'
+
+/** The published role for a slug from the URL, or a 404 (Q3, #21). */
+export function requirePublishedRole(slug: unknown): PublishedRole {
+  const role = typeof slug === 'string' ? findRole(slug) : undefined
+  if (!role?.published) throw createError({ statusCode: 404, statusMessage: 'Not Found' })
+  return role
+}
+
+/**
+ * One visit's application for a role (#21). The draft is held in memory only:
+ * never in localStorage, sessionStorage or a cookie. Reloading the page or
+ * following Leave (a full page load, because it goes off a form page) starts
+ * again, and the draft is also emptied after a successful send.
+ *
+ * The step is in the URL (`?step=2`) so Back and Forward work, but a step is
+ * only shown once the steps before it are done.
+ */
+export function useApplication(role: PublishedRole) {
+  const route = useRoute()
+  const router = useRouter()
+
+  // Made in the browser only, so the submission id is never in the server's HTML.
+  const draft = useState<ApplicationDraft | null>(`apply:${role.slug}`, () =>
+    import.meta.client ? createDraft(role) : null,
+  )
+  if (import.meta.client && !draft.value) draft.value = createDraft(role)
+
+  const step = computed<Step>(() =>
+    draft.value ? allowedStep(route.query.step, draft.value, role) : 1,
+  )
+  const stopped = computed(() => (draft.value ? stopReason(draft.value, role) : undefined))
+
+  // Sends anyone who asked for a step they can't have yet back to the right one.
+  watch(
+    () => [route.query.step, step.value] as const,
+    ([asked, allowed]) => {
+      if (import.meta.client && String(asked ?? '1') !== String(allowed)) {
+        router.replace({ query: { ...route.query, step: allowed === 1 ? undefined : allowed } })
+      }
+    },
+    { immediate: true },
+  )
+
+  function goTo(target: Step) {
+    return router.push({ query: { ...route.query, step: target === 1 ? undefined : target } })
+  }
+
+  /**
+   * Empties every answer and starts a new submission id. Call it only on
+   * Leave or after a successful send: a failed send keeps the draft and its
+   * id, so trying again can never store a duplicate.
+   */
+  function clear() {
+    if (draft.value) clearDraft(draft.value)
+  }
+
+  return { draft, step, stopped, goTo, clear }
+}
