@@ -19,7 +19,8 @@ for (const path of accessRoutes) {
   })
 
   test(`${path} makes no third-party requests when refused`, async ({ page, baseURL }) => {
-    const problems = await watchPage(page, new Set([new URL(baseURL!).origin]))
+    const ownOrigin = new URL(baseURL!).origin
+    const problems = await watchPage(page, new Set([ownOrigin]), ownOrigin)
     const response = await page.goto(path, { waitUntil: 'networkidle' })
     expect(response?.status()).toBe(403)
     expect.soft(problems.thirdPartyRequests, 'requests to other origins').toEqual([])

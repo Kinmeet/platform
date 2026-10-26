@@ -25,3 +25,16 @@ export function isFormRoute(path: string, routes: readonly PublicRoute[] = publi
   const clean = path.split('?')[0]?.replace(/\/+$/, '') || '/'
   return routes.some((route) => route.form && route.path === clean)
 }
+
+/**
+ * True when moving between these paths goes onto or off a form page. The
+ * security policy is set once per document from the first path loaded, so
+ * such a move must load a new document to get the right policy (#20, P5).
+ */
+export function crossesFormBoundary(
+  to: string,
+  from: string,
+  routes: readonly PublicRoute[] = publicRoutes,
+): boolean {
+  return isFormRoute(to, routes) !== isFormRoute(from, routes)
+}
