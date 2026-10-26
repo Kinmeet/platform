@@ -28,6 +28,8 @@ export const publicRoutes: readonly PublicRoute[] = [
   { path: '/', form: false },
   // One page per published role (#13), so publishing a role adds its page here.
   ...publishedRoles().map((role) => ({ path: `/roles/${role.slug}`, form: false })),
+  // Say hello (#14): the spam check loads with the page (S5).
+  { path: '/say-hello', form: true },
   // Its apply flow (#15): every step is one page, so the policy allows the
   // spam check throughout, but it only loads on step 4.
   ...publishedRoles().map((role) => ({
