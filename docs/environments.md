@@ -61,4 +61,15 @@ Workers Logs keep only what the code logs, which is errors without personal data
 
 - Only `env.live` may point at a `kinmeet-live` resource. Previews and staging never touch live data.
 - Never copy live data into staging or Previews. Test data is made up and obviously fake (handbook rule 2).
-- `workers_dev` is on for staging and live (no custom domain yet). `preview_urls` is on for staging only, because Worker Previews are served on `workers.dev` through it; it is off for live, so no other version of the live Worker can be reached. Preview URLs send `X-Robots-Tag: noindex`; they go behind Cloudflare Access once forms or admin pages exist.
+- `workers_dev` is on for staging and live (no custom domain yet). `preview_urls` is on for staging only, because Worker Previews are served on `workers.dev` through it; it is off for live, so no other version of the live Worker can be reached. Preview URLs send `X-Robots-Tag: noindex`.
+
+## Cloudflare Access
+
+The Access team domain is `kinmeet.cloudflareaccess.com`. Sign-in is by one-time PIN only, and the reusable policy `Kinmeet admins` decides who gets in. Its members are kept in Cloudflare Zero Trust, never in this repository.
+
+| Access application          | Covers                                                               | Vars                                                         |
+| --------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------ |
+| `platform-staging admin`    | `platform-staging.kinmeet.workers.dev/admin` and everything under it | `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD` in `env.staging`          |
+| `platform-staging Previews` | every Preview of `platform-staging`, whole site                      | `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD` in `env.staging.previews` |
+
+The admin page still checks the Access token itself against `ACCESS_AUD` (#51), so a request that somehow skips Access is refused. Live gets its own application when the admin page is released there.

@@ -68,6 +68,10 @@
       "vars": {
         "KINMEET_ENV": "staging",
         "NUXT_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAFl6M8Q-UZBb029_",
+        // Cloudflare Access in front of /admin (#51). Not secrets: the AUD tag
+        // is in every Access token. Each Access application has its own.
+        "ACCESS_TEAM_DOMAIN": "kinmeet.cloudflareaccess.com",
+        "ACCESS_AUD": "3050a2cd70ed3b54bd036fefbcf4e307ad7ed91b0547529b02f19236ce444129",
       },
       "d1_databases": [
         {
@@ -99,6 +103,9 @@
         "vars": {
           "KINMEET_ENV": "preview",
           "NUXT_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAFl6NMpfqLbGGZRZ",
+          // Every Preview is behind its own Access application, not only /admin.
+          "ACCESS_TEAM_DOMAIN": "kinmeet.cloudflareaccess.com",
+          "ACCESS_AUD": "6e6586f6b72a5e016e093b9ee3816eb65b5560e76ca9121e28d4cbf9bb32e410",
         },
         "d1_databases": [
           {
