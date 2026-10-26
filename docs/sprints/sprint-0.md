@@ -13,17 +13,17 @@
 
 ## Tickets
 
-| Ticket | What                                                       | Owner    | PR       | State             |
-| ------ | ---------------------------------------------------------- | -------- | -------- | ----------------- |
-| #1     | Repository basics: templates, `SECURITY.md`                | Priya    | #35      | Merged            |
-| #2     | Team scaffolding: `CLAUDE.md`, rules, hooks, skills        | Theo     | #26      | Merged            |
-| #3, #5 | Nuxt skeleton, security headers, CI                        | Priya    | #34      | Merged            |
-| #4     | Environments: staging, Previews, live, EU bindings         | Jun      | #39      | Merged            |
-| #6     | No-third-party test, Cloudflare injection check            | Kit, Jun | #38, #42 | Merged            |
-| #7     | Accessibility scan                                         | Kit      | #38      | Merged            |
-| #8     | Deploys with Workers Builds and Worker Previews (ADR-0001) | Jun      | #22      | Merged            |
-| #9     | Research: current versions and docs                        | Ines     | #25      | In review         |
-| #37    | Secret scan in CI (gitleaks)                               | Jun      | #40      | Merged            |
+| Ticket | What                                                       | Owner    | PR       | State     |
+| ------ | ---------------------------------------------------------- | -------- | -------- | --------- |
+| #1     | Repository basics: templates, `SECURITY.md`                | Priya    | #35      | Merged    |
+| #2     | Team scaffolding: `CLAUDE.md`, rules, hooks, skills        | Theo     | #26      | Merged    |
+| #3, #5 | Nuxt skeleton, security headers, CI                        | Priya    | #34      | Merged    |
+| #4     | Environments: staging, Previews, live, EU bindings         | Jun      | #39      | Merged    |
+| #6     | No-third-party test, Cloudflare injection check            | Kit, Jun | #38, #42 | Merged    |
+| #7     | Accessibility scan                                         | Kit      | #38      | Merged    |
+| #8     | Deploys with Workers Builds and Worker Previews (ADR-0001) | Jun      | #22      | Merged    |
+| #9     | Research: current versions and docs                        | Ines     | #25      | In review |
+| #37    | Secret scan in CI (gitleaks)                               | Jun      | #40      | Merged    |
 
 Moved to Sprint 1: #47 (hook follow-ups), #49 (generated Worker types), #54 (refuse oversized bodies, PR #60), #55 (e2e should-fixes), #56 (D1 migrations for Previews), #61 (Zaraz check on new zones).
 
