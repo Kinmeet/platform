@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { publicRoutes } from '../../../shared/routes'
+import { crossesFormBoundary, publicRoutes } from '../../../shared/routes'
 
 // Every page must be listed in shared/routes.ts, so the no-third-party and
 // accessibility tests load it. The glob is resolved when the test is built,
@@ -60,5 +60,27 @@ describe('route list', () => {
   it('lists each route once', () => {
     const paths = publicRoutes.map((route) => route.path)
     expect(new Set(paths).size).toBe(paths.length)
+  })
+})
+
+describe('form page boundary', () => {
+  // Made-up routes, so this holds whatever the real list contains.
+  const routes = [
+    { path: '/', form: false },
+    { path: '/about', form: false },
+    { path: '/write-to-us', form: true },
+    { path: '/apply-here', form: true },
+  ]
+
+  it('needs a new document going onto or off a form page', () => {
+    expect(crossesFormBoundary('/write-to-us', '/', routes)).toBe(true)
+    expect(crossesFormBoundary('/', '/write-to-us', routes)).toBe(true)
+    expect(crossesFormBoundary('/write-to-us/', '/about', routes)).toBe(true)
+  })
+
+  it('keeps in-app navigation between pages of the same kind', () => {
+    expect(crossesFormBoundary('/about', '/', routes)).toBe(false)
+    expect(crossesFormBoundary('/apply-here', '/write-to-us', routes)).toBe(false)
+    expect(crossesFormBoundary('/write-to-us?step=2', '/write-to-us', routes)).toBe(false)
   })
 })
