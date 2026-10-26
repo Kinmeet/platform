@@ -7,10 +7,18 @@
 //   commit`, pathspec commits).
 // - Before a push, scans the commits the push would publish.
 // - Blocks pushes to main, skipping git hooks, and live deploys by hand.
+// - Blocks any D1 or Cloudflare API command that names a safeguarding
+//   database or uses a safeguarding database id (#89).
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { isAbsolute, join } from 'node:path'
 import { block, findSecrets, isSecretFile, runGuard } from './lib/patterns.mjs'
+import {
+  SAFEGUARDING_MESSAGE,
+  safeguardingIds,
+  safeguardingReason,
+  usesSafeguardingId,
+} from './lib/safeguarding.mjs'
 
 const MAX_SCAN_BYTES = 1024 * 1024
 
@@ -126,6 +134,15 @@ await runGuard(async (input) => {
         'write, copy or move these files. Use a .example file, or ask your EM.',
     )
   }
+
+  // Searching code for the binding name is fine; reaching the database is not.
+  // A known safeguarding id is blocked wherever it appears.
+  const ids = safeguardingIds()
+  const reachesD1 = /\bd1\b|api\.cloudflare\.com/i.test(command)
+  const reason = reachesD1
+    ? safeguardingReason(command, ids)
+    : usesSafeguardingId(command, ids) && 'it uses a safeguarding database id'
+  if (reason) block(`this command is not allowed: ${reason}. ${SAFEGUARDING_MESSAGE}`)
 
   if (/\bwrangler\b[^;&|]*\bdeploy\b[^;&|]*(--env[=\s]+live\b|-e[=\s]+live\b)/.test(command)) {
     block('live deploys happen only from an approved tagged release in CI, never by hand.')
