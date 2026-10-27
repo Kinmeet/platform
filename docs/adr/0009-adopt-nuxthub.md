@@ -37,6 +37,8 @@ How each gap is closed (all checked in the spike):
 3. **No `--env` in the deploy commands.** The build check fails closed, and phase 1 itself removes `--env` from the commands in `docs/deploys.md`.
 4. **Dependency age.** `@nuxthub/core` is pinned exactly in `bun.lock`. The phase 1 PR notes that its changelog and publish provenance were checked. If a newer release comes out first, wait until it is at least a week old.
 
+5. **Hooks fail closed on the chosen environment (Security Reviewer, on #112).** Once the redirected config exists, every Wrangler command reads the generated file and ignores `--env`. So a remote D1 command on `DB` without an explicit `--env staging` (or a staging name or id) counts as live, and so does `CLOUDFLARE_ENV=live` anywhere in the command. If #112 doesn't already do this, phase 1 adds it to `guard-bash.mjs`, with tests, before the entry change lands.
+
 If it is cheap, phase 1 also makes the "no new origins in the production output" comparison a CI assertion. The no-third-party end-to-end test already covers the running site.
 
 Two smaller changes come with it:
