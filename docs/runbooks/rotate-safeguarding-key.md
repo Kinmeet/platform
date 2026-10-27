@@ -21,15 +21,16 @@
 
 ## Steps
 
-1. **Keep the current key readable.** Set it as the previous key, pasting the value from the offline copy when asked:
+Keep every key value off the screen and out of shell history: never `echo` it, never type or paste it onto a command line, and never paste it into a chat, issue, email or cloud document (Nadia, #91).
+
+1. **Keep the current key readable.** Set it as the previous key. Wrangler asks for the value at a hidden prompt, which shows nothing and is not saved in your history; paste it there from the password manager:
    `bunx wrangler secret put SAFEGUARDING_KEY_PREVIOUS --env live`
-2. **Make the new key** on your own computer, with the new version number:
-   `printf 'v2.%s' "$(openssl rand -base64 32)"`
-   Copy the output into the offline record (password manager with MFA, or on paper somewhere physically secure) **before** going on. Never paste it into a chat, issue, email or cloud document.
-3. **Set the new key:**
-   `bunx wrangler secret put SAFEGUARDING_KEY --env live`
-4. **Check it worked** (below).
-5. Clear your terminal history of the key if your shell saved it.
+2. **Make the new key** on your own computer, with the new version number, into a shell variable so it is never shown:
+   `key="$(printf 'v2.%s' "$(openssl rand -base64 32)")"`
+3. **Save the offline copy first.** Put it on the clipboard (`printf '%s' "$key" | pbcopy` on macOS, `| wl-copy` or `| xclip -selection clipboard` on Linux) and save it in the password manager with MFA, then clear the clipboard. If the offline copy is on paper, write it down from the password manager, never from the terminal.
+4. **Set the new key** straight from the variable, then forget it:
+   `printf '%s' "$key" | bunx wrangler secret put SAFEGUARDING_KEY --env live && unset key`
+5. **Check it worked** (below).
 6. **Re-encrypt the old records under the new key.** The database already allows exactly this change (a record's key version may only go up). The task that does it is not built yet: ask the Tech Lead for it as a reviewed pull request, with the Security Reviewer, before you need it. Until it has run, leave `SAFEGUARDING_KEY_PREVIOUS` set, or the old records cannot be opened.
 7. **Once every record is on the new version**, remove the previous key and destroy its offline copy:
    `bunx wrangler secret delete SAFEGUARDING_KEY_PREVIOUS --env live`

@@ -29,4 +29,16 @@ describe('the safeguarding store', () => {
       'server/safeguarding/store.ts',
     ])
   })
+
+  // Nadia, #91: `open` has no role check of its own, so only the acting
+  // lead's reader route (#93) may import the store from outside this folder.
+  // That route adds itself here, and nothing else may.
+  it('is imported from outside server/safeguarding/ only by the reader route', () => {
+    const READER_ROUTES: string[] = []
+    const importing = Object.entries(sources)
+      .filter(([, text]) => /from\s+['"][^'"]*safeguarding\/store['"]/.test(text))
+      .map(([path]) => path.replace(/^(\.\.\/)+/, ''))
+      .filter((path) => !path.startsWith('server/safeguarding/'))
+    expect(importing.sort()).toEqual(READER_ROUTES)
+  })
 })
