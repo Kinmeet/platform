@@ -22,6 +22,7 @@ Status: stub (Sprint 0). Owner: Tech Lead until the Docs Writer takes them over.
 | `break-glass.md`               | Time-limited access to live data, approved by a trustee and logged, ended within 24 hours                                 | Planned (M2)            |
 | `account-recovery.md`          | Regain a locked or compromised Cloudflare or GitHub account using the second admin and the sealed record (target: 2 days) | Planned                 |
 | `safeguarding-key-recovery.md` | Use the recovery key with two trustees to re-wrap safeguarding records (target: 1 week)                                   | Planned (M2c)           |
+| `reseed-previews.md`           | Empty the shared Preview database, which the deletion job never reaches                                                   | Written (#115)          |
 
 ## Template
 

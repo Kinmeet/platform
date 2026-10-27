@@ -1,0 +1,17 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  // Used only by `scripts/d1-migrate.sh preview` to apply migrations to the
+  // database every Preview of `platform` shares, as Cloudflare's Previews
+  // documentation describes (ADR-0001). Must name the same database as
+  // env.live.previews.d1_databases in wrangler.jsonc; a unit test checks.
+  // Made-up data only. Kinmeet account only.
+  "account_id": "0fa695ccf43f64b3eb9fae94520109b4",
+  "d1_databases": [
+    {
+      "binding": "PREVIEW_DB",
+      "database_name": "kinmeet-staging",
+      "database_id": "18c80f5f-3c72-4781-8d38-98ef6cc4a096",
+      "migrations_dir": "migrations/db",
+    },
+  ],
+}
