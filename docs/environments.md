@@ -13,6 +13,8 @@ Resource ids are not secrets. They live in [`wrangler.jsonc`](../wrangler.jsonc)
 
 `KINMEET_ENV` is set to `staging`, `preview` or `live` so the app can tell where it is running.
 
+`APPLY_ROUND_CLOSES_AT` (optional) is when the founding round closes, in Unix-epoch seconds. Applications that never reach a decision are deleted 6 months after that date, or 6 months after receipt if that is later (P3). Until it is set, the backstop is 6 months after receipt.
+
 ## Ids
 
 | Resource             | Id                                     |

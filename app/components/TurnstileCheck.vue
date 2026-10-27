@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { isFormRoute } from '#shared/routes'
-import { TURNSTILE_ORIGIN } from '#shared/turnstile'
 
 // The spam check on say hello and apply step 4 (S5, #20). The script loads
 // only when this component mounts, and only on a form route, because the
@@ -24,6 +23,10 @@ const status = ref<'loading' | 'ready' | 'unavailable'>('loading')
 const interactive = ref(false)
 let widget: TurnstileWidget | null = null
 let focusBefore: HTMLElement | null = null
+// Settles once the script has loaded or given up, so a Send pressed while
+// it's still loading waits for it rather than failing (#17).
+let settled: () => void
+const loaded = new Promise<void>((resolve) => (settled = resolve))
 
 // Status text lives in one region that is always on the page, so screen
 // readers announce each change (4.1.3). "Couldn't load" is polite here
@@ -41,20 +44,15 @@ function onInteractive(needed: boolean) {
   if (closing && focusBefore?.isConnected) focusBefore.focus()
 }
 
-// Gives up if the script hasn't loaded in this time, so the form can say so.
-const LOAD_TIMEOUT_MS = 15_000
-
 onMounted(async () => {
   const siteKey = config.public.turnstileSiteKey
   if (!siteKey || !isFormRoute(route.path) || !root.value || !container.value) {
     status.value = 'unavailable'
+    settled()
     return
   }
   try {
-    const api = await loadTurnstileScript(
-      `${TURNSTILE_ORIGIN}/turnstile/v0/api.js?render=explicit`,
-      LOAD_TIMEOUT_MS,
-    )
+    const api = await loadTurnstileScript(TURNSTILE_SCRIPT_SRC, TURNSTILE_LOAD_TIMEOUT_MS)
     widget = createTurnstileWidget(api, container.value, {
       sitekey: siteKey,
       action: props.action,
@@ -66,6 +64,8 @@ onMounted(async () => {
     status.value = 'ready'
   } catch {
     status.value = 'unavailable'
+  } finally {
+    settled()
   }
 })
 
@@ -73,9 +73,10 @@ onBeforeUnmount(() => widget?.remove())
 
 defineExpose({
   /** A fresh token, or a TurnstileError with reason `unavailable` or `failed`. */
-  getToken: () => {
-    if (!widget) return Promise.reject(new TurnstileError('unavailable'))
+  getToken: async () => {
     if (document.activeElement instanceof HTMLElement) focusBefore = document.activeElement
+    await loaded
+    if (!widget) throw new TurnstileError('unavailable')
     return widget.getToken()
   },
   reset: () => widget?.reset(),

@@ -113,6 +113,17 @@ describe('role config', () => {
     }
   })
 
+  // F3 and SG3: these officers sit on the board, so the independence rule
+  // applies to them too, and their cards must say so (Ezra, #82).
+  it('tags the trustee officer roles as trustee roles', () => {
+    for (const slug of ['treasurer', 'safeguarding-lead']) {
+      expect(
+        findRole(slug)?.tags.map((tag) => tag.id),
+        slug,
+      ).toContain('trustee')
+    }
+  })
+
   it('finds roles by slug', () => {
     expect(findRole('trustee')?.published).toBe(true)
     expect(findRole('no-such-role')).toBeUndefined()
