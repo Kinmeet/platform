@@ -53,7 +53,10 @@ test.describe('say hello', () => {
   })
 
   test('checks the fields before sending, and sends nothing', async ({ page }) => {
-    const bodies = await mockHello(page, { status: 201, body: { ok: true } })
+    const bodies = await mockHello(page, {
+      status: 201,
+      body: { ok: true, receipt: 'not_requested' },
+    })
     await open(page)
     await page.getByLabel(hello.email.label).fill('test@example')
     await send(page)
@@ -98,6 +101,14 @@ test.describe('say hello', () => {
     await page.getByRole('button', { name: hello.sent.again }).click()
     await expect(page.getByRole('heading', { name: hello.form_title })).toBeFocused()
     await expect(page.getByLabel(hello.callName.label)).toHaveValue('')
+    // If the id were kept, the server would take the second message as a
+    // repeat of the first and it would be lost without anyone knowing.
+    await fillIn(page)
+    await send(page)
+    await expect(page.getByRole('heading', { name: SENT_TITLE })).toBeFocused()
+    expect(bodies).toHaveLength(2)
+    expect(bodies[1]!.submissionId).toMatch(/^[0-9a-f-]{36}$/)
+    expect(bodies[1]!.submissionId).not.toBe(bodies[0]!.submissionId)
   })
 
   test('shows an error the server found on its field', async ({ page }) => {
@@ -170,7 +181,7 @@ test.describe('say hello', () => {
 
   test('copies the message, and confirms it', async ({ page, context }) => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write'])
-    await mockHello(page, { status: 500 })
+    const bodies = await mockHello(page, { status: 500 })
     await open(page)
     await fillIn(page)
     await send(page)
@@ -178,6 +189,25 @@ test.describe('say hello', () => {
     await expect(failedBox(page).getByRole('status')).toHaveText(hello.failed.copied)
     const copied = await page.evaluate(() => navigator.clipboard.readText())
     expect(copied).toContain('A made-up message for testing.')
+    // Only what they typed: no id or spam check token.
+    expect(copied).not.toContain(String(bodies[0]!.submissionId))
+    expect(copied).not.toContain(String(bodies[0]!.turnstileToken))
+  })
+
+  test('Send again after a failure keeps the same id', async ({ page }) => {
+    const bodies = await mockHello(
+      page,
+      { status: 500, body: { ok: false, error: 'unavailable' } },
+      { status: 201, body: { ok: true, receipt: 'not_requested' } },
+    )
+    await open(page)
+    await fillIn(page)
+    await send(page)
+    await expect(failedBox(page)).toBeFocused()
+    await send(page, hello.send_again)
+    await expect(page.getByRole('heading', { name: SENT_TITLE })).toBeFocused()
+    expect(bodies).toHaveLength(2)
+    expect(bodies[1]!.submissionId).toBe(bodies[0]!.submissionId)
   })
 
   test("says the spam check couldn't load, and sends nothing", async ({ page }) => {
@@ -198,7 +228,11 @@ test.describe('say hello', () => {
   test('the sent message and the failed box have no automatically detectable WCAG 2.2 AA failures', async ({
     page,
   }) => {
-    await mockHello(page, { status: 500 }, { status: 201, body: { ok: true } })
+    await mockHello(
+      page,
+      { status: 500 },
+      { status: 201, body: { ok: true, receipt: 'not_requested' } },
+    )
     await open(page)
     await fillIn(page)
     const scan = async () => {
