@@ -445,5 +445,20 @@
       "markOutcomeTold": "Mark outcome told",
       "outcomeToldDone": "Marked the outcome as told to {name}. The deletion date has changed."
     }
+  },
+  "error_page": {
+    "not_found": {
+      "page_title": "Page not found",
+      "sticker": "Not here",
+      "title": "We can't find that page",
+      "body": "The link may be out of date, or the page may not be ready yet. Kinmeet is still being set up, so some pages come later."
+    },
+    "failed": {
+      "page_title": "Something went wrong",
+      "sticker": "Oops",
+      "title": "Something went wrong",
+      "body": "This page didn't load properly. Please try again in a minute."
+    },
+    "home": "Go to the home page"
   }
 }
