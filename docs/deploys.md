@@ -44,7 +44,7 @@ Do these after the team's config pull request for #115 has merged, so the first 
 
 ### 2. Turn on Previews
 
-First tell Rowan the Worker exists and wait for the team to confirm that the Access application covering every Preview of `platform` is in place. Preview URLs are public by default ([Previews, access control](https://developers.cloudflare.com/workers/previews/#access-control)), so Previews, including staging, must not be switched on before it exists.
+First tell Rowan the Worker exists and wait for the team to confirm that the Access application covering every Preview of `platform`, and its Version URLs, is in place. Preview URLs are public by default ([Previews, access control](https://developers.cloudflare.com/workers/previews/#access-control)), so Previews, including staging, must not be switched on before it exists. The same `preview_urls` setting also turns on Version URLs, which run production versions with live data and are public when enabled ([Version URLs, manage access](https://developers.cloudflare.com/workers/versions-and-deployments/version-urls/#manage-access-to-version-urls)).
 
 1. Open `platform`, then **Settings**, then **Build**, then **Branch control**.
 2. Tick **Enable Preview Builds**.
@@ -71,6 +71,7 @@ Tell Rowan Previews are on. The team then, without needing anything from you:
 ### 5. Release and verify
 
 1. Release to live as usual (merge `main` into `live`). The team checks that the live build succeeds and the **Check deployed site** workflow passes for https://platform.kinmeet.workers.dev, and that the Preview of `main` passes too.
+2. The team also opens the Version URL of that live version (`<version-prefix>-platform.kinmeet.workers.dev`) and checks it asks for an Access sign-in. If it doesn't, nothing goes live with real data until it does.
 
 ### 6. Retire the old Workers
 
