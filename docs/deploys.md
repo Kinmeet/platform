@@ -48,7 +48,7 @@ First tell Rowan the Worker exists and wait for the team to confirm that the Acc
 
 1. Open `platform`, then **Settings**, then **Build**, then **Branch control**.
 2. Tick **Enable Preview Builds**.
-3. Set the **Preview command** to `scripts/d1-migrate.sh preview && npx wrangler preview --env live` ([Preview command](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/#preview-command)).
+3. Set the **Preview command** to `scripts/d1-migrate.sh preview && bunx wrangler preview --env live` ([Preview command](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/#preview-command)).
 4. If a **Set up Worker Previews** banner appears under **Settings**, **Builds**, select **Set up**, check the Preview command above, and select **Switch to Worker Previews**. This cannot be undone, and it is what we want.
 
 ### 3. Tell the team
