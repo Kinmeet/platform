@@ -47,7 +47,7 @@ Docs links are read with the Claude Docs tools (or the Artifact tool's read acti
 7. Decisions in the F, SG, S and P documents are followed. A conflict found while building goes to the Head of Delivery as a question, not a silent change.
 8. Never skip, disable or weaken a test to get green.
 
-**Update, 26 October 2026 (the founder's decision on #36):** until the M2c sunset, the interim safeguarding databases (`kinmeet-*-safeguarding`, binding `SAFEGUARDING_DB`) hold disclosures in plain text, as a recorded exception to rule 5. Agents never query, export or migrate them. See [the safeguarding data rule](../.claude/rules/safeguarding-data.md).
+**Update, 26 October 2026 (the founder's decisions on #36 and #95):** until the M2c sunset, handed-over disclosures are kept in the `safeguarding_items` table of the main D1, encrypted in the Worker with a key held as the `SAFEGUARDING_KEY` secret. This is a recorded exception to rule 5, because live code can decrypt them. Agents never query, change or export that table on a real database, and never see, set or rotate the live key, which only the founder holds. Before the first public form opens, the agents' Cloudflare access becomes read-only for Workers, Workers Builds, Access and D1 (go-live condition 6), so only reviewed code reaching the founder's `live` branch can run on live. A Time Travel restore of a live database is founder-only, because it also changes the safeguarding records. See [the safeguarding data rule](../.claude/rules/safeguarding-data.md).
 
 ## 4. Team structure
 
@@ -77,6 +77,7 @@ Docs links are read with the Claude Docs tools (or the Artifact tool's read acti
 - Code, tests and docs in one PR on a branch `<squad>/<issue-number>-<slug>`, linked to its issue.
 - CI green: type check, lint, unit and integration tests, end-to-end browser tests, accessibility scan, the no-third-party-requests test.
 - Reviewed by the squad's tech-lead review and, where relevant, security, privacy and accessibility reviewers; every comment answered.
+- Existing modules checked before building: nuxt.com/modules, the Nuxt and Nitro docs, and current maintained packages. The PR description names what was adopted, or why each candidate was rejected (`.claude/rules/existing-modules.md`).
 - Decision record added for any non-obvious technical choice (`docs/adr/`).
 - Deployed to staging by the merge.
 

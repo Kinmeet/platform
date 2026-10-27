@@ -1,43 +1,47 @@
-// Shared checks for the safeguarding databases guard (#89).
+// Shared checks for the interim safeguarding store guard (#89, revised in
+// #109 for the encrypted store decided on #95).
 //
-// Until the M2c sunset, the interim safeguarding store
-// (`kinmeet-<env>-safeguarding`, binding `SAFEGUARDING_DB`) holds disclosures
-// in plain text. The team's Cloudflare connection is account-wide, so these
-// checks stop agents querying, exporting or migrating it. They are a safety
-// net; the founder's decision on #36 and .claude/rules/safeguarding-data.md
-// are the rule.
+// Until the M2c sunset, handed-over disclosures are stored encrypted in the
+// `safeguarding_items` table of the main D1. The key is the Worker secret
+// `SAFEGUARDING_KEY` (with `SAFEGUARDING_KEY_PREVIOUS` during a rotation).
+// These checks stop agents touching that table on a real database and
+// handling the key. They are a safety net: the founder's decisions on #36 and
+// #95 and .claude/rules/safeguarding-data.md are the rule, and read-only
+// Cloudflare access for agents (go-live condition 6) is the control.
 import { existsSync, readFileSync } from 'node:fs'
-import { homedir } from 'node:os'
 import { join } from 'node:path'
 
-/** Any safeguarding database name or binding, in any environment. */
-export const SAFEGUARDING_NAME = /safeguarding[_-]?db|kinmeet-[a-z0-9-]*safeguarding/i
+/** The encrypted store's table. */
+export const SAFEGUARDING_TABLE = /safeguarding_items/i
 
-const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi
+/** The store's key secrets, current and previous. */
+export const SAFEGUARDING_KEY = /safeguarding_key/i
+
+/** The live Worker, by its dashboard name or its wrangler name. */
+export const LIVE_WORKER = /\b(platform|kinmeet)-live\b/i
 
 /**
- * Safeguarding database ids are kept out of the repository. An admin may list
- * them, comma or newline separated, in KINMEET_SAFEGUARDING_DB_IDS or in
- * ~/.kinmeet/safeguarding-db-ids on the machine the agents run on.
+ * Every Worker script path segment in `text` (`/workers/scripts/<segment>`)
+ * that is not the literal staging Worker, `platform-staging`, which also
+ * serves the Previews. A segment built at run time (`${w}`, `' + w`, a shell
+ * variable) is never allowed, as in `unknownD1Paths`.
  */
-export function safeguardingIds(env = process.env, home = homedir()) {
-  const sources = [env.KINMEET_SAFEGUARDING_DB_IDS ?? '']
-  const file = join(home, '.kinmeet', 'safeguarding-db-ids')
-  if (existsSync(file)) sources.push(readFileSync(file, 'utf8'))
-  return new Set(
-    sources
-      .join('\n')
-      .match(UUID)
-      ?.map((id) => id.toLowerCase()) ?? [],
-  )
+export function unknownScriptPaths(text) {
+  const unknown = []
+  for (const [, segment] of text.matchAll(/\/workers\/scripts\/([^/?#\s]*)/gi)) {
+    const literal =
+      /^platform-staging(?![\w-])/i.test(segment) && !/[$`{(+]/.test(segment.slice(16))
+    if (!literal) unknown.push(segment || '(built at run time)')
+  }
+  return unknown
 }
 
 /**
  * The D1 databases agents may use: every `database_name` and `database_id` in
- * wrangler.jsonc that is not a safeguarding one, plus the `DB` binding.
- * Placeholder ids (all zeros) are left out. Expects `database_name` directly
- * before `database_id` in each entry, as in wrangler.jsonc today; a test reads
- * the real file so a layout change is caught.
+ * wrangler.jsonc, plus the `DB` binding. Placeholder ids (all zeros) are left
+ * out. Expects `database_name` directly before `database_id` in each entry, as
+ * in wrangler.jsonc today; a test reads the real file so a layout change is
+ * caught.
  */
 export function allowedDatabases(projectDir) {
   const ids = new Set()
@@ -47,11 +51,39 @@ export function allowedDatabases(projectDir) {
   const config = readFileSync(path, 'utf8')
   const entry = /"database_name"\s*:\s*"([^"]+)"\s*,\s*"database_id"\s*:\s*"([0-9a-f-]{36})"/gi
   for (const [, name, id] of config.matchAll(entry)) {
-    if (SAFEGUARDING_NAME.test(name)) continue
     names.add(name.toLowerCase())
     if (!/^[0-]+$/.test(id)) ids.add(id.toLowerCase())
   }
   return { ids, names }
+}
+
+/** The live D1 databases in wrangler.jsonc: names ending `-live`, and their ids. */
+export function liveDatabases(projectDir) {
+  const ids = new Set()
+  const names = new Set()
+  const path = join(projectDir, 'wrangler.jsonc')
+  if (!existsSync(path)) return { ids, names }
+  const config = readFileSync(path, 'utf8')
+  const entry = /"database_name"\s*:\s*"([^"]+-live)"\s*,\s*"database_id"\s*:\s*"([0-9a-f-]{36})"/gi
+  for (const [, name, id] of config.matchAll(entry)) {
+    names.add(name.toLowerCase())
+    ids.add(id.toLowerCase())
+  }
+  return { ids, names }
+}
+
+/**
+ * Whether `text` restores a live database with D1 Time Travel, by
+ * `wrangler d1 time-travel restore` or the API's `time_travel/restore`. That is
+ * founder-only: it also rolls back or removes safeguarding records, though it
+ * names no table.
+ */
+export function restoresLiveDatabase(text, projectDir) {
+  if (!/time[-_]travel/i.test(text) || !/restore/i.test(text)) return false
+  if (/(--env|-e)(=|\s+)['"]?live\b/i.test(text)) return true
+  const { ids, names } = liveDatabases(projectDir)
+  const lower = text.toLowerCase()
+  return [...ids, ...names].some((value) => lower.includes(value))
 }
 
 /** The ids from `allowedDatabases`, for the D1 tools that take a bare id. */
@@ -76,19 +108,26 @@ export function unknownD1Paths(text, allowedIds) {
   return unknown
 }
 
-/** Whether `text` contains one of the safeguarding database ids. */
-export function usesSafeguardingId(text, ids) {
-  return (text.match(UUID) ?? []).some((id) => ids.has(id.toLowerCase()))
-}
-
-/** Why `text` touches a safeguarding database, or null if it does not. */
-export function safeguardingReason(text, ids) {
-  if (SAFEGUARDING_NAME.test(text)) return 'it names a safeguarding database'
-  if (usesSafeguardingId(text, ids)) return 'it uses a safeguarding database id'
+/**
+ * Why a Cloudflare API call (MCP tool input, or a curl to the API) is refused,
+ * or null. Every such call reaches a real account, so naming the table is
+ * enough. The key may be handled only on the staging Worker, by code that
+ * generates it in the Cloudflare runtime: every Worker script path must be
+ * the literal staging Worker, and there must be at least one. A live Worker,
+ * or a Worker the hook cannot see, is refused.
+ */
+export function cloudflareCallReason(text) {
+  if (SAFEGUARDING_TABLE.test(text)) return 'it touches the safeguarding_items table'
+  if (SAFEGUARDING_KEY.test(text)) {
+    const scripts = [...text.matchAll(/\/workers\/scripts\//gi)].length
+    if (LIVE_WORKER.test(text) || scripts === 0 || unknownScriptPaths(text).length > 0)
+      return 'it handles the safeguarding key outside the staging Worker'
+  }
   return null
 }
 
 export const SAFEGUARDING_MESSAGE =
-  'Agents never query, export, migrate or otherwise touch the safeguarding databases ' +
-  '(kinmeet-*-safeguarding, SAFEGUARDING_DB). Only the acting safeguarding lead reads them, ' +
-  'through the app. See .claude/rules/safeguarding-data.md, and ask your EM if you think you need access.'
+  'Agents never query, change or export the safeguarding_items table on a real database, never see a ' +
+  'safeguarding key, and never read, set or rotate the live key. Only the acting safeguarding lead reads ' +
+  'records, through the audited safeguarding view. See .claude/rules/safeguarding-data.md, and ask your ' +
+  'EM if you think you need access.'
