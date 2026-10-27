@@ -153,6 +153,8 @@
       "preview_urls": true,
       "vars": {
         "KINMEET_ENV": "live",
+        // The only origin the forms and admin actions accept (server/utils/forms/site-origin.ts).
+        "SITE_ORIGIN": "https://platform.kinmeet.workers.dev",
         "NUXT_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAFl-e7Mi_U9gitR4",
       },
       "triggers": { "crons": ["17 3 * * *"] },
@@ -196,6 +198,9 @@
         "logpush": false,
         "vars": {
           "KINMEET_ENV": "preview",
+          // `*` is one Preview name (one DNS label), honoured only because
+          // KINMEET_ENV is `preview`.
+          "SITE_ORIGIN": "https://*-platform.kinmeet.workers.dev",
           "NUXT_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAFl6NMpfqLbGGZRZ",
         },
         "d1_databases": [

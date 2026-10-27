@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import wranglerConfig from '../../../wrangler.jsonc?raw'
 import previewMigrationsConfig from '../../../wrangler.preview-migrations.jsonc?raw'
+import { originAllowed } from '../../../server/utils/forms/site-origin'
 import { parseJsonc } from '../helpers/jsonc'
 
 // The `platform` Worker's Previews serve every branch except `live`, with
@@ -88,5 +89,27 @@ describe('Previews of the platform Worker', () => {
     expect(migrations.d1_databases).toHaveLength(1)
     expect(target?.database_name).toBe(bound?.database_name)
     expect(target?.database_id).toBe(bound?.database_id)
+  })
+
+  it('accept forms only from their own site, and production only from its own', () => {
+    expect(live.vars?.SITE_ORIGIN).toBe('https://platform.kinmeet.workers.dev')
+    expect(previews.vars?.SITE_ORIGIN).toBe('https://*-platform.kinmeet.workers.dev')
+    const preview = {
+      siteOrigin: previews.vars!.SITE_ORIGIN!,
+      environment: previews.vars?.KINMEET_ENV,
+    }
+    const production = { siteOrigin: live.vars!.SITE_ORIGIN!, environment: live.vars?.KINMEET_ENV }
+    expect(originAllowed('https://main-platform.kinmeet.workers.dev', preview)).toBe(true)
+    expect(originAllowed('https://platform.kinmeet.workers.dev', preview)).toBe(false)
+    expect(originAllowed('https://a.b-platform.kinmeet.workers.dev', preview)).toBe(false)
+    expect(originAllowed('https://platform.kinmeet.workers.dev', production)).toBe(true)
+    expect(originAllowed('https://main-platform.kinmeet.workers.dev', production)).toBe(false)
+    // The pattern is honoured only because KINMEET_ENV is `preview`.
+    expect(
+      originAllowed('https://main-platform.kinmeet.workers.dev', {
+        ...preview,
+        environment: 'live',
+      }),
+    ).toBe(false)
   })
 })
