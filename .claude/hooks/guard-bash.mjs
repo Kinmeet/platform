@@ -7,18 +7,20 @@
 //   commit`, pathspec commits).
 // - Before a push, scans the commits the push would publish.
 // - Blocks pushes to main, skipping git hooks, and live deploys by hand.
-// - Blocks any command that names a safeguarding database or uses its id,
-//   and any `wrangler d1` or D1 API command on a database that is not a main
-//   DB database (#89).
+// - Blocks remote D1 commands and Cloudflare API calls that touch the
+//   encrypted safeguarding table, `wrangler secret` commands on the
+//   safeguarding key, and any `wrangler d1` or D1 API command on a database
+//   that is not a main DB database (#89, #109).
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { isAbsolute, join } from 'node:path'
 import { block, findSecrets, isSecretFile, runGuard } from './lib/patterns.mjs'
 import {
+  SAFEGUARDING_KEY,
   SAFEGUARDING_MESSAGE,
+  SAFEGUARDING_TABLE,
   allowedDatabases,
-  safeguardingIds,
-  safeguardingReason,
+  cloudflareCallReason,
   unknownD1Paths,
 } from './lib/safeguarding.mjs'
 
@@ -78,6 +80,27 @@ function unknownD1Databases(command, projectDir) {
     if (!known || /[$`]/.test(words[j])) unknown.push(database)
   }
   return unknown
+}
+
+// Why a command touches the safeguarding store, or null. Local D1 (`--local`,
+// the default) holds made-up data, so only a remote D1 command, a Cloudflare
+// API call or a `wrangler secret` command is checked. SQL in a `--file` is
+// read so it is checked too.
+function safeguardingReason(command, cwd) {
+  if (/\bwrangler\b[\s\S]*\bd1\b/.test(command) && /--remote\b/.test(command)) {
+    let sql = command
+    for (const [, , path] of command.matchAll(/--file(?:=|\s+)(['"]?)([^\s'"]+)\1/g)) {
+      const file = isAbsolute(path) ? path : join(cwd, path)
+      if (existsSync(file) && statSync(file).isFile() && statSync(file).size <= MAX_SCAN_BYTES)
+        sql += `\n${readFileSync(file, 'utf8')}`
+    }
+    if (SAFEGUARDING_TABLE.test(sql))
+      return 'it touches the safeguarding_items table on a real database'
+  }
+  if (/\bwrangler\b[^;&|\n]*\bsecret\b/.test(command) && SAFEGUARDING_KEY.test(command))
+    return 'it reads or sets a safeguarding key'
+  if (/api\.cloudflare\.com/i.test(command)) return cloudflareCallReason(command)
+  return null
 }
 
 function tokens(command) {
@@ -184,11 +207,10 @@ await runGuard(async (input) => {
     )
   }
 
-  // Any command naming a safeguarding database or binding is refused, prose
-  // aside: a heredoc or script could feed it to a query. To search the code
-  // for the binding, use the Grep tool, which is not a Bash command.
+  // Prose aside, heredocs and quoted text are checked too: they could feed a
+  // query or an API call.
   const checked = withoutProse(fullCommand)
-  const reason = safeguardingReason(checked, safeguardingIds())
+  const reason = safeguardingReason(checked, cwd)
   if (reason) block(`this command is not allowed: ${reason}. ${SAFEGUARDING_MESSAGE}`)
   const projectDir = process.env.CLAUDE_PROJECT_DIR || cwd
   const unknown = [
@@ -200,7 +222,7 @@ await runGuard(async (input) => {
   if (unknown.length > 0) {
     block(
       `this D1 command uses database ${unknown.join(', ')}, which is not the DB binding or a main ` +
-        `database in wrangler.jsonc. ${SAFEGUARDING_MESSAGE}`,
+        `database in wrangler.jsonc.`,
     )
   }
 

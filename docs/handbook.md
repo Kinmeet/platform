@@ -47,7 +47,7 @@ Docs links are read with the Claude Docs tools (or the Artifact tool's read acti
 7. Decisions in the F, SG, S and P documents are followed. A conflict found while building goes to the Head of Delivery as a question, not a silent change.
 8. Never skip, disable or weaken a test to get green.
 
-**Update, 26 October 2026 (the founder's decision on #36):** until the M2c sunset, the interim safeguarding databases (`kinmeet-*-safeguarding`, binding `SAFEGUARDING_DB`) hold disclosures in plain text, as a recorded exception to rule 5. Agents never query, export or migrate them. See [the safeguarding data rule](../.claude/rules/safeguarding-data.md).
+**Update, 26 October 2026 (the founder's decisions on #36 and #95):** until the M2c sunset, handed-over disclosures are kept in the `safeguarding_items` table of the main D1, encrypted in the Worker with a key held as the `SAFEGUARDING_KEY` secret. This is a recorded exception to rule 5, because live code can decrypt them. Agents never query, change or export that table on a real database, and never see, set or rotate the live key, which only the founder holds. Shortly before launch, the agents' Cloudflare access becomes read-only (go-live condition 6), so only reviewed code reaching the founder's `live` branch can run on live. See [the safeguarding data rule](../.claude/rules/safeguarding-data.md).
 
 ## 4. Team structure
 
