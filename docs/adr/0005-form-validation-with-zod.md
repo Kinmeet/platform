@@ -1,6 +1,6 @@
 # ADR-0005: Form validation with Zod
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #44, 26 October 2026)
 - **Date:** 25 October 2026
 - **Author:** Ade Bankole (Backend Engineer)
 - **Reviewers:** Theo Marsh (Tech Lead), Nadia Haddad (Security Reviewer), Kit Morgan (Test Engineer)

@@ -1,6 +1,6 @@
 # ADR-0008: A Worker entry in front of Nitro for request body limits
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #60, 26 October 2026)
 - **Date:** 26 October 2026
 - **Author:** Jun Okafor (DevOps Engineer)
 - **Reviewers:** Nadia Haddad (Security Reviewer), Theo Marsh (Tech Lead)
