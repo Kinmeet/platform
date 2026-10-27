@@ -270,7 +270,11 @@ describe('safeguarding store: Bash', () => {
       // Refused for the SQL in the file, not because the hook failed.
       assert.match(result.stderr, /safeguarding_items table/, command)
     }
-    assert.equal(sgBash('bunx wrangler d1 execute DB --remote --file ok.sql', dir).status, 0)
+    // `--env staging`: with no environment named, `DB` counts as live (#112).
+    assert.equal(
+      sgBash('bunx wrangler d1 execute DB --remote --env staging --file ok.sql', dir).status,
+      0,
+    )
   })
 
   it('blocks wrangler secret commands on a safeguarding key in every environment', () => {
@@ -577,6 +581,28 @@ describe('live personal data (#111)', () => {
     // If this fails, the wrangler.jsonc layout changed and the live checks would see nothing.
     assert.ok(liveDatabases(projectDir).ids.has(liveDbId))
     assert.ok(liveDatabases(projectDir).names.has('kinmeet-live'))
+  })
+
+  it('counts a database command with no staging environment as live (#112)', () => {
+    for (const command of [
+      'CLOUDFLARE_ENV=live bunx wrangler d1 execute DB --remote --command "select 1"',
+      'export CLOUDFLARE_ENV=live && bunx wrangler d1 export DB --remote --output x.sql',
+      'bunx wrangler d1 execute DB --remote --command "select 1"',
+      'bunx wrangler d1 export DB --remote --output x.sql',
+      'CLOUDFLARE_ENV=live bunx wrangler d1 execute DB --env staging --remote --command "select 1"',
+    ]) {
+      assert.equal(sgBash(command).status, 2, command)
+    }
+    for (const command of [
+      'bunx wrangler d1 execute DB --env staging --remote --command "select 1"',
+      'bunx wrangler d1 execute kinmeet-staging --remote --command "select 1"',
+      `bunx wrangler d1 execute ${stagingDbId} --remote --command "select 1"`,
+      'bunx wrangler d1 execute DB --local --command "select 1"',
+      'bunx wrangler d1 list',
+      'bunx wrangler d1 migrations list DB',
+    ]) {
+      assert.equal(sgBash(command).status, 0, command)
+    }
   })
 })
 

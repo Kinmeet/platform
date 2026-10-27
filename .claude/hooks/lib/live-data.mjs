@@ -4,7 +4,7 @@
 // change a live database: live migrations run only from the live Workers
 // Build. Break-glass access to live data follows P7. These checks are a safety
 // net: `.claude/rules/privacy.md` is the rule.
-import { liveDatabases } from './safeguarding.mjs'
+import { allowedDatabases, liveDatabases } from './safeguarding.mjs'
 
 /**
  * The only `wrangler d1` commands agents may run on a live database (Rowan,
@@ -17,12 +17,24 @@ export const LIVE_D1_COMMANDS = new Set(['migrations list', 'info'])
 const TWO_WORD = new Set(['migrations', 'time-travel', 'insights'])
 
 const LIVE_ENV = /(?:--env|-e)(?:=|\s+)['"]?live\b/i
+const STAGING_ENV = /(?:--env|-e)(?:=|\s+)['"]?staging\b/i
+// Wrangler also picks the environment from CLOUDFLARE_ENV, and after a build
+// it reads the generated config, which ignores `--env` (ADR-0009). With one
+// Worker every build is `live` (ADR-0001).
+const LIVE_CLOUDFLARE_ENV = /\bCLOUDFLARE_ENV=['"]?live\b/i
+
+// `wrangler d1` subcommands that name no existing database.
+const NO_DATABASE = new Set(['list', 'create'])
 
 /** Why a `wrangler d1` command or migration script would reach live data, or null. */
 export function liveD1CommandReason(command, projectDir) {
   if (/\bd1-migrate\.sh['"]?\s+['"]?live\b/.test(command))
     return 'live migrations run only from the live Workers Build'
   const { ids, names } = liveDatabases(projectDir)
+  const known = allowedDatabases(projectDir)
+  const isStaging = (w) =>
+    (known.names.has(w) && w !== 'db' && !names.has(w)) || (known.ids.has(w) && !ids.has(w))
+  const liveByEnvironment = LIVE_CLOUDFLARE_ENV.test(command)
   for (const segment of command.split(/;|&&|\|\||\||\n/)) {
     const words = (segment.match(/"[^"]*"|'[^']*'|\S+/g) ?? []).map((w) =>
       w.replace(/^['"]|['"]$/g, ''),
@@ -33,9 +45,16 @@ export function liveD1CommandReason(command, projectDir) {
     if (at === -1) continue
     const first = words[at + 1] ?? ''
     const subcommand = TWO_WORD.has(first) ? `${first} ${words[at + 2] ?? ''}` : first
+    const targets = words.slice(at + 1).map((w) => w.toLowerCase())
+    // Fails closed (Security Reviewer, #112): a database command counts as
+    // live unless it names staging explicitly, by `--env staging` or by a
+    // staging database's name or id.
+    const explicitStaging = STAGING_ENV.test(segment) || targets.some(isStaging)
     const live =
+      liveByEnvironment ||
       LIVE_ENV.test(segment) ||
-      words.slice(at + 1).some((w) => names.has(w.toLowerCase()) || ids.has(w.toLowerCase()))
+      targets.some((w) => names.has(w) || ids.has(w)) ||
+      (!explicitStaging && !NO_DATABASE.has(subcommand))
     if (!live || LIVE_D1_COMMANDS.has(subcommand) || /--local\b/.test(segment)) continue
     return `wrangler d1 ${subcommand} on a live database could copy or change live personal data`
   }
