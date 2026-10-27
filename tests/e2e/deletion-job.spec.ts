@@ -46,6 +46,9 @@ const application = (id: string, deleteAfter: number) =>
 const emailLog = (id: string, deleteAfter: number) =>
   `INSERT INTO email_log (id, to_hmac, template_id, sent_at, delete_after)
    VALUES ('${id}', '${HMAC}', 'application_receipt', ${RECEIVED}, ${deleteAfter})`
+const auditEntry = (id: string, deleteAfter: number) =>
+  `INSERT INTO audit_log (id, at, actor, action, target_table, target_id, delete_after)
+   VALUES ('${id}', ${RECEIVED}, 'test-actor', 'mark_replied', 'hello_messages', 'e2e-hello-old', ${deleteAfter})`
 
 test('the daily job deletes rows past their date and keeps the rest', async ({ request }) => {
   // Each wrangler d1 call starts its own process, so allow for a slow runner.
@@ -58,6 +61,8 @@ test('the daily job deletes rows past their date and keeps the rest', async ({ r
       application('e2e-app-new', FUTURE),
       emailLog('e2e-log-old', PAST),
       emailLog('e2e-log-new', FUTURE),
+      auditEntry('e2e-audit-old', PAST),
+      auditEntry('e2e-audit-new', FUTURE),
     ].join(';\n'),
   )
 
@@ -68,11 +73,12 @@ test('the daily job deletes rows past their date and keeps the rest', async ({ r
     d1(
       `SELECT id FROM hello_messages WHERE id LIKE 'e2e-%'
        UNION ALL SELECT id FROM applications WHERE id LIKE 'e2e-%'
-       UNION ALL SELECT id FROM email_log WHERE id LIKE 'e2e-%'`,
+       UNION ALL SELECT id FROM email_log WHERE id LIKE 'e2e-%'
+       UNION ALL SELECT id FROM audit_log WHERE id LIKE 'e2e-%'`,
     )
       .map((row) => row.id)
       .sort()
   await expect
     .poll(remaining, { timeout: 20_000 })
-    .toEqual(['e2e-app-new', 'e2e-hello-new', 'e2e-log-new'])
+    .toEqual(['e2e-app-new', 'e2e-audit-new', 'e2e-hello-new', 'e2e-log-new'])
 })
