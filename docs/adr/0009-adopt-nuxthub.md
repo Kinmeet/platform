@@ -37,7 +37,9 @@ How each gap is closed (all checked in the spike):
 3. **No `--env` in the deploy commands.** The build check fails closed, and phase 1 itself removes `--env` from the commands in `docs/deploys.md`.
 4. **Dependency age.** `@nuxthub/core` is pinned exactly in `bun.lock`. The phase 1 PR notes that its changelog and publish provenance were checked. If a newer release comes out first, wait until it is at least a week old.
 
-5. **Hooks fail closed on the chosen environment (Security Reviewer, on #112).** Once the redirected config exists, every Wrangler command reads the generated file and ignores `--env`. So `--env` proves nothing. Any remote D1 command that targets the `DB` binding counts as live, with or without `--env`, and so does `CLOUDFLARE_ENV=live` anywhere in the command. Staging work must name the database itself, `kinmeet-staging` or its id. If #112 doesn't already do this, phase 1 adds it to `guard-bash.mjs`, with tests, before the entry change lands.
+5. **Hooks fail closed on the chosen environment (Security Reviewer, on #112).** Once the redirected config exists, every Wrangler command reads the generated file and ignores `--env`. So `--env` proves nothing. Any remote D1 command that targets the `DB` binding counts as live, with or without `--env`, and so does `CLOUDFLARE_ENV=live` anywhere in the command. Staging work must name the database itself, `kinmeet-staging` or its id. The match is on the exact name or id, never a substring. If #112 doesn't already do this, phase 1 adds it to `guard-bash.mjs`, with tests, before the entry change lands.
+
+Notes from the Privacy and Safeguarding Reviewer (on #114): development never points `DB` at a remote database, so Drizzle Studio only ever opens local, made-up data. No Nitro cached handlers or cache route rules go on routes that read personal data.
 
 If it is cheap, phase 1 also makes the "no new origins in the production output" comparison a CI assertion. The no-third-party end-to-end test already covers the running site.
 
