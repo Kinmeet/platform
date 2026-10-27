@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import {
+  CALL_NAME_MAX,
   EMAIL_MAX,
   SUBMISSION_ID_LENGTH,
   TURNSTILE_TOKEN_MAX,
@@ -12,7 +13,6 @@ import {
 } from './fields'
 
 const MESSAGE_MAX = 2000
-const CALL_NAME_MAX = 60
 
 /** Say hello: `POST /api/hello` (docs/api/forms.md, section 1). */
 export const helloSchema = z.strictObject({

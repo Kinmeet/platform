@@ -3,6 +3,14 @@
  * (#20). Kept apart from the component so the token logic can be unit tested
  * without a browser.
  */
+import { TURNSTILE_ORIGIN } from '#shared/turnstile'
+
+/** Turnstile's script, rendered by our code rather than on load. */
+export const TURNSTILE_SCRIPT_SRC = `${TURNSTILE_ORIGIN}/turnstile/v0/api.js?render=explicit`
+
+/** Gives up if the script hasn't loaded in this time, so the form can say so. */
+export const TURNSTILE_LOAD_TIMEOUT_MS = 15_000
+
 export interface TurnstileRenderOptions {
   sitekey: string
   action: string
