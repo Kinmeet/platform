@@ -1,0 +1,78 @@
+/* Say hello (#14): the form in a patch, with what happens to a message and
+   where to go in an emergency beside it on a wide screen. */
+.hello__intro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: 28px var(--gutter) 20px;
+}
+
+.hello__intro h1 {
+  font-size: var(--text-title);
+}
+
+.hello__intro .lede {
+  max-width: 52ch;
+}
+
+.hello__layout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: 0 var(--gutter) var(--space-7);
+}
+
+.hello__form,
+.hello__sent {
+  gap: 20px;
+}
+
+.hello__sent {
+  align-items: flex-start;
+}
+
+.hello__form h2:focus,
+.hello__sent h2:focus {
+  outline: none;
+}
+
+.hello__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-3);
+}
+
+.hello__sending:empty {
+  display: none;
+}
+
+.hello__side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.hello__note-title {
+  font: var(--weight-bold) 1rem / var(--leading-body) var(--font-body);
+  color: inherit;
+  letter-spacing: normal;
+}
+
+@media (min-width: 56rem) {
+  .hello__intro {
+    padding-top: 52px;
+    padding-bottom: 32px;
+  }
+
+  .hello__layout {
+    display: grid;
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    gap: 48px;
+    align-items: start;
+  }
+
+  .hello__actions {
+    align-items: flex-start;
+  }
+}

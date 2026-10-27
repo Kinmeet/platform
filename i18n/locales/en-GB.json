@@ -330,6 +330,75 @@
       "failed": "The spam check didn't work that time. Your answers are still here. Please try sending again."
     }
   },
+  "hello": {
+    "page_title": "Say hello",
+    "page_title_error": "Error: Say hello",
+    "title": "Say hello",
+    "lede": "Questions, ideas, or just curious? A real person reads every message and replies within a week.",
+    "form_title": "Write to us",
+    "fields": {
+      "callName": "What to call you",
+      "email": "Email address",
+      "message": "Your message",
+      "spam_check": "Spam check"
+    },
+    "callName": {
+      "label": "What should we call you?",
+      "hint": "Your name or your community name."
+    },
+    "email": {
+      "label": "Email address",
+      "hint": "So we can reply. We won't use it for anything else."
+    },
+    "message": {
+      "label": "Your message"
+    },
+    "send": "Send message",
+    "send_again": "Try sending again",
+    "sending": "Sending your message.",
+    "errors": {
+      "callName": {
+        "required": "Tell us what to call you. A community name is fine.",
+        "too_long": "That's a long name. Keep it to {max} characters or fewer."
+      },
+      "email": {
+        "required": "Enter your email address, so we can reply.",
+        "too_long": "That email address is too long. Check it's typed correctly.",
+        "invalid_email": "That email address looks incomplete. Check it has a full domain, like name{'@'}example.com."
+      },
+      "message": {
+        "required": "Write a message to send.",
+        "too_long": "Your message is a bit long. Keep it to {max} characters or fewer."
+      }
+    },
+    "kept": {
+      "heading": "What happens to your message",
+      "body": "Your message is stored securely by Kinmeet. We delete it automatically 12 months after our last reply to you."
+    },
+    "danger": {
+      "heading": "If someone is in danger",
+      "body": "Call 999 straight away. Messages here aren't read around the clock."
+    },
+    "sent": {
+      "label": "Sent",
+      "title": "Thanks, {name}. Your message is with us.",
+      "body": "We reply within a week, to the email address you gave.",
+      "again": "Send another message",
+      "page_title": "Message sent"
+    },
+    "failed": {
+      "title": "That didn't send",
+      "unavailable": "Something went wrong at our end, so your message may not have reached us. What you wrote is still here, and trying again won't send it twice.",
+      "rate_limited": "There have been a lot of tries from here in a short time. What you wrote is still here. Please wait a minute, then try again.",
+      "spam_check": "The spam check couldn't load, so your message can't be sent at the moment. What you wrote is still here, but it'll be lost if the page reloads.",
+      "copy_note": "If it still won't send, copy your message so you don't lose it.",
+      "copy": "Copy my message",
+      "copied": "Copied. Paste it somewhere safe, like a note or an email to yourself.",
+      "copy_fallback": "Your message is in the box below, already selected. Use your device's copy command to copy it.",
+      "copy_box_label": "Your message, ready to copy"
+    },
+    "noscript": "This form needs JavaScript to work. Please turn it on, or come back in a browser that has it."
+  },
   "email": {
     "greeting": "Hello,",
     "footer": "Kinmeet is a planned UK network of local groups run by volunteers.",
