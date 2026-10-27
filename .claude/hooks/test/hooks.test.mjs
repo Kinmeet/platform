@@ -4,7 +4,7 @@
 // Every token below is made up. Real-looking values are assembled at run
 // time so this file never contains one.
 import { execFileSync, spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, it } from 'node:test'
@@ -234,55 +234,124 @@ describe('Bash guard: pushes and deploys', () => {
   })
 })
 
-// Made-up ids: one listed as a safeguarding database for the hooks, and the
-// staging DB id from wrangler.jsonc, which agents may use.
+// The staging and live DB ids from wrangler.jsonc, which agents may use.
 const projectDir = join(hooks, '..', '..')
-const fakeSafeguardingId = '5afe0000-0000-4000-8000-00000000c0de'
 const stagingDbId = '18c80f5f-3c72-4781-8d38-98ef6cc4a096'
-const guardEnv = {
-  CLAUDE_PROJECT_DIR: projectDir,
-  KINMEET_SAFEGUARDING_DB_IDS: fakeSafeguardingId,
-  HOME: mkdtempSync(join(tmpdir(), 'kinmeet-home-')),
-}
-const sgBash = (command) =>
-  run('guard-bash.mjs', { cwd: projectDir, tool_input: { command } }, guardEnv)
+const liveDbId = '3b253758-831e-4db9-bb90-fb4598f215db'
+const guardEnv = { CLAUDE_PROJECT_DIR: projectDir }
+const sgBash = (command, cwd = projectDir) =>
+  run('guard-bash.mjs', { cwd, tool_input: { command } }, guardEnv)
 const cloudflare = (tool_name, tool_input) =>
   run('guard-cloudflare.mjs', { tool_name, tool_input }, guardEnv)
 
-describe('safeguarding databases: Bash', () => {
-  it('blocks wrangler d1 commands on a safeguarding database in every form', () => {
+describe('safeguarding store: Bash', () => {
+  it('blocks remote D1 commands that touch the safeguarding table', () => {
     for (const command of [
-      'bunx wrangler d1 execute kinmeet-live-safeguarding --remote --command "SELECT 1"',
-      'wrangler d1 execute SAFEGUARDING_DB --env live --remote --file q.sql',
-      'npx wrangler d1 export kinmeet-staging-safeguarding --remote --output x.sql',
-      'bunx wrangler d1 migrations apply SAFEGUARDING_DB --env staging --remote',
-      'bunx wrangler d1 migrations list kinmeet-preview-safeguarding',
-      'bunx wrangler d1 time-travel restore kinmeet-live-safeguarding --timestamp 1',
-      'bunx wrangler d1 info Kinmeet-Live-Safeguarding',
-      `bunx wrangler d1 execute ${fakeSafeguardingId} --remote --command "SELECT 1"`,
-      `curl https://api.cloudflare.com/client/v4/accounts/x/d1/database/${fakeSafeguardingId}/query`,
-      'curl -X POST https://api.cloudflare.com/client/v4/accounts/x/d1/database?name=kinmeet-live-safeguarding',
+      'bunx wrangler d1 execute DB --env live --remote --command "SELECT * FROM safeguarding_items"',
+      'bunx wrangler d1 execute kinmeet-staging --remote --command "DROP TRIGGER safeguarding_items_no_delete"',
+      'wrangler d1 execute DB --remote --env live --command "delete from SAFEGUARDING_ITEMS"',
+      `curl -X POST https://api.cloudflare.com/client/v4/accounts/x/d1/database/${stagingDbId}/query -d '{"sql":"SELECT * FROM safeguarding_items"}'`,
     ]) {
       assert.equal(sgBash(command).status, 2, command)
     }
   })
 
-  it('blocks a safeguarding id wherever it appears', () => {
-    assert.equal(sgBash(`echo ${fakeSafeguardingId} | xargs some-tool`).status, 2)
+  it('reads the SQL in a --file for a remote D1 command', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'kinmeet-sql-'))
+    writeFileSync(join(dir, 'q.sql'), 'DELETE FROM safeguarding_items;\n')
+    writeFileSync(join(dir, 'ok.sql'), 'SELECT count(*) FROM form_submissions;\n')
+    for (const command of [
+      'bunx wrangler d1 execute DB --remote --file q.sql',
+      'bunx wrangler d1 execute DB --remote --file=q.sql',
+      'bunx wrangler d1 execute DB --remote --file "q.sql"',
+    ]) {
+      const result = sgBash(command, dir)
+      assert.equal(result.status, 2, command)
+      // Refused for the SQL in the file, not because the hook failed.
+      assert.match(result.stderr, /safeguarding_items table/, command)
+    }
+    assert.equal(sgBash('bunx wrangler d1 execute DB --remote --file ok.sql', dir).status, 0)
+  })
+
+  it('blocks wrangler secret commands on a safeguarding key in every environment', () => {
+    for (const command of [
+      'bunx wrangler secret put SAFEGUARDING_KEY --env live',
+      'bunx wrangler secret put SAFEGUARDING_KEY --env staging',
+      'bunx wrangler secret delete SAFEGUARDING_KEY_PREVIOUS --env live',
+      'echo v1.x | npx wrangler versions secret put SAFEGUARDING_KEY --env staging',
+      'bunx wrangler secret bulk keys.json # SAFEGUARDING_KEY',
+    ]) {
+      assert.equal(sgBash(command).status, 2, command)
+    }
+  })
+
+  it('reads the secrets file given to wrangler secret bulk', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'kinmeet-secrets-'))
+    writeFileSync(join(dir, 'keys.json'), '{ "SAFEGUARDING_KEY": "v1.made-up" }\n')
+    writeFileSync(join(dir, 'other.json'), '{ "MADE_UP_SECRET": "x" }\n')
+    for (const command of [
+      'bunx wrangler secret bulk keys.json --env live',
+      'bunx wrangler secret bulk --env live keys.json',
+      'bunx wrangler versions secret bulk "keys.json" --env staging',
+      // Secrets from standard input, or a missing file, cannot be checked.
+      'cat keys.json | bunx wrangler secret bulk --env live',
+      'bunx wrangler secret bulk missing.json --env live',
+    ]) {
+      assert.equal(sgBash(command, dir).status, 2, command)
+    }
+    assert.equal(sgBash('bunx wrangler secret bulk other.json --env staging', dir).status, 0)
+  })
+
+  it('blocks a Time Travel restore of a live database', () => {
+    for (const command of [
+      'bunx wrangler d1 time-travel restore DB --env live --timestamp 1',
+      'bunx wrangler d1 time-travel restore DB -e live --bookmark x',
+      'bunx wrangler d1 time-travel restore kinmeet-live --timestamp 1',
+      `curl -X POST https://api.cloudflare.com/client/v4/accounts/x/d1/database/${liveDbId}/time_travel/restore`,
+    ]) {
+      assert.equal(sgBash(command).status, 2, command)
+    }
+    for (const command of [
+      'bunx wrangler d1 time-travel restore DB --env staging --timestamp 1',
+      'bunx wrangler d1 time-travel info DB --env live',
+    ]) {
+      assert.equal(sgBash(command).status, 0, command)
+    }
+  })
+
+  it('blocks a Cloudflare API call that sets the key on a live or unseen Worker', () => {
+    for (const command of [
+      `curl -X PUT https://api.cloudflare.com/client/v4/accounts/x/workers/scripts/platform-live/secrets -d '{"name":"SAFEGUARDING_KEY"}'`,
+      `curl -X PUT "https://api.cloudflare.com/client/v4/accounts/x/workers/scripts/$W/secrets" -d '{"name":"SAFEGUARDING_KEY"}'`,
+    ]) {
+      assert.equal(sgBash(command).status, 2, command)
+    }
   })
 
   it('checks heredocs and quoted text unless they are a commit message or PR text', () => {
     for (const command of [
-      "bun - <<'EOF'\nconst name = 'kinmeet-live-safeguarding'\nEOF",
-      'bunx wrangler d1 execute "$(cat <<EOF\nkinmeet-live-safeguarding\nEOF\n)" --remote',
-      'git commit -m x && bun -e "query(\'SAFEGUARDING_DB\')"',
-      'grep -rn SAFEGUARDING_DB server/',
+      "bun - <<'EOF'\nawait fetch('https://api.cloudflare.com/client/v4/x', { body: 'SELECT * FROM safeguarding_items' })\nEOF",
+      'git commit -m x && bunx wrangler d1 execute DB --remote --command "SELECT * FROM safeguarding_items"',
     ]) {
       assert.equal(sgBash(command).status, 2, command)
     }
     for (const command of [
-      "git commit -q -F - <<'EOF'\nAdd the SAFEGUARDING_DB binding\nEOF",
-      'gh pr create --title "Guard kinmeet-live-safeguarding" --body "Uses SAFEGUARDING_DB"',
+      "git commit -q -F - <<'EOF'\nNever run wrangler d1 execute DB --remote on safeguarding_items\nEOF",
+      'gh pr create --title "Guard the key" --body "Blocks wrangler secret put SAFEGUARDING_KEY"',
+    ]) {
+      assert.equal(sgBash(command).status, 0, command)
+    }
+  })
+
+  it('allows local work, searches and tests on the store', () => {
+    for (const command of [
+      'bunx wrangler d1 execute DB --local --command "SELECT count(*) FROM safeguarding_items"',
+      'bunx wrangler d1 migrations apply DB --local',
+      'grep -rn safeguarding_items server/ migrations/',
+      'grep -rn SAFEGUARDING_KEY server/ docs/',
+      'bun run test tests/unit/server/safeguarding',
+      'bunx wrangler d1 migrations apply kinmeet-staging --env staging --remote',
+      'bunx wrangler secret list --env staging',
     ]) {
       assert.equal(sgBash(command).status, 0, command)
     }
@@ -290,7 +359,7 @@ describe('safeguarding databases: Bash', () => {
 
   it('allows wrangler d1 only on the DB binding or a main database', () => {
     for (const command of [
-      'N=kinmeet-live-safe; bunx wrangler d1 execute "${N}guarding" --remote --command "SELECT 1"',
+      'N=kinmeet-live; bunx wrangler d1 execute "${N}" --remote --command "SELECT 1"',
       'bunx wrangler d1 execute `cat name.txt` --remote',
       'bunx wrangler d1 export some-other-db --remote --output x.sql',
       'bunx wrangler d1 migrations apply OTHER_DB --remote',
@@ -302,29 +371,18 @@ describe('safeguarding databases: Bash', () => {
     }
     for (const command of [
       'bunx wrangler d1 list',
-      'bunx wrangler d1 migrations apply DB --local',
       'bunx wrangler d1 execute kinmeet-local --local --command "SELECT 1"',
       'bunx wrangler d1 migrations list kinmeet-live --env live --remote',
-      'curl https://api.cloudflare.com/client/v4/accounts/x/d1/database',
-    ]) {
-      assert.equal(sgBash(command).status, 0, command)
-    }
-  })
-
-  it('allows the main DB and code that only names the binding', () => {
-    for (const command of [
       'bunx wrangler d1 execute DB --env staging --remote --command "SELECT 1"',
-      'bunx wrangler d1 migrations apply kinmeet-staging --env staging --remote',
       `bunx wrangler d1 execute ${stagingDbId} --remote --command "SELECT 1"`,
-      'bun run test tests/unit/server/safeguarding',
-      'git commit -m "Add the kinmeet-live-safeguarding binding to the d1 docs"',
+      'curl https://api.cloudflare.com/client/v4/accounts/x/d1/database',
     ]) {
       assert.equal(sgBash(command).status, 0, command)
     }
   })
 })
 
-describe('safeguarding databases: Cloudflare MCP tools', () => {
+describe('safeguarding store: Cloudflare MCP tools', () => {
   it('reads the main DB ids from the real wrangler.jsonc', async () => {
     const { allowedDatabaseIds } = await import('../lib/safeguarding.mjs')
     const allowed = allowedDatabaseIds(projectDir)
@@ -333,14 +391,45 @@ describe('safeguarding databases: Cloudflare MCP tools', () => {
     assert.ok(![...allowed].some((id) => /^[0-]+$/.test(id)))
   })
 
-  it('blocks the API tool when its code names a safeguarding database or id', () => {
+  it('blocks any call that touches the safeguarding table', () => {
+    const code = `await cf.post('/accounts/x/d1/database/${stagingDbId}/query', { sql: 'SELECT * FROM safeguarding_items' })`
+    assert.equal(cloudflare('mcp__cloudflare__execute', { code }).status, 2)
+    const query = cloudflare('mcp__Cloudflare_Developer_Platform__d1_database_query', {
+      database_id: stagingDbId,
+      sql: 'DELETE FROM safeguarding_items',
+    })
+    assert.equal(query.status, 2)
+  })
+
+  it('blocks the key on the live Worker or a Worker built at run time', () => {
     for (const code of [
-      "const dbs = await cf.get('/accounts/x/d1/database?name=kinmeet-live-safeguarding')",
-      `await cf.post('/accounts/x/d1/database/${fakeSafeguardingId}/query', { sql: 'SELECT 1' })`,
-      "const db = list.find((d) => d.name.includes('SAFEGUARDING_DB'))",
+      "await cf.put('/accounts/x/workers/scripts/platform-live/secrets', { name: 'SAFEGUARDING_KEY' })",
+      "await cf.put('/accounts/x/workers/scripts/kinmeet-live/secrets', { name: 'SAFEGUARDING_KEY_PREVIOUS' })",
+      "await cf.put(`/accounts/x/workers/scripts/${w}/secrets`, { name: 'SAFEGUARDING_KEY' })",
+      "const s = await cf.get('/accounts/x/workers/scripts/platform-staging/secrets'); await cf.put('/accounts/x/workers/scripts/platform-live/secrets', { name: 'SAFEGUARDING_KEY' })",
+      // Naming the staging Worker in a comment does not make a built path safe.
+      "const w = 'platform-' + 'li' + 've' // platform-staging\nawait cf.put(`/accounts/x/workers/scripts/${w}/secrets`, { name: 'SAFEGUARDING_KEY' })",
+      "await cf.put('/accounts/x/workers/scripts/' + w + '/secrets', { name: 'SAFEGUARDING_KEY' }) // platform-staging",
+      "await cf.put('/accounts/x/workers/scripts/platform-staging-copy/secrets', { name: 'SAFEGUARDING_KEY' })",
+      "await cf.put(path, { name: 'SAFEGUARDING_KEY' }) // platform-staging",
     ]) {
       assert.equal(cloudflare('mcp__cloudflare__execute', { code }).status, 2, code)
     }
+  })
+
+  it('blocks a Time Travel restore of a live database', () => {
+    const code = `await cf.post('/accounts/x/d1/database/${liveDbId}/time_travel/restore', {})`
+    assert.equal(cloudflare('mcp__cloudflare__execute', { code }).status, 2)
+    const staging = `await cf.post('/accounts/x/d1/database/${stagingDbId}/time_travel/restore', {})`
+    assert.equal(cloudflare('mcp__cloudflare__execute', { code: staging }).status, 0)
+  })
+
+  it('allows the staging key to be generated in the Cloudflare runtime', () => {
+    const code = [
+      'const raw = crypto.getRandomValues(new Uint8Array(32))',
+      "await cf.put('/accounts/x/workers/scripts/platform-staging/secrets', { name: 'SAFEGUARDING_KEY', text: 'v1.' + btoa(String.fromCharCode(...raw)), type: 'secret_text' })",
+    ].join('\n')
+    assert.equal(cloudflare('mcp__cloudflare__execute', { code }).status, 0)
   })
 
   it('blocks D1 API calls on any id that is not a literal main DB id', () => {
@@ -361,20 +450,18 @@ describe('safeguarding databases: Cloudflare MCP tools', () => {
     assert.equal(cloudflare('mcp__cloudflare__execute', { code: list }).status, 0)
   })
 
-  it('blocks the D1 tools on a safeguarding or unknown database', () => {
-    for (const database_id of [fakeSafeguardingId, '0b5c0000-0000-4000-8000-000000000001']) {
-      for (const tool of [
-        'mcp__Cloudflare_Developer_Platform__d1_database_query',
-        'mcp__Cloudflare_Developer_Platform__d1_database_get',
-        'mcp__Cloudflare_Developer_Platform__d1_database_delete',
-      ]) {
-        assert.equal(cloudflare(tool, { database_id, sql: 'SELECT 1' }).status, 2, tool)
-      }
+  it('blocks the D1 tools on an unknown database', () => {
+    for (const tool of [
+      'mcp__Cloudflare_Developer_Platform__d1_database_query',
+      'mcp__Cloudflare_Developer_Platform__d1_database_get',
+      'mcp__Cloudflare_Developer_Platform__d1_database_delete',
+    ]) {
+      const result = cloudflare(tool, {
+        database_id: '0b5c0000-0000-4000-8000-000000000001',
+        sql: 'SELECT 1',
+      })
+      assert.equal(result.status, 2, tool)
     }
-    const create = cloudflare('mcp__Cloudflare_Developer_Platform__d1_database_create', {
-      name: 'kinmeet-live-safeguarding',
-    })
-    assert.equal(create.status, 2)
   })
 
   it('allows the main DB and other Cloudflare calls', () => {
@@ -395,17 +482,14 @@ describe('safeguarding databases: Cloudflare MCP tools', () => {
     )
     assert.equal(cloudflare('mcp__cloudflare__docs', { query: 'D1 time travel' }).status, 0)
   })
+})
 
-  it('reads safeguarding ids from a file outside the repository', () => {
-    const home = mkdtempSync(join(tmpdir(), 'kinmeet-home-'))
-    mkdirSync(join(home, '.kinmeet'))
-    const fileId = '5afe0000-0000-4000-8000-00000000f11e'
-    writeFileSync(join(home, '.kinmeet', 'safeguarding-db-ids'), `${fileId}\n`)
-    const result = run(
-      'guard-bash.mjs',
-      { cwd: projectDir, tool_input: { command: `bunx wrangler d1 execute ${fileId} --remote` } },
-      { ...guardEnv, KINMEET_SAFEGUARDING_DB_IDS: '', HOME: home },
-    )
-    assert.equal(result.status, 2)
+describe('Bash guard: commit scan', () => {
+  it('skips an untracked symlink to a directory instead of failing', () => {
+    const { dir } = repo()
+    const target = mkdtempSync(join(tmpdir(), 'kinmeet-linked-'))
+    symlinkSync(target, join(dir, 'node_modules_link'))
+    const result = bash('git commit -m "Test commit"', dir)
+    assert.equal(result.status, 0, result.stderr)
   })
 })
