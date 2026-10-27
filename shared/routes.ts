@@ -47,7 +47,7 @@ export const publicRoutes: readonly PublicRoute[] = [
  * Access token, with the P5 headers and no third-party requests. A page here
  * must not also be in `publicRoutes`.
  */
-export const accessRoutes: readonly string[] = []
+export const accessRoutes: readonly string[] = ['/admin']
 
 export function isFormRoute(path: string, routes: readonly PublicRoute[] = publicRoutes): boolean {
   const clean = path.split('?')[0]?.replace(/\/+$/, '') || '/'
