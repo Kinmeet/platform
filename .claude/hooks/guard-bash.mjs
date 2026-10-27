@@ -11,9 +11,12 @@
 //   encrypted safeguarding table, `wrangler secret` commands on the
 //   safeguarding key, and any `wrangler d1` or D1 API command on a database
 //   that is not a main DB database (#89, #109).
+// - Blocks remote D1 commands and D1 API calls that would copy or change live
+//   personal data; live D1 metadata stays readable (#111).
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { isAbsolute, join } from 'node:path'
+import { LIVE_DATA_MESSAGE, liveD1ApiReason, liveD1CommandReason } from './lib/live-data.mjs'
 import { block, findSecrets, isSecretFile, runGuard } from './lib/patterns.mjs'
 import {
   SAFEGUARDING_KEY,
@@ -246,6 +249,10 @@ await runGuard(async (input) => {
   const projectDir = process.env.CLAUDE_PROJECT_DIR || cwd
   const reason = safeguardingReason(checked, cwd, projectDir)
   if (reason) block(`this command is not allowed: ${reason}. ${SAFEGUARDING_MESSAGE}`)
+  const liveReason =
+    liveD1CommandReason(checked, projectDir) ??
+    (/api\.cloudflare\.com/i.test(checked) ? liveD1ApiReason(checked, projectDir) : null)
+  if (liveReason) block(`this command is not allowed: ${liveReason}. ${LIVE_DATA_MESSAGE}`)
   const unknown = [
     ...unknownD1Databases(checked, projectDir),
     ...(/api\.cloudflare\.com/i.test(checked)

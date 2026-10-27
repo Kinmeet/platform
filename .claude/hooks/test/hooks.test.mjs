@@ -270,7 +270,11 @@ describe('safeguarding store: Bash', () => {
       // Refused for the SQL in the file, not because the hook failed.
       assert.match(result.stderr, /safeguarding_items table/, command)
     }
-    assert.equal(sgBash('bunx wrangler d1 execute DB --remote --file ok.sql', dir).status, 0)
+    // `--env staging`: with no environment named, `DB` counts as live (#112).
+    assert.equal(
+      sgBash('bunx wrangler d1 execute DB --remote --env staging --file ok.sql', dir).status,
+      0,
+    )
   })
 
   it('blocks wrangler secret commands on a safeguarding key in every environment', () => {
@@ -311,9 +315,11 @@ describe('safeguarding store: Bash', () => {
     ]) {
       assert.equal(sgBash(command).status, 2, command)
     }
+    // `time-travel info` on live is refused by the live data check (#111), so
+    // the allowed case here is staging.
     for (const command of [
       'bunx wrangler d1 time-travel restore DB --env staging --timestamp 1',
-      'bunx wrangler d1 time-travel info DB --env live',
+      'bunx wrangler d1 time-travel info DB --env staging',
     ]) {
       assert.equal(sgBash(command).status, 0, command)
     }
@@ -481,6 +487,122 @@ describe('safeguarding store: Cloudflare MCP tools', () => {
       0,
     )
     assert.equal(cloudflare('mcp__cloudflare__docs', { query: 'D1 time travel' }).status, 0)
+  })
+})
+
+describe('live personal data (#111)', () => {
+  it('blocks remote D1 commands that could copy or change live data', () => {
+    for (const command of [
+      'bunx wrangler d1 export DB --env live --remote --output live.sql',
+      'bunx wrangler d1 export kinmeet-live --remote --output live.sql',
+      `bunx wrangler d1 export ${liveDbId} --remote --output live.sql`,
+      'bunx wrangler d1 execute DB --env live --remote --command "SELECT * FROM form_submissions"',
+      'bunx wrangler d1 execute DB --env=live --remote --command "SELECT 1"',
+      'npx wrangler d1 execute DB -e live --remote --command "SELECT 1"',
+      'bunx wrangler d1 execute kinmeet-live --remote --command "SELECT 1"',
+      // Without an explicit --local, the hook refuses rather than rely on wrangler's default.
+      'bunx wrangler d1 execute kinmeet-live --command "SELECT 1"',
+      'bunx wrangler d1 migrations apply DB --env live --remote',
+      'bunx wrangler d1 time-travel info DB --env live',
+      'bunx wrangler d1 insights kinmeet-live',
+      'bunx wrangler d1 delete kinmeet-live',
+      'bunx wrangler d1 list && bunx wrangler d1 export DB --env live --remote --output x.sql',
+      'scripts/d1-migrate.sh live',
+      'bash scripts/d1-migrate.sh "live"',
+    ]) {
+      const result = sgBash(command)
+      assert.equal(result.status, 2, command)
+      assert.match(result.stderr, /live/, command)
+    }
+  })
+
+  it('blocks D1 API calls on a live database other than reading its details', () => {
+    const base = `https://api.cloudflare.com/client/v4/accounts/x/d1/database/${liveDbId}`
+    for (const command of [
+      `curl -X POST ${base}/query -d '{"sql":"SELECT * FROM form_submissions"}'`,
+      `curl ${base}/raw -d '{"sql":"SELECT 1"}'`,
+      `curl -X POST ${base}/export -d '{"output_format":"polling"}'`,
+      `curl -X POST ${base}/import`,
+      `curl -X DELETE ${base}`,
+      `curl --request PATCH ${base} --data '{}'`,
+    ]) {
+      assert.equal(sgBash(command).status, 2, command)
+    }
+    for (const code of [
+      `await cf.post('/accounts/x/d1/database/${liveDbId}/query', { sql: 'SELECT 1' })`,
+      `await cloudflare.request({ method: 'POST', path: '/accounts/x/d1/database/${liveDbId}/export', body: {} })`,
+      `await cloudflare.request({ method: 'DELETE', path: '/accounts/x/d1/database/${liveDbId}' })`,
+      `await cloudflare.request({ method: 'GET', path: '/accounts/x/d1/database/${liveDbId}/time_travel/bookmark' })`,
+    ]) {
+      assert.equal(cloudflare('mcp__cloudflare__execute', { code }).status, 2, code)
+    }
+  })
+
+  it('blocks the Workers Bindings D1 tools on a live database, except getting its details', () => {
+    for (const tool of [
+      'mcp__Cloudflare_Developer_Platform__d1_database_query',
+      'mcp__Cloudflare_Developer_Platform__d1_database_delete',
+    ]) {
+      const result = cloudflare(tool, { database_id: liveDbId, sql: 'SELECT 1' })
+      assert.equal(result.status, 2, tool)
+    }
+    const get = cloudflare('mcp__Cloudflare_Developer_Platform__d1_database_get', {
+      database_id: liveDbId,
+    })
+    assert.equal(get.status, 0)
+  })
+
+  it('allows live metadata, local work and staging', () => {
+    for (const command of [
+      'bunx wrangler d1 migrations list DB --env live --remote',
+      'bunx wrangler d1 migrations list kinmeet-live --remote',
+      'bunx wrangler d1 info kinmeet-live',
+      `bunx wrangler d1 info ${liveDbId}`,
+      'bunx wrangler d1 execute DB --env live --local --command "SELECT 1"',
+      'bunx wrangler d1 export DB --env staging --remote --output staging.sql',
+      'bunx wrangler d1 migrations apply DB --env staging --remote',
+      'scripts/d1-migrate.sh staging',
+      `curl https://api.cloudflare.com/client/v4/accounts/x/d1/database/${liveDbId}`,
+      'grep -rn "wrangler d1 export" docs/',
+      'gh pr create --title "Guard live data" --body "Refuses wrangler d1 export DB --env live --remote"',
+    ]) {
+      assert.equal(sgBash(command).status, 0, command)
+    }
+    for (const code of [
+      `await cloudflare.request({ method: 'GET', path: '/accounts/x/d1/database/${liveDbId}' })`,
+      `await cf.post('/accounts/x/d1/database/${stagingDbId}/query', { sql: 'SELECT 1' })`,
+    ]) {
+      assert.equal(cloudflare('mcp__cloudflare__execute', { code }).status, 0, code)
+    }
+  })
+
+  it('reads the live database from the real wrangler.jsonc', async () => {
+    const { liveDatabases } = await import('../lib/safeguarding.mjs')
+    // If this fails, the wrangler.jsonc layout changed and the live checks would see nothing.
+    assert.ok(liveDatabases(projectDir).ids.has(liveDbId))
+    assert.ok(liveDatabases(projectDir).names.has('kinmeet-live'))
+  })
+
+  it('counts a database command with no staging environment as live (#112)', () => {
+    for (const command of [
+      'CLOUDFLARE_ENV=live bunx wrangler d1 execute DB --remote --command "select 1"',
+      'export CLOUDFLARE_ENV=live && bunx wrangler d1 export DB --remote --output x.sql',
+      'bunx wrangler d1 execute DB --remote --command "select 1"',
+      'bunx wrangler d1 export DB --remote --output x.sql',
+      'CLOUDFLARE_ENV=live bunx wrangler d1 execute DB --env staging --remote --command "select 1"',
+    ]) {
+      assert.equal(sgBash(command).status, 2, command)
+    }
+    for (const command of [
+      'bunx wrangler d1 execute DB --env staging --remote --command "select 1"',
+      'bunx wrangler d1 execute kinmeet-staging --remote --command "select 1"',
+      `bunx wrangler d1 execute ${stagingDbId} --remote --command "select 1"`,
+      'bunx wrangler d1 execute DB --local --command "select 1"',
+      'bunx wrangler d1 list',
+      'bunx wrangler d1 migrations list DB',
+    ]) {
+      assert.equal(sgBash(command).status, 0, command)
+    }
   })
 })
 
