@@ -20,8 +20,21 @@ export const SAFEGUARDING_KEY = /safeguarding_key/i
 /** The live Worker, by its dashboard name or its wrangler name. */
 export const LIVE_WORKER = /\b(platform|kinmeet)-live\b/i
 
-/** The staging Worker, which also serves the Previews. */
-export const STAGING_WORKER = /\bplatform-staging\b/i
+/**
+ * Every Worker script path segment in `text` (`/workers/scripts/<segment>`)
+ * that is not the literal staging Worker, `platform-staging`, which also
+ * serves the Previews. A segment built at run time (`${w}`, `' + w`, a shell
+ * variable) is never allowed, as in `unknownD1Paths`.
+ */
+export function unknownScriptPaths(text) {
+  const unknown = []
+  for (const [, segment] of text.matchAll(/\/workers\/scripts\/([^/?#\s]*)/gi)) {
+    const literal =
+      /^platform-staging(?![\w-])/i.test(segment) && !/[$`{(+]/.test(segment.slice(16))
+    if (!literal) unknown.push(segment || '(built at run time)')
+  }
+  return unknown
+}
 
 /**
  * The D1 databases agents may use: every `database_name` and `database_id` in
@@ -69,14 +82,18 @@ export function unknownD1Paths(text, allowedIds) {
 /**
  * Why a Cloudflare API call (MCP tool input, or a curl to the API) is refused,
  * or null. Every such call reaches a real account, so naming the table is
- * enough. The key may be set only on the staging Worker, by code that
- * generates it in the Cloudflare runtime; a live Worker, or a Worker the hook
- * cannot see, is refused.
+ * enough. The key may be handled only on the staging Worker, by code that
+ * generates it in the Cloudflare runtime: every Worker script path must be
+ * the literal staging Worker, and there must be at least one. A live Worker,
+ * or a Worker the hook cannot see, is refused.
  */
 export function cloudflareCallReason(text) {
   if (SAFEGUARDING_TABLE.test(text)) return 'it touches the safeguarding_items table'
-  if (SAFEGUARDING_KEY.test(text) && (LIVE_WORKER.test(text) || !STAGING_WORKER.test(text)))
-    return 'it handles the safeguarding key outside the staging Worker'
+  if (SAFEGUARDING_KEY.test(text)) {
+    const scripts = [...text.matchAll(/\/workers\/scripts\//gi)].length
+    if (LIVE_WORKER.test(text) || scripts === 0 || unknownScriptPaths(text).length > 0)
+      return 'it handles the safeguarding key outside the staging Worker'
+  }
   return null
 }
 

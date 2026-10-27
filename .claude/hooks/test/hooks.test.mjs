@@ -4,7 +4,7 @@
 // Every token below is made up. Real-looking values are assembled at run
 // time so this file never contains one.
 import { execFileSync, spawnSync } from 'node:child_process'
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, it } from 'node:test'
@@ -372,6 +372,11 @@ describe('safeguarding store: Cloudflare MCP tools', () => {
       "await cf.put('/accounts/x/workers/scripts/kinmeet-live/secrets', { name: 'SAFEGUARDING_KEY_PREVIOUS' })",
       "await cf.put(`/accounts/x/workers/scripts/${w}/secrets`, { name: 'SAFEGUARDING_KEY' })",
       "const s = await cf.get('/accounts/x/workers/scripts/platform-staging/secrets'); await cf.put('/accounts/x/workers/scripts/platform-live/secrets', { name: 'SAFEGUARDING_KEY' })",
+      // Naming the staging Worker in a comment does not make a built path safe.
+      "const w = 'platform-' + 'li' + 've' // platform-staging\nawait cf.put(`/accounts/x/workers/scripts/${w}/secrets`, { name: 'SAFEGUARDING_KEY' })",
+      "await cf.put('/accounts/x/workers/scripts/' + w + '/secrets', { name: 'SAFEGUARDING_KEY' }) // platform-staging",
+      "await cf.put('/accounts/x/workers/scripts/platform-staging-copy/secrets', { name: 'SAFEGUARDING_KEY' })",
+      "await cf.put(path, { name: 'SAFEGUARDING_KEY' }) // platform-staging",
     ]) {
       assert.equal(cloudflare('mcp__cloudflare__execute', { code }).status, 2, code)
     }
@@ -434,5 +439,15 @@ describe('safeguarding store: Cloudflare MCP tools', () => {
       0,
     )
     assert.equal(cloudflare('mcp__cloudflare__docs', { query: 'D1 time travel' }).status, 0)
+  })
+})
+
+describe('Bash guard: commit scan', () => {
+  it('skips an untracked symlink to a directory instead of failing', () => {
+    const { dir } = repo()
+    const target = mkdtempSync(join(tmpdir(), 'kinmeet-linked-'))
+    symlinkSync(target, join(dir, 'node_modules_link'))
+    const result = bash('git commit -m "Test commit"', dir)
+    assert.equal(result.status, 0, result.stderr)
   })
 })

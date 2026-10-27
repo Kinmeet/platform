@@ -173,7 +173,9 @@ function scanBeforeCommit(cwd) {
   let text = addedLines(tryGit(cwd, [...base, '--unified=0', '--diff-filter=ACMR']) ?? '')
   for (const file of untracked) {
     const path = join(cwd, file)
-    if (!existsSync(path) || statSync(path).size > MAX_SCAN_BYTES) continue
+    // A symlink to a directory (a linked node_modules, say) is not a file to scan.
+    if (!existsSync(path) || !statSync(path).isFile() || statSync(path).size > MAX_SCAN_BYTES)
+      continue
     text += `\n${readFileSync(path, 'utf8')}`
   }
   check([...changed, ...untracked], text, 'this commit')
