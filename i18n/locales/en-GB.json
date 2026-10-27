@@ -135,7 +135,7 @@
         },
         "connection_to_founders": {
           "label": "Are you connected to anyone already on the founding team?",
-          "hint": "Trustees need to be independent of each other. The other roles don't have this rule.",
+          "hint": "Trustees, including the treasurer and safeguarding lead, need to be independent of each other. Roles that aren't trustee roles, like the artists and pilot group leads, don't have this rule.",
           "summary": "Connected to the founding team",
           "choices": {
             "no": "No",
@@ -201,6 +201,7 @@
       "summary": "Keep the accounts, and publish a money summary by category every quarter, so anyone can see where it goes.",
       "tags": {
         "volunteer": "Volunteer",
+        "trustee": "A trustee role",
         "how_many": "1 person",
         "time": "Minutes a week"
       }
@@ -213,6 +214,112 @@
         "how_many": "A few people, plus friends",
         "time": "One Saturday a month"
       }
+    }
+  },
+  "apply": {
+    "applying_for": "Applying for: {role}",
+    "page_title": "Step {step} of 4: {title}, {action}",
+    "page_title_error": "Error: Step {step} of 4: {title}, {action}",
+    "progress": "Step {step} of 4: {title}",
+    "steps_label": "Application steps",
+    "steps": {
+      "1": "Check it fits",
+      "2": "About you",
+      "3": "About the role",
+      "4": "Check and send"
+    },
+    "step_status": {
+      "done": "Done",
+      "current": "Current step",
+      "todo": "Not started"
+    },
+    "intro": "Four short steps, about five minutes. Your answers stay in this browser tab until you send them.",
+    "time_note": "About five minutes. Your answers stay in this browser tab until you send them.",
+    "about_you": {
+      "callName": {
+        "label": "What should we call you?",
+        "hint": "Your name or your community name. This is what we'll use."
+      },
+      "email": {
+        "label": "Email address",
+        "hint": "We'll only use it to reply about your application."
+      }
+    },
+    "continue": "Continue",
+    "back": "Back",
+    "send": "Send application",
+    "sending": "Sending your application.",
+    "change": "Change",
+    "change_label": "Change your answers: {section}",
+    "no_answer": "Not answered",
+    "where_it_goes": {
+      "heading": "Where this goes",
+      "body": "Your application is stored securely by Kinmeet, and only the founder reads it. If you're not appointed, we delete it 6 months after we tell you. If you are, it becomes part of your trustee record. The privacy notice has the details."
+    },
+    "noscript": "This form needs JavaScript to work. Please turn it on, or come back in a browser that has it.",
+    "errors": {
+      "summary": "There is 1 thing to fix | There are {count} things to fix",
+      "summary_item": "{question}: {message}",
+      "choice_required": "Choose an answer to carry on.",
+      "confirm_required": "Tick the box to confirm, or go back if one of the rules applies to you.",
+      "answer_required": "Answer this question to carry on. A few sentences is plenty.",
+      "answer_too_long": "Your answer is a bit long. Keep it to {max} characters or fewer.",
+      "callName": {
+        "required": "Tell us what to call you. A community name is fine.",
+        "too_long": "That's a long name. Keep it to {max} characters or fewer."
+      },
+      "email": {
+        "required": "Enter your email address, so we can reply.",
+        "too_long": "That email address is too long. Check it's typed correctly.",
+        "invalid_email": "That email address looks incomplete. Check it has a full domain, like name{'@'}example.com."
+      }
+    },
+    "fields": {
+      "callName": "What to call you",
+      "email": "Email address",
+      "spam_check": "Spam check"
+    },
+    "redirect": {
+      "restarted": "We've started again at step 1, because answers aren't kept if the page reloads.",
+      "earlier_step": "There's a step to finish first, so we've taken you to it."
+    },
+    "stop": {
+      "under_18": {
+        "title": "These roles need an adult",
+        "body": "Thanks for wanting to help. Every one of these roles involves checks, money or responsibility, so they're for people aged 18 or over.",
+        "next": "When meets start, all-ages is the whole point, and you'd be very welcome. If you're under 16, come along with a parent or carer. If you're 16 or 17, you can come on your own once a parent or carer has said yes."
+      },
+      "not_independent": {
+        "title": "Trustees need to be independent",
+        "body": "Thanks for wanting to help. Trustees hold each other to account, so a trustee can't be related to, in a relationship with, or living with anyone else on the founding team.",
+        "next": "Roles that aren't trustee roles, like the artists and pilot group leads, don't have this rule, so have a look at those."
+      },
+      "see_roles": "See all the roles",
+      "say_hello": "Say hello",
+      "page_title": "{title}, {action}"
+    },
+    "send_again": "Try sending again",
+    "failed": {
+      "title": "That didn't send",
+      "unavailable": "Something went wrong at our end, so your application may not have reached us. Your answers are still here, and trying again won't send it twice.",
+      "rate_limited": "There have been a lot of tries from here in a short time. Your answers are still here. Please wait a minute, then try again.",
+      "spam_check": "The spam check couldn't load, so your application can't be sent at the moment. Your answers are still here, but they'll be lost if the page reloads.",
+      "copy_note": "If it still won't send, copy your answers so you don't lose them.",
+      "copy": "Copy my answers",
+      "copied": "Copied. Paste them somewhere safe, like a note or an email to yourself.",
+      "copy_fallback": "Your answers are in the box below, already selected. Use your device's copy command to copy them.",
+      "copy_box_label": "Your answers",
+      "say_hello_note": "You can also tell us it didn't work on the say hello page."
+    },
+    "sent": {
+      "label": "Sent",
+      "title": "Thanks, {name}. Your application is with us.",
+      "receipt_queued": "We've emailed you a short receipt. It doesn't repeat your answers, so keep a note of anything you'd like to remember.",
+      "receipt_not_requested": "We don't send your answers back to you, so keep a note of anything you'd like to remember.",
+      "next": "What happens next",
+      "back_to_roles": "Back to the roles",
+      "questions": "Questions in the meantime? You can ask on the say hello page.",
+      "page_title": "Application sent, {action}"
     }
   },
   "forms": {

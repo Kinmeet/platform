@@ -46,13 +46,13 @@ Sources: P1 Phase 1, P3 data map and retention, S5 (Turnstile). Not collected: p
 }
 ```
 
-| Field            | Rule                                                                                                                                                                     |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `callName`       | Required, 1-60. Whatever name they want to be called; never "legal name".                                                                                                |
-| `email`          | Required, at most 254, basic syntax check only; refused with `invalid_email` if it contains CR, LF or any other control character, so it can never inject a mail header. |
-| `submissionId`   | Required, a UUID (see shared rules).                                                                                                                                     |
-| `turnstileToken` | Required, a string of at most 2048 characters.                                                                                                                           |
-| `message`        | Required, 1-2000.                                                                                                                                                        |
+| Field            | Rule                                                                                                                                                                                                                                                                                                               |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `callName`       | Required, 1-60. Whatever name they want to be called; never "legal name".                                                                                                                                                                                                                                          |
+| `email`          | Required, at most 254, basic syntax check only: something, an `@`, then a domain of two or more dot-separated labels, none empty (so `example..org` and a trailing dot are refused, #98). Refused with `invalid_email` if it contains CR, LF or any other control character, so it can never inject a mail header. |
+| `submissionId`   | Required, a UUID (see shared rules).                                                                                                                                                                                                                                                                               |
+| `turnstileToken` | Required, a string of at most 2048 characters.                                                                                                                                                                                                                                                                     |
+| `message`        | Required, 1-2000.                                                                                                                                                                                                                                                                                                  |
 
 Stored in D1 with a deletion date of **12 months after our last reply** (P3). On insert, `delete_after` is set to 12 months after receipt, and each reply we send pushes it to 12 months after that reply, so a message we never answer is still deleted. No receipt email for say hello in Sprint 1 (`receipt: "not_requested"`).
 

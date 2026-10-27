@@ -41,6 +41,7 @@ const treasurer = {
   published: false,
   tags: [
     { id: 'volunteer', style: 'info' },
+    { id: 'trustee', style: 'info' },
     { id: 'how_many', style: 'info' },
     { id: 'time', style: 'info' },
   ],
