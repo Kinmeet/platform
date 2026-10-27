@@ -1,5 +1,7 @@
 # Nuxt modules audit
 
+> **Status, 27 October 2026:** parts of this audit have moved on. The founder has chosen to adopt NuxtHub, so the NuxtHub section below is superseded by ADR-0009 (#114) once that merges. The interim safeguarding store is now an encrypted table in the main D1 (#110), so there is no separate `SAFEGUARDING_DB`. #116 plans one Worker instead of two. The rest stands as written.
+
 Researched by Ines Duarte (Research Scout), 26 October 2026, for issue #104 and the Head of Delivery's request for a module audit.
 
 Versions, licences and publish dates come from the npm registry (`npm view`, 26 October 2026). Behaviour claims come from each module's published package source (read with `npm pack`) or official docs, linked inline. The code reviewed is `main` at `743adde` plus the open pull requests listed against each area.
