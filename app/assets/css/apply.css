@@ -1,0 +1,233 @@
+/* The apply flow (#15). Phone first: the progress bar sits above the step.
+   From 56rem the step list takes a column on the left, as the desktop step 3
+   artboard, and the bar is hidden. Only one of the two is ever displayed, so
+   screen readers meet the progress once. */
+
+.apply {
+  padding: 22px var(--gutter) var(--space-7);
+}
+
+.apply__layout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.apply__side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.apply__steps,
+.apply__time {
+  display: none;
+}
+
+.apply__main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+/* Always on the page so it is announced when it fills; no box while empty. */
+.apply__notice:empty {
+  padding: 0;
+  border: 0;
+}
+
+.apply__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.apply__heading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.apply__heading h1 {
+  font-size: var(--text-title);
+}
+
+.apply__heading h1:focus {
+  outline: none;
+}
+
+.apply__note-title {
+  font-weight: var(--weight-bold);
+}
+
+.apply__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.apply__actions .button--ghost {
+  align-self: center;
+}
+
+.apply__noscript {
+  margin-bottom: var(--space-5);
+}
+
+/* Phone progress: words first, then a four-part bar. */
+.apply-progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.apply-progress__label {
+  font-weight: var(--weight-bold);
+}
+
+.apply-progress__bar {
+  display: flex;
+  gap: 6px;
+}
+
+.apply-progress__segment {
+  flex: 1;
+  height: 12px;
+  border: var(--border-thin);
+  border-radius: var(--radius-pill);
+  background: var(--colour-elevated);
+}
+
+.apply-progress__segment--done {
+  background: var(--colour-wilder-green);
+}
+
+.apply-progress__segment--current {
+  background: var(--colour-sunwarm);
+}
+
+/* Desktop step list. Each state is a word as well as a colour. */
+.apply-steps__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.apply-steps__item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 52px;
+}
+
+.apply-steps__number {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--colour-elevated);
+  font: var(--weight-display) 1rem / 1 var(--font-display);
+}
+
+.apply-steps__item--done .apply-steps__number {
+  background: var(--colour-wilder-green);
+  color: var(--colour-cream);
+}
+
+.apply-steps__item--current .apply-steps__number {
+  background: var(--colour-sunwarm);
+}
+
+.apply-steps__text {
+  display: flex;
+  flex-direction: column;
+}
+
+.apply-steps__title {
+  font-weight: var(--weight-bold);
+}
+
+/* "Check and send": one patch per step, with its Change link. */
+.apply-check {
+  gap: var(--space-2);
+  padding: 18px 20px;
+}
+
+.apply-check__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.apply-check__head h2 {
+  font-size: var(--text-band);
+}
+
+.apply-check__head a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-weight: var(--weight-bold);
+}
+
+.apply-check__text {
+  white-space: pre-line;
+}
+
+@media (min-width: 56rem) {
+  .apply__layout {
+    display: grid;
+    grid-template-columns: 300px minmax(0, 640px);
+    gap: 80px;
+    justify-content: center;
+    align-items: start;
+  }
+
+  .apply__progress {
+    display: none;
+  }
+
+  .apply__steps,
+  .apply__time {
+    display: block;
+  }
+
+  .apply__time {
+    margin-top: var(--space-2);
+  }
+
+  .apply {
+    padding-top: 56px;
+  }
+
+  /* Continue and Back side by side. On "Check and send" the spam check sits
+     between Send and Back, so that step keeps the column. */
+  .apply__actions:not(:has(.turnstile)) {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-4);
+  }
+
+  .apply__actions:not(:has(.turnstile)) .button--ghost {
+    align-self: auto;
+  }
+
+  .apply__actions:has(.turnstile) {
+    align-items: flex-start;
+  }
+
+  .apply__actions:has(.turnstile) .button--ghost {
+    align-self: flex-start;
+  }
+}
