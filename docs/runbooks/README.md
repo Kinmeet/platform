@@ -23,6 +23,7 @@ Status: stub (Sprint 0). Owner: Tech Lead until the Docs Writer takes them over.
 | `account-recovery.md`          | Regain a locked or compromised Cloudflare or GitHub account using the second admin and the sealed record (target: 2 days) | Planned                                |
 | `rotate-safeguarding-key.md`   | Rotate the interim safeguarding store's key (#95), keeping old records readable                                           | Drafted (re-encryption task not built) |
 | `safeguarding-key-recovery.md` | Use the recovery key with two trustees to re-wrap safeguarding records (target: 1 week)                                   | Planned (M2c)                          |
+| `reseed-previews.md`           | Empty the shared Preview database, which the deletion job never reaches                                                   | Written (#115)                         |
 
 ## Template
 

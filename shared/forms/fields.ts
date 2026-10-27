@@ -8,6 +8,13 @@ import { z } from 'zod'
  * `shared/forms/errors.ts` turns into that code.
  */
 
+// Zod compiles object schemas with `new Function` unless told not to. Our
+// security policy forbids eval in the browser (P5), so even its feature test
+// is reported as a violation. Every form schema imports this file first, so
+// this runs before any object schema is made. The Worker can't eval either,
+// so it changes nothing there.
+z.config({ jitless: true })
+
 /** Length in Unicode code points, the same in the browser and on the server. */
 export function codePointLength(value: string): number {
   return [...value].length
@@ -32,12 +39,20 @@ export function text(max: number) {
     .refine((value) => codePointLength(value) <= max, { params: { code: 'too_long' }, abort: true })
 }
 
+/** Most code points a call name may have. */
+export const CALL_NAME_MAX = 60
+
 /** The name someone wants to be called (never a legal name). */
-export const callName = text(60)
+export const callName = text(CALL_NAME_MAX)
 
 // C0 and C1 control characters (CR and LF among them) and DEL.
 // eslint-disable-next-line no-control-regex
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f-\u009f]/u
+
+// Something, an @, then a domain of two or more dot-separated labels, none of
+// them empty: `example..org`, `.example.org` and a trailing dot are refused
+// (#98). Labels cannot contain a dot, so the pattern never backtracks badly.
+const EMAIL_SYNTAX = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/
 
 /**
  * Email address: at most 254 characters, basic syntax check only. Anything
@@ -57,7 +72,7 @@ export const email = z
     params: { code: 'too_long' },
     abort: true,
   })
-  .refine((value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value), {
+  .refine((value) => EMAIL_SYNTAX.test(value), {
     params: { code: 'invalid_email' },
   })
 

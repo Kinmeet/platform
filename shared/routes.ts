@@ -11,12 +11,33 @@ export interface PublicRoute {
   path: string
   /** True only for pages that show a form protected by Turnstile (S5). */
   form: boolean
+  /** The focused layout (the apply flow): no main nav and no footer. */
+  focused?: boolean
+  /**
+   * False when the spam check only appears on a later step, so the page
+   * contacts Cloudflare only once it's needed (apply step 4, Callum, #81).
+   * Form pages load it straight away otherwise. Any route that sets this
+   * must have a spec that reaches its spam-check step and asserts Turnstile
+   * loads there, as `tests/e2e/apply.spec.ts` does, because the
+   * no-third-party test no longer checks it on arrival (Nadia, #81).
+   */
+  spamCheckOnLoad?: boolean
 }
 
 export const publicRoutes: readonly PublicRoute[] = [
   { path: '/', form: false },
   // One page per published role (#13), so publishing a role adds its page here.
   ...publishedRoles().map((role) => ({ path: `/roles/${role.slug}`, form: false })),
+  // Say hello (#14): the spam check loads with the page (S5).
+  { path: '/say-hello', form: true },
+  // Its apply flow (#15): every step is one page, so the policy allows the
+  // spam check throughout, but it only loads on step 4.
+  ...publishedRoles().map((role) => ({
+    path: `/roles/${role.slug}/apply`,
+    form: true,
+    focused: true,
+    spamCheckOnLoad: false,
+  })),
 ]
 
 /**

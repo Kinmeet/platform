@@ -1,5 +1,6 @@
 import { cloudflareTest, readD1Migrations } from '@cloudflare/vitest-plugin'
 import { defineVitestProject } from '@nuxt/test-utils/config'
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitest/config'
 
 // Two projects. Unit and integration tests run inside workerd, the same
@@ -24,6 +25,8 @@ export default defineConfig({
             },
           }),
         ],
+        // Nuxt's alias for shared/, so app/ helpers can be tested as they are written.
+        resolve: { alias: { '#shared': fileURLToPath(new URL('./shared', import.meta.url)) } },
         test: {
           name: 'unit',
           include: ['tests/unit/**/*.test.ts'],

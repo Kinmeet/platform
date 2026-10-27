@@ -4,14 +4,19 @@ Every resource is in the Kinmeet Cloudflare account (`0fa695ccf43f64b3eb9fae9452
 
 Resource ids are not secrets. They live in [`wrangler.jsonc`](../wrangler.jsonc). How each environment is built and deployed is in [deploys.md](deploys.md) and [ADR-0001](adr/0001-deploys-with-workers-builds.md).
 
-| Environment           | Wrangler               | Worker                          | Built from                          | D1 (`DB`)         | KV (`KV`)         | R2 (`R2`)         | Data    |
-| --------------------- | ---------------------- | ------------------------------- | ----------------------------------- | ----------------- | ----------------- | ----------------- | ------- |
-| Local                 | top level              | `kinmeet-local`, never deployed | your machine                        | simulated         | simulated         | simulated         | made-up |
-| Pull request Previews | `env.staging.previews` | Previews of `kinmeet-staging`   | any branch except `main` and `live` | `kinmeet-preview` | `kinmeet-preview` | `kinmeet-preview` | made-up |
-| Staging               | `env.staging`          | `kinmeet-staging`               | `main`                              | `kinmeet-staging` | `kinmeet-staging` | `kinmeet-staging` | made-up |
-| Live                  | `env.live`             | `kinmeet-live`                  | `live` (the founder only)           | `kinmeet-live`    | `kinmeet-live`    | `kinmeet-live`    | real    |
+| Environment                 | Wrangler               | Worker                          | Built from                          | D1 (`DB`)         | KV (`KV`)         | R2 (`R2`)         | Data    |
+| --------------------------- | ---------------------- | ------------------------------- | ----------------------------------- | ----------------- | ----------------- | ----------------- | ------- |
+| Local                       | top level              | `kinmeet-local`, never deployed | your machine                        | simulated         | simulated         | simulated         | made-up |
+| Previews, including staging | `env.live.previews`    | Previews of `platform`          | every branch except `live`          | `kinmeet-staging` | `kinmeet-staging` | `kinmeet-staging` | made-up |
+| Live                        | `env.live`             | `platform` (production)         | `live` (the founder only)           | `kinmeet-live`    | `kinmeet-live`    | `kinmeet-live`    | real    |
+| Old staging (until step 6)  | `env.staging`          | `platform-staging`              | `main`                              | `kinmeet-staging` | `kinmeet-staging` | `kinmeet-staging` | made-up |
+| Old Previews (until step 6) | `env.staging.previews` | Previews of `platform-staging`  | any branch except `main` and `live` | `kinmeet-preview` | `kinmeet-preview` | `kinmeet-preview` | made-up |
 
-`KINMEET_ENV` is set to `staging`, `preview` or `live` so the app can tell where it is running.
+The Preview of `main` is staging: https://main-platform.kinmeet.workers.dev. Every Preview shares the `kinmeet-staging` resources, which have only ever held made-up data (on 27 October 2026 its `hello_messages`, `applications` and `email_log` tables were empty). The two "old" rows go when the founder retires the old Workers ([deploys.md](deploys.md), step 6); a follow-up removes `env.staging` and the `kinmeet-preview` resources then.
+
+`KINMEET_ENV` is set to `preview` or `live` (and `staging` on the old staging Worker) so the app can tell where it is running.
+
+`APPLY_ROUND_CLOSES_AT` (optional) is when the founding round closes, in Unix-epoch seconds. Applications that never reach a decision are deleted 6 months after that date, or 6 months after receipt if that is later (P3). Until it is set, the backstop is 6 months after receipt.
 
 ## Ids
 
@@ -28,8 +33,8 @@ R2 buckets are named, not numbered: `kinmeet-staging`, `kinmeet-preview` and `ki
 
 ## Other bindings
 
-- `FORM_RATE_LIMITER` (5 per 60 seconds) and `FORM_GLOBAL_RATE_LIMITER` (100 per 60 seconds, to be tuned by Services). Counts are per Cloudflare location. Each environment has its own `namespace_id` (local 100x, staging 110x, Previews 120x, live 130x), because limiters with the same id share counters across Workers.
-- D1 migrations live in `migrations/db/`.
+- `FORM_RATE_LIMITER` (5 per 60 seconds) and `FORM_GLOBAL_RATE_LIMITER` (100 per 60 seconds, to be tuned by Services). Counts are per Cloudflare location. Each environment has its own `namespace_id` (local 100x, old staging 110x, old Previews 120x, live 130x, Previews of `platform` 140x), because limiters with the same id share counters across Workers.
+- D1 migrations live in `migrations/db/`. Live is migrated by its deploy command, `scripts/d1-migrate.sh live`. The shared Preview database is migrated by `scripts/d1-migrate.sh preview` through `wrangler.preview-migrations.jsonc`, only in builds of `main` ([Previews, D1 migrations](https://developers.cloudflare.com/workers/previews/resources/#d1-migrations)).
 
 ## Secrets
 
@@ -62,6 +67,8 @@ Workers Logs keep only what the code logs, which is errors without personal data
 
 ## Rules
 
-- Only `env.live` may point at a `kinmeet-live` resource. Previews and staging never touch live data.
-- Never copy live data into staging or Previews. Test data is made up and obviously fake (handbook rule 2).
-- `workers_dev` is on for staging and live (no custom domain yet). `preview_urls` is on for staging only, because Worker Previews are served on `workers.dev` through it; it is off for live, so no other version of the live Worker can be reached. Preview URLs send `X-Robots-Tag: noindex`; they go behind Cloudflare Access once forms or admin pages exist.
+- Only `env.live` may point at a `kinmeet-live` resource. `env.live.previews` never does, and a unit test (`tests/unit/config/previews.test.ts`) fails if it names a live database, namespace or bucket, or if its logging settings differ from production's.
+- Previews don't inherit production settings ([Previews, configuration](https://developers.cloudflare.com/workers/previews/configuration/)), so the `previews` block repeats the P5 logging settings and every binding.
+- Never copy live data into Previews. Test data is made up and obviously fake (handbook rule 2).
+- `workers_dev` and `preview_urls` are on for `platform`. `preview_urls` is one switch for both `workers.dev` Preview URLs and Version URLs ([Wrangler configuration](https://developers.cloudflare.com/workers/wrangler/configuration/)), so Previews can't be served on `workers.dev` without it. Version URLs run production versions, rolled-back ones included, with live bindings, and are public when enabled ([Version URLs, manage access](https://developers.cloudflare.com/workers/versions-and-deployments/version-urls/#manage-access-to-version-urls)). The Access application over the Previews of `platform` must therefore also cover its Version URLs, and the team checks that a Version URL asks for sign-in before live holds real data. Preview URLs are public by default ([Previews, access control](https://developers.cloudflare.com/workers/previews/#access-control)), so the Access application over every Preview of `platform` must exist before Preview builds are switched on. `workers.dev` Preview URLs send `X-Robots-Tag: noindex`.
+- Cloudflare runs Cron Triggers on production only ([Previews, limitations](https://developers.cloudflare.com/workers/previews/resources/#limitations)), so the deletion job never clears the shared Preview database. Empty and reseed it from time to time ([runbook](runbooks/reseed-previews.md)).
