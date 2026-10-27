@@ -146,7 +146,10 @@
       },
       "logpush": false,
       "workers_dev": true,
-      // Needed for Worker Previews to be served on workers.dev.
+      // Turns on both workers.dev Preview URLs and Version URLs; Wrangler has
+      // one switch for the two. Version URLs serve production versions with
+      // live bindings, so the Access app over the Previews of `platform` must
+      // cover them too, before Previews are switched on (docs/deploys.md).
       "preview_urls": true,
       "vars": {
         "KINMEET_ENV": "live",
