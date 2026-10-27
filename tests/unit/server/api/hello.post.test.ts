@@ -2,6 +2,8 @@ import { env } from 'cloudflare:test'
 import { createApp, toWebHandler } from 'h3'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import helloHandler from '../../../../server/api/hello.post'
+import { HELLO_BODY_CAP } from '../../../../shared/forms/hello'
+import { bodyLimitFor } from '../../../../shared/routes'
 import type { RateLimiter } from '../../../../server/utils/forms/rate-limit'
 
 // Made-up test data and Cloudflare's documented dummy Turnstile values.
@@ -117,5 +119,15 @@ describe('POST /api/hello', () => {
     expect(await response.json()).toEqual({ ok: false, error: 'unavailable' })
     expect(logs).toEqual([JSON.stringify({ code: 'hello_unavailable' })])
     for (const value of Object.values(valid)) expect(logs.join()).not.toContain(value)
+  })
+})
+
+describe('the say hello body caps', () => {
+  // Nadia, #48: the Worker entry refuses a body over the route's entry limit
+  // before Nitro reads it, so the schema's own cap must fit inside it, or a
+  // valid message could be refused with 413 before the route sees it.
+  it('keeps the schema cap within the entry limit', () => {
+    expect(HELLO_BODY_CAP).toBeGreaterThan(0)
+    expect(HELLO_BODY_CAP).toBeLessThanOrEqual(bodyLimitFor('POST', '/api/hello'))
   })
 })
