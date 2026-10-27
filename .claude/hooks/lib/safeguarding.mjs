@@ -57,6 +57,35 @@ export function allowedDatabases(projectDir) {
   return { ids, names }
 }
 
+/** The live D1 databases in wrangler.jsonc: names ending `-live`, and their ids. */
+export function liveDatabases(projectDir) {
+  const ids = new Set()
+  const names = new Set()
+  const path = join(projectDir, 'wrangler.jsonc')
+  if (!existsSync(path)) return { ids, names }
+  const config = readFileSync(path, 'utf8')
+  const entry = /"database_name"\s*:\s*"([^"]+-live)"\s*,\s*"database_id"\s*:\s*"([0-9a-f-]{36})"/gi
+  for (const [, name, id] of config.matchAll(entry)) {
+    names.add(name.toLowerCase())
+    ids.add(id.toLowerCase())
+  }
+  return { ids, names }
+}
+
+/**
+ * Whether `text` restores a live database with D1 Time Travel, by
+ * `wrangler d1 time-travel restore` or the API's `time_travel/restore`. That is
+ * founder-only: it also rolls back or removes safeguarding records, though it
+ * names no table.
+ */
+export function restoresLiveDatabase(text, projectDir) {
+  if (!/time[-_]travel/i.test(text) || !/restore/i.test(text)) return false
+  if (/(--env|-e)(=|\s+)['"]?live\b/i.test(text)) return true
+  const { ids, names } = liveDatabases(projectDir)
+  const lower = text.toLowerCase()
+  return [...ids, ...names].some((value) => lower.includes(value))
+}
+
 /** The ids from `allowedDatabases`, for the D1 tools that take a bare id. */
 export function allowedDatabaseIds(projectDir) {
   return allowedDatabases(projectDir).ids

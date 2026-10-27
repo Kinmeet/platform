@@ -11,7 +11,8 @@ Source: the founder's decisions on #36 and #95 (26 October 2026), with the condi
 - **A Time Travel restore of a live database is founder-only.** Restoring the main live D1 also rolls back or removes safeguarding records, even though the command names no table.
 - **Hooks are a safety net** until then (`guard-bash.mjs` and `guard-cloudflare.mjs`, tested in `bun run test:hooks`). They refuse:
   - remote D1 commands and Cloudflare API calls that name the table;
-  - `wrangler secret` commands on a safeguarding key;
+  - `wrangler secret` commands on a safeguarding key, including a `secret bulk` file that names one (secrets from standard input are refused, because they can't be checked);
+  - a Time Travel restore of a live database;
   - Cloudflare calls that handle the key on anything but the literal staging Worker, `platform-staging`;
   - D1 commands on a database other than the main `DB` databases in `wrangler.jsonc`.
 - **Never work around a hook.** If you think you need access, stop and tell your EM. The answer goes to the safeguarding lead, not to you.

@@ -1,7 +1,8 @@
 // PreToolUse hook for the Cloudflare MCP tools (the Cloudflare API `execute`
 // tool and the older Workers Bindings D1 tools). Blocks any call that touches
 // the encrypted safeguarding table or handles the safeguarding key outside the
-// staging Worker (#89, #109), and any D1 tool call or D1 API path on a
+// staging Worker (#89, #109), any Time Travel restore of a live database,
+// and any D1 tool call or D1 API path on a
 // database id that is not a literal main `DB` id in wrangler.jsonc.
 // Exit code 2 blocks the tool call.
 import { block, runGuard } from './lib/patterns.mjs'
@@ -9,6 +10,7 @@ import {
   SAFEGUARDING_MESSAGE,
   allowedDatabaseIds,
   cloudflareCallReason,
+  restoresLiveDatabase,
   unknownD1Paths,
 } from './lib/safeguarding.mjs'
 
@@ -19,6 +21,12 @@ await runGuard(async (input) => {
 
   const reason = cloudflareCallReason(JSON.stringify(toolInput))
   if (reason) block(`this Cloudflare call is not allowed: ${reason}. ${SAFEGUARDING_MESSAGE}`)
+  if (restoresLiveDatabase(JSON.stringify(toolInput), projectDir)) {
+    block(
+      'a Time Travel restore of a live database is founder-only: it also changes the safeguarding ' +
+        `records. ${SAFEGUARDING_MESSAGE}`,
+    )
+  }
 
   // The D1 tools take a bare database id, so allow only ids we know are main databases.
   if (/d1_database/i.test(toolName) && toolInput.database_id) {

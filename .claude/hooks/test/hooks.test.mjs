@@ -234,9 +234,10 @@ describe('Bash guard: pushes and deploys', () => {
   })
 })
 
-// The staging DB id from wrangler.jsonc, which agents may use.
+// The staging and live DB ids from wrangler.jsonc, which agents may use.
 const projectDir = join(hooks, '..', '..')
 const stagingDbId = '18c80f5f-3c72-4781-8d38-98ef6cc4a096'
+const liveDbId = '3b253758-831e-4db9-bb90-fb4598f215db'
 const guardEnv = { CLAUDE_PROJECT_DIR: projectDir }
 const sgBash = (command, cwd = projectDir) =>
   run('guard-bash.mjs', { cwd, tool_input: { command } }, guardEnv)
@@ -281,6 +282,40 @@ describe('safeguarding store: Bash', () => {
       'bunx wrangler secret bulk keys.json # SAFEGUARDING_KEY',
     ]) {
       assert.equal(sgBash(command).status, 2, command)
+    }
+  })
+
+  it('reads the secrets file given to wrangler secret bulk', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'kinmeet-secrets-'))
+    writeFileSync(join(dir, 'keys.json'), '{ "SAFEGUARDING_KEY": "v1.made-up" }\n')
+    writeFileSync(join(dir, 'other.json'), '{ "MADE_UP_SECRET": "x" }\n')
+    for (const command of [
+      'bunx wrangler secret bulk keys.json --env live',
+      'bunx wrangler secret bulk --env live keys.json',
+      'bunx wrangler versions secret bulk "keys.json" --env staging',
+      // Secrets from standard input, or a missing file, cannot be checked.
+      'cat keys.json | bunx wrangler secret bulk --env live',
+      'bunx wrangler secret bulk missing.json --env live',
+    ]) {
+      assert.equal(sgBash(command, dir).status, 2, command)
+    }
+    assert.equal(sgBash('bunx wrangler secret bulk other.json --env staging', dir).status, 0)
+  })
+
+  it('blocks a Time Travel restore of a live database', () => {
+    for (const command of [
+      'bunx wrangler d1 time-travel restore DB --env live --timestamp 1',
+      'bunx wrangler d1 time-travel restore DB -e live --bookmark x',
+      'bunx wrangler d1 time-travel restore kinmeet-live --timestamp 1',
+      `curl -X POST https://api.cloudflare.com/client/v4/accounts/x/d1/database/${liveDbId}/time_travel/restore`,
+    ]) {
+      assert.equal(sgBash(command).status, 2, command)
+    }
+    for (const command of [
+      'bunx wrangler d1 time-travel restore DB --env staging --timestamp 1',
+      'bunx wrangler d1 time-travel info DB --env live',
+    ]) {
+      assert.equal(sgBash(command).status, 0, command)
     }
   })
 
@@ -380,6 +415,13 @@ describe('safeguarding store: Cloudflare MCP tools', () => {
     ]) {
       assert.equal(cloudflare('mcp__cloudflare__execute', { code }).status, 2, code)
     }
+  })
+
+  it('blocks a Time Travel restore of a live database', () => {
+    const code = `await cf.post('/accounts/x/d1/database/${liveDbId}/time_travel/restore', {})`
+    assert.equal(cloudflare('mcp__cloudflare__execute', { code }).status, 2)
+    const staging = `await cf.post('/accounts/x/d1/database/${stagingDbId}/time_travel/restore', {})`
+    assert.equal(cloudflare('mcp__cloudflare__execute', { code: staging }).status, 0)
   })
 
   it('allows the staging key to be generated in the Cloudflare runtime', () => {

@@ -21,6 +21,7 @@ import {
   SAFEGUARDING_TABLE,
   allowedDatabases,
   cloudflareCallReason,
+  restoresLiveDatabase,
   unknownD1Paths,
 } from './lib/safeguarding.mjs'
 
@@ -82,11 +83,28 @@ function unknownD1Databases(command, projectDir) {
   return unknown
 }
 
+// The file given to `wrangler secret bulk`, or null when the secrets come from
+// standard input. Flags and their values are skipped.
+function bulkSecretsFile(args) {
+  const words = (args.match(/"[^"]*"|'[^']*'|\S+/g) ?? []).map((w) => w.replace(/^['"]|['"]$/g, ''))
+  for (let i = 0; i < words.length; i++) {
+    if (words[i].startsWith('-')) {
+      if (!words[i].includes('=')) i++
+      continue
+    }
+    return words[i]
+  }
+  return null
+}
+
 // Why a command touches the safeguarding store, or null. Local D1 (`--local`,
 // the default) holds made-up data, so only a remote D1 command, a Cloudflare
-// API call or a `wrangler secret` command is checked. SQL in a `--file` is
-// read so it is checked too.
-function safeguardingReason(command, cwd) {
+// API call or a `wrangler secret` command is checked. SQL in a `--file`, and
+// the secrets file given to `wrangler secret bulk`, are read so they are
+// checked too.
+function safeguardingReason(command, cwd, projectDir) {
+  if (restoresLiveDatabase(command, projectDir))
+    return 'a Time Travel restore of a live database is founder-only, because it also changes the safeguarding records'
   if (/\bwrangler\b[\s\S]*\bd1\b/.test(command) && /--remote\b/.test(command)) {
     let sql = command
     for (const [, , path] of command.matchAll(/--file(?:=|\s+)(['"]?)([^\s'"]+)\1/g)) {
@@ -99,6 +117,19 @@ function safeguardingReason(command, cwd) {
   }
   if (/\bwrangler\b[^;&|\n]*\bsecret\b/.test(command) && SAFEGUARDING_KEY.test(command))
     return 'it reads or sets a safeguarding key'
+  for (const [, args] of command.matchAll(/\bwrangler\b[^;&|\n]*\bsecret\s+bulk\b([^;&|\n]*)/g)) {
+    const name = bulkSecretsFile(args)
+    const file = name && (isAbsolute(name) ? name : join(cwd, name))
+    if (
+      !file ||
+      !existsSync(file) ||
+      !statSync(file).isFile() ||
+      statSync(file).size > MAX_SCAN_BYTES
+    )
+      return 'the secrets given to wrangler secret bulk cannot be checked; pass a readable file'
+    if (SAFEGUARDING_KEY.test(readFileSync(file, 'utf8')))
+      return 'its secrets file sets a safeguarding key'
+  }
   if (/api\.cloudflare\.com/i.test(command)) return cloudflareCallReason(command)
   return null
 }
@@ -212,9 +243,9 @@ await runGuard(async (input) => {
   // Prose aside, heredocs and quoted text are checked too: they could feed a
   // query or an API call.
   const checked = withoutProse(fullCommand)
-  const reason = safeguardingReason(checked, cwd)
-  if (reason) block(`this command is not allowed: ${reason}. ${SAFEGUARDING_MESSAGE}`)
   const projectDir = process.env.CLAUDE_PROJECT_DIR || cwd
+  const reason = safeguardingReason(checked, cwd, projectDir)
+  if (reason) block(`this command is not allowed: ${reason}. ${SAFEGUARDING_MESSAGE}`)
   const unknown = [
     ...unknownD1Databases(checked, projectDir),
     ...(/api\.cloudflare\.com/i.test(checked)
