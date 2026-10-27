@@ -4,28 +4,37 @@ import { roleKey } from '#shared/forms/roles'
 // The apply flow's four steps (W6b, #15). State and routing live in
 // useApplication (#21); this page draws each step, checks it on Continue,
 // and shows errors the same way on every step. Steps 1 and 3 are drawn
-// from the role config; their role-specific extras are #16, and sending
-// and the end pages are #17.
+// from the role config. A step 1 answer that stops the flow shows its stop
+// page on Continue (#16). Sending and the other end pages are #17.
 definePageMeta({ layout: 'focused' })
 
 const { t } = useI18n()
 const route = useRoute()
 const role = requirePublishedRole(route.params.role)
 const key = roleKey(role.slug)
-const { draft, step, redirected, goTo, clear } = useApplication(role)
+const { draft, step, stopped, redirected, goTo, clear } = useApplication(role)
 
 const errors = ref<FieldError[]>([])
 const summary = ref<{ focus: () => void } | null>(null)
 const heading = ref<HTMLElement | null>(null)
 
+// The stop page, once Continue is pressed with an answer that stops the flow.
+const showStop = ref(false)
+const stopView = ref<{ focus: () => void } | null>(null)
+
 const stepTitle = computed(() => t(`apply.steps.${step.value}`))
 useHead({
-  title: () =>
-    t(errors.value.length ? 'apply.page_title_error' : 'apply.page_title', {
+  title: () => {
+    const action = t(`${key}.page.apply`)
+    if (showStop.value && stopped.value) {
+      return t('apply.stop.page_title', { title: t(`apply.stop.${stopped.value}.title`), action })
+    }
+    return t(errors.value.length ? 'apply.page_title_error' : 'apply.page_title', {
       step: step.value,
       title: stepTitle.value,
-      action: t(`${key}.page.apply`),
-    }),
+      action,
+    })
+  },
 })
 
 function messageFor(field: string): string | undefined {
@@ -59,6 +68,7 @@ async function showErrors(found: FieldError[]) {
 // starts at the top as usual.
 watch(step, async () => {
   errors.value = []
+  showStop.value = false
   await nextTick()
   heading.value?.focus()
 })
@@ -67,7 +77,21 @@ function onContinue() {
   if (!draft.value || step.value === 4) return
   const found = stepErrors(draft.value, role, step.value)
   if (found.length) return showErrors(found)
+  if (step.value === 1 && stopped.value) return openStop()
   goTo((step.value + 1) as Step)
+}
+
+async function openStop() {
+  errors.value = []
+  showStop.value = true
+  await nextTick()
+  stopView.value?.focus()
+}
+
+async function closeStop() {
+  showStop.value = false
+  await nextTick()
+  heading.value?.focus()
 }
 
 function onSend() {
@@ -104,12 +128,22 @@ function stepLink(target: Step) {
       <div v-if="draft" class="apply__layout">
         <div class="apply__side">
           <p class="eyebrow">{{ t('apply.applying_for', { role: t(`${key}.title`) }) }}</p>
-          <ApplyProgress class="apply__progress" :step="step" />
-          <ApplySteps class="apply__steps" :step="step" />
-          <p class="apply__time muted small">{{ t('apply.time_note') }}</p>
+          <!-- The application has ended on a stop page, so no progress (Robin, #82). -->
+          <template v-if="!(showStop && stopped)">
+            <ApplyProgress class="apply__progress" :step="step" />
+            <ApplySteps class="apply__steps" :step="step" />
+            <p class="apply__time muted small">{{ t('apply.time_note') }}</p>
+          </template>
         </div>
 
-        <div class="apply__main">
+        <ApplyStop
+          v-if="showStop && stopped"
+          ref="stopView"
+          class="apply__main"
+          :reason="stopped"
+          @back="closeStop"
+        />
+        <div v-else class="apply__main">
           <p class="apply__notice note" role="status">
             {{ redirected ? t(`apply.redirect.${redirected}`) : '' }}
           </p>
@@ -135,6 +169,10 @@ function stepLink(target: Step) {
                 :field="`checks.${check.id}`"
                 :error="messageFor(`checks.${check.id}`)"
               />
+              <div v-if="role.apply.note" class="note">
+                <p class="apply__note-title">{{ t(`${key}.apply.note.heading`) }}</p>
+                <p>{{ t(`${key}.apply.note.body`) }}</p>
+              </div>
             </template>
 
             <template v-else-if="step === 2">
