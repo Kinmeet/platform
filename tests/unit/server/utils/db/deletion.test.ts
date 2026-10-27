@@ -70,6 +70,7 @@ describe('deleteExpiredRows (retention)', () => {
       hello_messages: 2,
       applications: 2,
       email_log: 2,
+      audit_log: 0,
     })
 
     for (const table of ['hello_messages', 'applications', 'email_log']) {
@@ -103,7 +104,56 @@ describe('deleteExpiredRows (retention)', () => {
       hello_messages: 0,
       applications: 0,
       email_log: 0,
+      audit_log: 0,
     })
+  })
+})
+
+describe('deleteExpiredRows (audit log retention)', () => {
+  // The audit log refuses to delete an entry before its date by the
+  // database's own clock, and those entries cannot be cleared between tests,
+  // so these dates are relative to the real time. Made-up entries only.
+  const realNow = () => Math.floor(Date.now() / 1000)
+
+  async function addAudit(deleteAfter: number) {
+    const id = crypto.randomUUID()
+    await env.DB.prepare(
+      `INSERT INTO audit_log (id, at, actor, action, target_table, target_id, delete_after)
+       VALUES (?, ?, 'test-actor', 'mark_replied', 'hello_messages', ?, ?)`,
+    )
+      .bind(id, deleteAfter - 731 * DAY, uuid(), deleteAfter)
+      .run()
+    return id
+  }
+
+  async function auditLeft(ids: string[]) {
+    const { results } = await env.DB.prepare('SELECT id FROM audit_log').all<{ id: string }>()
+    return results
+      .map((row) => row.id)
+      .filter((id) => ids.includes(id))
+      .sort()
+  }
+
+  it('deletes audit entries whose 2 years have passed and keeps the others', async () => {
+    const now = realNow()
+    const past = await addAudit(now - DAY)
+    const justPast = await addAudit(now - 1)
+    const future = await addAudit(now + DAY)
+    const deleted = await deleteExpiredRows(env.DB, now)
+    expect(deleted.audit_log).toBe(2)
+    expect(await auditLeft([past, justPast, future])).toEqual([future])
+  })
+
+  it('never aborts the run when its time is ahead of the database clock', async () => {
+    const now = realNow()
+    const future = await addAudit(now + DAY)
+    await addHello(now + DAY)
+    // A `now` past the entry's date, but the database clock is not there yet:
+    // the entry stays, and the rest of the batch still runs.
+    const deleted = await deleteExpiredRows(env.DB, now + 2 * DAY)
+    expect(deleted.hello_messages).toBe(1)
+    expect(deleted.audit_log).toBe(0)
+    expect(await auditLeft([future])).toEqual([future])
   })
 })
 
