@@ -11,7 +11,7 @@ Read [docs/handbook.md](docs/handbook.md) before any work. Topic rules live in [
 3. **Organisers and trustees appear publicly only by role title and community name.** This includes the founder: write "the founder", never a name.
 4. **Terminology** in all user-facing text: "all-ages" (never SFW or NSFW), "local group" or "group" (never chapter), "meet" (never moot). Never name or compare other communities. British English everywhere, code comments included.
 5. **Encrypted areas** (safeguarding, password vault) are never readable by the server or the developer. Nothing in M2c goes live with real data before the outside security review.
-   - **Exception until the M2c sunset (founder, #36):** the interim safeguarding databases (`kinmeet-*-safeguarding`, `SAFEGUARDING_DB`) hold disclosures in plain text. Agents never query, export or migrate them; see [.claude/rules/safeguarding-data.md](.claude/rules/safeguarding-data.md).
+   - **Exception until the M2c sunset (founder, #36 and #95):** handed-over disclosures sit in the `safeguarding_items` table of the main D1, encrypted in the Worker with the `SAFEGUARDING_KEY` secret, so live code can decrypt them. Agents never touch that table on a real database and never see or set the live key. Before the first public form opens, agents' Cloudflare access becomes read-only (go-live condition 6). See [.claude/rules/safeguarding-data.md](.claude/rules/safeguarding-data.md).
 6. **Live releases need the founder's approval.** Staging deploys are automatic on merge to `main`.
 7. **Follow the decision documents.** Conflicts go to the Head of Delivery.
 8. **Never skip, disable or weaken a test** to get green.
