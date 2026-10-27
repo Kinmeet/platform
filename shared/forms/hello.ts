@@ -12,14 +12,15 @@ import {
   turnstileToken,
 } from './fields'
 
-const MESSAGE_MAX = 2000
+/** Most code points a say hello message may have. */
+export const HELLO_MESSAGE_MAX = 2000
 
 /** Say hello: `POST /api/hello` (docs/api/forms.md, section 1). */
 export const helloSchema = z.strictObject({
   submissionId,
   callName,
   email,
-  message: text(MESSAGE_MAX),
+  message: text(HELLO_MESSAGE_MAX),
   turnstileToken,
 })
 
@@ -30,6 +31,6 @@ export const HELLO_BODY_CAP = bodyCapBytes([
   SUBMISSION_ID_LENGTH,
   CALL_NAME_MAX,
   EMAIL_MAX,
-  MESSAGE_MAX,
+  HELLO_MESSAGE_MAX,
   TURNSTILE_TOKEN_MAX,
 ])

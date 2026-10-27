@@ -1,8 +1,11 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   // Top level: local development only (`wrangler dev`), never deployed.
-  // Deployed Workers are env.staging and env.live, built by Workers Builds
-  // (ADR-0001). Kinmeet account only. Resource ids are not secrets.
+  // Deployed: env.live is the `platform` Worker, built by Workers Builds from
+  // `live`, and its `previews` block serves every other branch, with the
+  // Preview of `main` as staging (ADR-0001, #115). env.staging is the old
+  // staging Worker, kept until the founder retires it (docs/deploys.md, step 6).
+  // Kinmeet account only. Resource ids are not secrets.
   // Every D1, KV and R2 resource was created with jurisdiction eu (P3).
   "name": "kinmeet-local",
   "account_id": "0fa695ccf43f64b3eb9fae94520109b4",
@@ -56,7 +59,8 @@
   ],
 
   "env": {
-    // Built from `main`. Every other branch gets a Preview under this Worker.
+    // Old staging Worker (`platform-staging`), built from `main` until the
+    // founder retires it (#115). Remove this block, and kinmeet-preview, then.
     "staging": {
       "name": "kinmeet-staging",
       // Same as the top level, repeated so it never depends on inheritance.
@@ -130,9 +134,10 @@
       },
     },
 
-    // Built only from the protected `live` branch. No Previews.
+    // The `platform` Worker. Production is built only from the protected
+    // `live` branch; every other branch gets a Preview (see `previews`).
     "live": {
-      "name": "kinmeet-live",
+      "name": "platform",
       // Same as the top level, repeated so it never depends on inheritance.
       "observability": {
         "enabled": true,
@@ -141,9 +146,15 @@
       },
       "logpush": false,
       "workers_dev": true,
-      "preview_urls": false,
+      // Turns on both workers.dev Preview URLs and Version URLs; Wrangler has
+      // one switch for the two. Version URLs serve production versions with
+      // live bindings, so the Access app over the Previews of `platform` must
+      // cover them too, before Previews are switched on (docs/deploys.md).
+      "preview_urls": true,
       "vars": {
         "KINMEET_ENV": "live",
+        // The only origin the forms and admin actions accept (server/utils/forms/site-origin.ts).
+        "SITE_ORIGIN": "https://platform.kinmeet.workers.dev",
         "NUXT_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAFl-e7Mi_U9gitR4",
       },
       "triggers": { "crons": ["17 3 * * *"] },
@@ -172,6 +183,49 @@
           "simple": { "limit": 100, "period": 60 },
         },
       ],
+      // Every branch except `live`, including `main` (staging). Previews do
+      // not inherit production settings, so everything they need is here.
+      // Made-up data only: never name a kinmeet-live resource here (a unit
+      // test checks). No crons: Cloudflare runs Cron Triggers on production
+      // only. Migrations: scripts/d1-migrate.sh preview, from `main` builds.
+      "previews": {
+        // Same as production, repeated because Previews don't inherit it (P5).
+        "observability": {
+          "enabled": true,
+          "logs": { "enabled": true, "invocation_logs": false },
+          "traces": { "enabled": false },
+        },
+        "logpush": false,
+        "vars": {
+          "KINMEET_ENV": "preview",
+          // `*` is one Preview name (one DNS label), honoured only because
+          // KINMEET_ENV is `preview`.
+          "SITE_ORIGIN": "https://*-platform.kinmeet.workers.dev",
+          "NUXT_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAFl6NMpfqLbGGZRZ",
+        },
+        "d1_databases": [
+          {
+            "binding": "DB",
+            "database_name": "kinmeet-staging",
+            "database_id": "18c80f5f-3c72-4781-8d38-98ef6cc4a096",
+            "migrations_dir": "migrations/db",
+          },
+        ],
+        "kv_namespaces": [{ "binding": "KV", "id": "5a9d7b8c548a4c3a8d596eec650a474b" }],
+        "r2_buckets": [{ "binding": "R2", "bucket_name": "kinmeet-staging", "jurisdiction": "eu" }],
+        "ratelimits": [
+          {
+            "name": "FORM_RATE_LIMITER",
+            "namespace_id": "1401",
+            "simple": { "limit": 5, "period": 60 },
+          },
+          {
+            "name": "FORM_GLOBAL_RATE_LIMITER",
+            "namespace_id": "1402",
+            "simple": { "limit": 100, "period": 60 },
+          },
+        ],
+      },
     },
   },
 }
