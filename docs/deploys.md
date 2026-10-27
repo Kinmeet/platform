@@ -44,6 +44,8 @@ Do these after the team's config pull request for #115 has merged, so the first 
 
 ### 2. Turn on Previews
 
+First tell Rowan the Worker exists and wait for the team to confirm that the Access application covering every Preview of `platform` is in place. Preview URLs are public by default ([Previews, access control](https://developers.cloudflare.com/workers/previews/#access-control)), so Previews, including staging, must not be switched on before it exists.
+
 1. Open `platform`, then **Settings**, then **Build**, then **Branch control**.
 2. Tick **Enable Preview Builds**.
 3. Set the **Preview command** to `scripts/d1-migrate.sh preview && npx wrangler preview --env live` ([Preview command](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/#preview-command)).
@@ -51,10 +53,9 @@ Do these after the team's config pull request for #115 has merged, so the first 
 
 ### 3. Tell the team
 
-Tell Rowan the Worker exists. The team then, without needing anything from you:
+Tell Rowan Previews are on. The team then, without needing anything from you:
 
 - sets the Previews Base secrets, generated inside Cloudflare so nobody sees them;
-- creates the Access application for every Preview of `platform`, with the `Kinmeet admins` policy;
 - creates Access applications for the production paths `/admin`, `/api/admin`, `/safeguarding` and `/api/safeguarding` on `platform.kinmeet.workers.dev`, **with no policy**, so they let nobody in until you add one;
 - adds the new addresses to the Turnstile widgets' hostname lists (the old ones are removed in step 6);
 - runs a Preview build of `main` and checks it.
