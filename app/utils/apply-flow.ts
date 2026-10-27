@@ -204,9 +204,21 @@ export function toRequest(draft: ApplicationDraft, role: PublishedRole, turnstil
   }
 }
 
+/** The request field for the spam check token, which the server names in its 403. */
+export const TURNSTILE_FIELD = 'turnstileToken'
+
+/**
+ * Why Send didn't work, for "That didn't send" with Copy my answers (#17):
+ * our end failed, too many tries, or the spam check couldn't load.
+ */
+export type SendProblem = 'unavailable' | 'rate_limited' | 'spam_check'
+
 /** What the page should do with the API's reply (docs/api/forms.md, "Responses"). */
+/** Whether Services queued the receipt email (docs/api/forms.md). */
+export type Receipt = 'queued' | 'not_requested'
+
 export type SendOutcome =
-  | { kind: 'sent' }
+  | { kind: 'sent'; receipt: Receipt }
   /** Show the error summary on the earliest step with a problem, with that step's errors only; keep every answer. */
   | { kind: 'invalid'; step: Step; errors: FieldError[] }
   /** End on the stop page. The page stops first; this is the server's backstop. */
@@ -230,8 +242,11 @@ function isFieldError(value: unknown): value is FieldError {
 }
 
 export function readSendResponse(status: number, body: unknown): SendOutcome {
-  if (status === 200 || status === 201) return { kind: 'sent' }
   const reply = (typeof body === 'object' && body !== null ? body : {}) as Record<string, unknown>
+  // Only claim a receipt was emailed when the server says so.
+  if (status === 200 || status === 201) {
+    return { kind: 'sent', receipt: reply.receipt === 'queued' ? 'queued' : 'not_requested' }
+  }
   const errors = Array.isArray(reply.errors) ? reply.errors.filter(isFieldError) : []
 
   if (status === 403 && errors.some((error) => error.code === 'turnstile_failed')) {
@@ -297,6 +312,10 @@ export function errorMessage(error: FieldError, role: PublishedRole): ErrorMessa
         }
       : { key: 'apply.errors.answer_required', params: {}, questionKey }
   }
+  // The spam check isn't a question; its summary item links to Send (#17).
+  if (error.field === TURNSTILE_FIELD) {
+    return { key: 'forms.turnstile.failed', params: {}, questionKey: 'apply.fields.spam_check' }
+  }
   const params: Record<string, number> =
     error.code === 'too_long' ? { max: error.field === 'email' ? EMAIL_MAX : CALL_NAME_MAX } : {}
   return {
@@ -304,4 +323,40 @@ export function errorMessage(error: FieldError, role: PublishedRole): ErrorMessa
     params,
     questionKey: `apply.fields.${error.field}`,
   }
+}
+
+type Translate = (key: string, params?: Record<string, unknown>) => string
+
+/**
+ * Every answer as plain text, for "Copy my answers" when a send fails (#17).
+ * Laid out like Check and send, so it reads well pasted into a note or an
+ * email. It names no Kinmeet address: there's no domain yet.
+ */
+export function answersText(draft: ApplicationDraft, role: PublishedRole, t: Translate): string {
+  const key = roleKey(role.slug)
+  const none = t('apply.no_answer')
+  const line = (label: string, value: string | undefined) => `${label}: ${value?.trim() || none}`
+  const checks = role.apply.checks.map((check) => {
+    const answer = draft.checks[check.id]
+    return line(
+      t(`${key}.questions.${check.id}.summary`),
+      answer ? t(`${key}.questions.${check.id}.choices.${answer}`) : undefined,
+    )
+  })
+  const answers = role.apply.questions.map((question) =>
+    line(t(`${key}.questions.${question.id}.summary`), draft.answers[question.id]),
+  )
+  return [
+    t('apply.applying_for', { role: t(`${key}.title`) }),
+    '',
+    t('apply.steps.1'),
+    ...checks,
+    '',
+    t('apply.steps.2'),
+    line(t('apply.fields.callName'), draft.callName),
+    line(t('apply.fields.email'), draft.email),
+    '',
+    t('apply.steps.3'),
+    ...answers,
+  ].join('\n')
 }

@@ -1,49 +1,20 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import en from '../../i18n/locales/en-GB.json' with { type: 'json' }
 import { publicRoutes } from '../../shared/routes'
 import { TURNSTILE_ORIGIN } from '../../shared/turnstile'
+import {
+  APPLY,
+  continueOn,
+  finishStep1,
+  finishStep2,
+  finishStep3,
+  openApply as open,
+} from './apply-helpers'
 import { allowedOrigins, watchPage } from './helpers'
 
 // The apply flow's step pages (#15). Test answers are made up.
 const trustee = en.roles.trustee
 const questions = trustee.questions
-const APPLY = '/roles/trustee/apply'
-
-async function open(page: Page, path = APPLY) {
-  await page.goto(path, { waitUntil: 'networkidle' })
-  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-}
-
-async function continueOn(page: Page) {
-  await page.getByRole('button', { name: en.apply.continue }).click()
-}
-
-async function finishStep1(page: Page) {
-  await page
-    .getByRole('group', { name: questions.over_18.label })
-    .getByRole('radio', { name: questions.over_18.choices.yes })
-    .check()
-  await page
-    .getByRole('group', { name: questions.connection_to_founders.label })
-    .getByRole('radio', { name: questions.connection_to_founders.choices.no, exact: true })
-    .check()
-  await page.getByRole('checkbox', { name: questions.trustee_rules_confirmed.label }).check()
-  await continueOn(page)
-  await expect(page).toHaveURL(/step=2$/)
-}
-
-async function finishStep2(page: Page) {
-  await page.getByLabel(en.apply.about_you.callName.label).fill('Test Applicant')
-  await page.getByLabel(en.apply.about_you.email.label).fill('test.applicant@example.com')
-  await continueOn(page)
-  await expect(page).toHaveURL(/step=3$/)
-}
-
-async function finishStep3(page: Page) {
-  await page.getByLabel(questions.why_trustee.label).fill('Made-up reason for testing.')
-  await continueOn(page)
-  await expect(page).toHaveURL(/step=4$/)
-}
 
 test.describe('apply flow steps', () => {
   test('starts at step 1 with the role and progress', async ({ page }) => {
@@ -138,22 +109,6 @@ test.describe('apply flow steps', () => {
     await expect(page.getByRole('checkbox')).toBeChecked()
     await continueOn(page)
     await expect(page.getByLabel(en.apply.about_you.callName.label)).toHaveValue('Test Applicant')
-  })
-
-  test('Send stops after its checks and sends nothing yet (#17)', async ({ page }) => {
-    const sends: string[] = []
-    page.on('request', (request) => {
-      if (request.method() === 'POST') sends.push(request.url())
-    })
-    await open(page)
-    await finishStep1(page)
-    await finishStep2(page)
-    await finishStep3(page)
-    await page.getByRole('button', { name: en.apply.send }).click()
-    // Give any request a moment to start; the spam check keeps the network busy.
-    await page.waitForTimeout(1000)
-    expect(sends).toEqual([])
-    await expect(page).toHaveURL(/step=4$/)
   })
 
   // The spam check loads only once it's needed (Callum, #81), so anyone who

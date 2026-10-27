@@ -220,6 +220,59 @@
   gap: var(--space-3);
 }
 
+.apply__sending:empty {
+  display: none;
+}
+
+/* "That didn't send" (#17): the error summary's box, with Copy my answers. */
+.send-failed {
+  align-items: flex-start;
+}
+
+.send-failed__copy {
+  min-height: 46px;
+}
+
+.send-failed__status:empty {
+  display: none;
+}
+
+.send-failed .field {
+  align-self: stretch;
+}
+
+/* The sent page (#17): one column, like the stop pages, with the next steps
+   stacked even on a wide screen. */
+.apply__sent {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.apply-sent {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-5);
+}
+
+.apply-sent h1 {
+  font-size: var(--text-title);
+}
+
+.apply-sent h1:focus {
+  outline: none;
+}
+
+.apply-sent__next {
+  align-self: stretch;
+  gap: 18px;
+  background: var(--colour-sand);
+}
+
+.apply-sent__next .role-next__steps {
+  display: flex;
+}
+
 @media (min-width: 56rem) {
   .apply__layout {
     display: grid;
