@@ -39,6 +39,11 @@ How each gap is closed (all checked in the spike):
 
 5. **Hooks fail closed on the chosen environment (Security Reviewer, on #112).** Once the redirected config exists, every Wrangler command reads the generated file and ignores `--env`. So `--env` proves nothing. Any remote D1 command that targets the `DB` binding counts as live, with or without `--env`, and so does `CLOUDFLARE_ENV=live` anywhere in the command. Staging work must name the database itself, `kinmeet-staging` or its id. The match is on the exact name or id, never a substring. If #112 doesn't already do this, phase 1 adds it to `guard-bash.mjs`, with tests, before the entry change lands.
 
+Notes from the Research Scout (on #114), for phase 1:
+
+- Every hand-run `wrangler d1 migrations` command writes `--config wrangler.jsonc`, in `docs/deploys.md` and in the `kinmeet-new-migration` skill. The spike's local `apply` through the redirected config did find our migrations, but phase 1 checks this for `list` and remote commands too. If it's cheap, the Bash hook refuses a remote `d1 migrations` command without `--config`.
+- `hub.db` also sets `applyMigrationsDuringBuild: false` explicitly. The `d1` driver forces it off today, but its default is `true`.
+
 Notes from the Privacy and Safeguarding Reviewer (on #114): development never points `DB` at a remote database, so Drizzle Studio only ever opens local, made-up data. No Nitro cached handlers or cache route rules go on routes that read personal data.
 
 If it is cheap, phase 1 also makes the "no new origins in the production output" comparison a CI assertion. The no-third-party end-to-end test already covers the running site.
@@ -65,6 +70,7 @@ None of the phases changes the files that #48, #51, #80 and #91 change in `serve
 | Adopt with our entry, hand-kept `wrangler.jsonc` and Wrangler migrations (chosen) | Gets `hub:db` and Drizzle; keeps ADR-0008, reviewed bindings and one migration runner; open PRs unaffected | A `CLOUDFLARE_ENV` build variable per Worker (a founder step); generated config to understand; one custom entry file                                     |
 | Adopt with NuxtHub defaults                                                       | Least config                                                                                               | Drops the body limits; libSQL in development; `_hub_migrations` would re-run every migration on staging and live; `hub:cache` adds an unreviewed binding |
 | Keep `deployConfig: false` and use only NuxtHub's runtime helpers                 | No generated config                                                                                        | Not supported: NuxtHub forces `deployConfig` on                                                                                                          |
+| Drizzle ORM alone on the hand-kept `DB` binding (from the #104 audit)             | No generated config; no NuxtHub                                                                            | The founder chose NuxtHub's `hub:db` and binding helpers                                                                                                 |
 | Wait (the #104 recommendation)                                                    | Nothing to change                                                                                          | The founder has decided to adopt now                                                                                                                     |
 
 ## Consequences
