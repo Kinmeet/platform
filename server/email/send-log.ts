@@ -1,16 +1,12 @@
 import type { D1Database } from '@cloudflare/workers-types'
+import { emailLogDeleteAfter, nowSeconds } from '../utils/retention'
 import type { EmailTemplateId } from './templates'
-
-const DAY_SECONDS = 24 * 60 * 60
-
-/** P3: the email sending log is kept for 30 days. */
-export const SEND_LOG_RETENTION_DAYS = 30
 
 /**
  * One receipt per inbox per day (docs/api/forms.md, Tech Lead): counted from
  * the log itself, so there is no second store to keep.
  */
-export const RECEIPT_WINDOW_SECONDS = DAY_SECONDS
+export const RECEIPT_WINDOW_SECONDS = 24 * 60 * 60
 
 /**
  * Writes the `email_log` row for a send, unless the same `to_hmac` already
@@ -23,6 +19,7 @@ export const RECEIPT_WINDOW_SECONDS = DAY_SECONDS
  *
  * The table (migration in #41, deleted by #31) holds only the HMAC of the
  * address in inbox form, the template id and two dates, in Unix seconds.
+ * Its deletion date comes from the one home for P3 periods, `retention.ts`.
  */
 export async function claimSend(
   db: D1Database,
@@ -30,8 +27,8 @@ export async function claimSend(
   template: EmailTemplateId,
   now: Date,
 ): Promise<boolean> {
-  const sentAt = Math.floor(now.getTime() / 1000)
-  const deleteAfter = sentAt + SEND_LOG_RETENTION_DAYS * DAY_SECONDS
+  const sentAt = nowSeconds(now)
+  const deleteAfter = emailLogDeleteAfter(sentAt)
   const result = await db
     .prepare(
       `INSERT INTO email_log (id, to_hmac, template_id, sent_at, delete_after)

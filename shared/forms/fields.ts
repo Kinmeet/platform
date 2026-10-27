@@ -49,6 +49,11 @@ export const callName = text(CALL_NAME_MAX)
 // eslint-disable-next-line no-control-regex
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f-\u009f]/u
 
+// Something, an @, then a domain of two or more dot-separated labels, none of
+// them empty: `example..org`, `.example.org` and a trailing dot are refused
+// (#98). Labels cannot contain a dot, so the pattern never backtracks badly.
+const EMAIL_SYNTAX = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/
+
 /**
  * Email address: at most 254 characters, basic syntax check only. Anything
  * stricter turns away real addresses; a reply that bounces is the real test.
@@ -67,7 +72,7 @@ export const email = z
     params: { code: 'too_long' },
     abort: true,
   })
-  .refine((value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value), {
+  .refine((value) => EMAIL_SYNTAX.test(value), {
     params: { code: 'invalid_email' },
   })
 
