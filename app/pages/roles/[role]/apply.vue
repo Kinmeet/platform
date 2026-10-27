@@ -232,7 +232,13 @@ function stepLink(target: Step) {
             {{ redirected ? t(`apply.redirect.${redirected}`) : '' }}
           </p>
           <ErrorSummary v-if="errors.length" ref="summary" :items="summaryItems" />
-          <ApplyFailed v-else-if="problem" ref="failedView" :reason="problem" :answers="copyText" />
+          <SendFailed
+            v-else-if="problem"
+            ref="failedView"
+            form="apply"
+            :reason="problem"
+            :answers="copyText"
+          />
 
           <form
             class="apply__form"
