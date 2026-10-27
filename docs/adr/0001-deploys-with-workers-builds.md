@@ -20,14 +20,14 @@ The first version of this ADR chose two Workers (a staging Worker built from `ma
 1. **One Worker (chosen by the founder, 27 October).** Production is built from `live`. `main` and every other branch get a Preview under the same Worker, pointed at test resources by its `previews` block. The Preview of `main` serves as staging.
 2. **Two Workers (the first choice, now replaced).** A live Worker built only from `live`, with Preview builds off, and a staging Worker built from `main`, with Previews for every other branch.
 
-|                                             | One Worker                                                                                        | Two Workers                                                                         |
-| ------------------------------------------- | ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| What stands between a branch and live data  | The `previews` block pointing at test resources (a test and review guard it, see Consequences)    | A different Worker whose own bindings are test resources, plus the `previews` block |
-| What a build token for Previews can also do | Deploy production and change production secrets: Cloudflare has no Preview-only permission        | Could have been scoped to the staging Worker only (the founder deferred this)       |
-| Staging                                     | The `main` Preview, sharing the Preview resources with every branch Preview                       | A persistent Worker with its own made-up data, separate from branch Previews        |
-| Scheduled jobs (the daily deletion job)     | Run on production only: Cloudflare does not run Cron Triggers for Previews                        | Ran on staging and live                                                             |
-| Setup                                       | One Workers Builds connection, one Access app for Previews, one set of production paths in Access | Two connections, two sets of Access apps                                            |
-| Config                                      | One environment with a `previews` block                                                           | `env.staging` with `previews`, and `env.live`                                       |
+|                                            | One Worker                                                                                         | Two Workers                                                                         |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| What stands between a branch and live data | The `previews` block pointing at test resources (a test and review guard it, see Consequences)     | A different Worker whose own bindings are test resources, plus the `previews` block |
+| What the build token behind Previews holds | Open question for the Security Reviewer (see Consequences); the Preview runtime itself is isolated | Each Worker had its own build token (the founder deferred narrowing it, #95)        |
+| Staging                                    | The `main` Preview, sharing the Preview resources with every branch Preview                        | A persistent Worker with its own made-up data, separate from branch Previews        |
+| Scheduled jobs (the daily deletion job)    | Run on production only: Cloudflare does not run Cron Triggers for Previews                         | Ran on staging and live                                                             |
+| Setup                                      | One Workers Builds connection, one Access app for Previews, one set of production paths in Access  | Two connections, two sets of Access apps                                            |
+| Config                                     | One environment with a `previews` block                                                            | `env.staging` with `previews`, and `env.live`                                       |
 
 ## Decision
 
@@ -39,7 +39,7 @@ The first version of this ADR chose two Workers (a staging Worker built from `ma
 - **Secrets:** production secrets are set on the Worker by the founder. Preview secrets go in the **Previews Base** configuration, which every new Preview starts with. They are different values from production, and the Preview safeguarding key is generated inside the Cloudflare runtime, so no agent sees it (`.claude/rules/safeguarding-data.md`).
 - **Access:** one Access application covers every Preview of `platform` (destination type `preview_worker`), with the `Kinmeet admins` policy. Production's `/admin`, `/api/admin`, `/safeguarding` and `/api/safeguarding` paths on `platform.kinmeet.workers.dev` get their own applications, as before.
 - **Build:** the dependency install Workers Builds does by default is switched off (`SKIP_DEPENDENCY_INSTALL=1`) and the build command is `bun install --frozen-lockfile && bun run build`, the same as CI. Workers Builds takes the Bun version from `packageManager` in `package.json` (`bun@1.4.4`).
-- **Wrangler** is a project dev dependency at 4.135.0 or later (Worker Previews needs it; we are on 4.152.0).
+- **Wrangler** is a project dev dependency at 4.135.0 or later, which Worker Previews needs ([Previews, get started](https://developers.cloudflare.com/workers/previews/get-started/)). `package.json` pins 4.152.0.
 - **All storage** is created with jurisdiction `eu`, which, unlike a location hint, is a guarantee and can only be set when the resource is created (P3).
 - **After each deploy**, the `Check deployed site` workflow runs when the Workers Builds check run for `platform` completes on `main` or `live`. It loads the matching URL from a GitHub runner and checks it returns 200 with the P5 security headers.
 
@@ -48,9 +48,12 @@ The first version of this ADR chose two Workers (a staging Worker built from `ma
 - No Cloudflare token is stored in GitHub. Workers Builds uses a token that Cloudflare creates and holds for the account.
 - Workers Builds builds a Preview of `main` on every push without waiting for GitHub CI. CI is still enforced, because the `main` ruleset will not let anything merge until CI passes.
 - A release has no separate approval click: the founder's merge into `live` is the approval, and nobody else can make it.
-- **Security (for the Security Reviewer):** every Preview build, from any branch, runs with the Worker's build token. That token needs Workers write on `platform` to create Previews, and Cloudflare has no permission that allows Previews but not production deploys or production secrets (the Previews API needs `Workers Scripts Write`). So code on any branch could, in principle, deploy production or replace a production secret, including the live safeguarding key. With two Workers the same risk existed through the account-wide staging token (#95), and the founder deferred it. With one Worker it can no longer be narrowed by scoping a token to one Worker. This is a residual risk to record in the interim safeguarding exception and go-live condition 6. Review of every change, and the founder-only `live` branch, remain the controls.
+- **Security (for the Security Reviewer):** a Preview **at run time** is isolated from production: it does not inherit production settings or secrets, and it reaches only the resources its `previews` block binds ([Previews](https://developers.cloudflare.com/workers/previews/), [Resources and isolation](https://developers.cloudflare.com/workers/previews/resources/)). An earlier draft of this ADR said Previews could reach production. That claim is **withdrawn**: no Cloudflare document we found supports it.
+  - What the documents do say about the **build** step: Workers Builds runs the build and Preview commands with the Worker's build token, and the token Cloudflare creates by default holds account-level **Workers Scripts (edit)**, among others ([Builds configuration, API token](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/#api-token)). Each trigger names its own build token (`build_token_uuid`, [Builds API reference](https://developers.cloudflare.com/workers/ci-cd/builds/api-reference/)), so the Preview trigger and the production trigger need not share one.
+  - **Open question, not a finding:** whether a build token can be limited to creating Previews, and what the default token could do from inside a Preview build beyond that, is not something we found documented. The Security Reviewer decides whether this needs a check or a narrower token before go-live condition 6.
+  - Review of every change, and the founder-only `live` branch, remain the controls for what reaches production.
 - **The `previews` block must never point at a live resource.** A unit test in the config PR fails if any binding in `env.live.previews` names a live database, namespace or bucket, and the Bash and Cloudflare hooks keep refusing remote commands on live databases (#111).
-- **Scheduled jobs** run only on production. The daily deletion job is still tested end to end in CI through `/__scheduled` (#101), but it no longer runs against staging data.
+- **Scheduled jobs** run only on production ([Previews limitations](https://developers.cloudflare.com/workers/previews/resources/#limitations)). The daily deletion job is still tested end to end in CI through `/__scheduled` (#101), but it no longer runs against staging data.
 - Rate limiters on Previews keep their own `namespace_id`s, so Previews never share counters with production.
 - The founder sets up the one Workers Builds connection in the dashboard (steps in `docs/deploys.md`). The old Workers are deleted only after a Preview of `main` and a live build have both been verified.
 - Rollback: the founder reverts on `live`, or in the dashboard opens `platform`, **Deployments**, and rolls back to the previous version.
@@ -61,6 +64,11 @@ The first version of this ADR chose two Workers (a staging Worker built from `ma
 
 Checked 27 October 2026:
 
-- Cloudflare Worker Previews: configuration, resources and isolation, limits (100 Previews per Worker and 100 deployments per Preview on Free; the oldest are removed automatically).
-- Workers Builds: build branches, Preview command, default build variables (`WORKERS_CI_BRANCH`), triggers.
-- The Cloudflare API description of the Previews endpoints, which accept `Workers Scripts Write` only.
+- [Worker Previews](https://developers.cloudflare.com/workers/previews/): settings and isolation, Access, URLs (`workers.dev` Preview URLs send `X-Robots-Tag: noindex`) and limits. On the Free plan: 100 Previews per Worker and 100 deployments per Preview (500 Previews per Worker on Paid plans).
+- [Previews, get started](https://developers.cloudflare.com/workers/previews/get-started/): Wrangler 4.135.0 or later.
+- [Previews, resources and isolation](https://developers.cloudflare.com/workers/previews/resources/): per-resource isolation, D1 migrations for Previews, and limitations (service bindings, Cron Triggers, routes, queues).
+- [Previews, configuration](https://developers.cloudflare.com/workers/previews/configuration/): the `previews` block and Previews Base secrets.
+- [Workers Builds configuration](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/): Preview command, build variables, the default API token's permissions.
+- [Workers Builds build branches](https://developers.cloudflare.com/workers/ci-cd/builds/build-branches/): production branch and Preview builds.
+- [Workers Builds API reference](https://developers.cloudflare.com/workers/ci-cd/builds/api-reference/): triggers and `build_token_uuid`.
+- [Cloudflare Access for Workers](https://developers.cloudflare.com/workers/configuration/cloudflare-access/): the `preview_worker` destination type.

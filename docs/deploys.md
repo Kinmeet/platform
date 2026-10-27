@@ -10,7 +10,7 @@ How code reaches Cloudflare. The reasoning is in [ADR-0001](adr/0001-deploys-wit
 | Staging         | `platform` (Preview of `main`) | https://main-platform.kinmeet.workers.dev                            | `main`                     | `kinmeet-staging`, made-up |
 | Live            | `platform` (production)        | https://platform.kinmeet.workers.dev                                 | `live`                     | `kinmeet-live`, real       |
 
-Every Preview, including staging, shares the same made-up-data resources. Migrations are applied to them only by builds of `main`, so a branch that adds a migration runs on `main`'s schema until it merges. Cloudflare does not run scheduled jobs (Cron Triggers) for Previews, so the daily deletion job runs on live only; CI tests it end to end.
+Every Preview, including staging, shares the same made-up-data resources. Migrations are applied to them only by builds of `main`, so a branch that adds a migration runs on `main`'s schema until it merges. Cloudflare does not run scheduled jobs (Cron Triggers) for Previews ([Previews limitations](https://developers.cloudflare.com/workers/previews/resources/#limitations)), so the daily deletion job runs on live only; CI tests it end to end. On the Free plan a Worker can have up to 100 Previews ([Previews limits](https://developers.cloudflare.com/workers/previews/#limits)); delete a Preview when its branch is gone with `bunx wrangler preview delete --name <branch> --env live` ([Wrangler commands](https://developers.cloudflare.com/workers/wrangler/commands/workers/#preview-delete)).
 
 ## Releasing to live
 
@@ -46,7 +46,7 @@ Do these after the team's config pull request for #115 has merged, so the first 
 
 1. Open `platform`, then **Settings**, then **Build**, then **Branch control**.
 2. Tick **Enable Preview Builds**.
-3. Set the **Preview command** to `scripts/d1-migrate.sh preview && npx wrangler preview --env live`.
+3. Set the **Preview command** to `scripts/d1-migrate.sh preview && npx wrangler preview --env live` ([Preview command](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/#preview-command)).
 4. If a **Set up Worker Previews** banner appears under **Settings**, **Builds**, select **Set up**, check the Preview command above, and select **Switch to Worker Previews**. This cannot be undone, and it is what we want.
 
 ### 3. Tell the team
