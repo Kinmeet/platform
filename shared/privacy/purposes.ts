@@ -55,7 +55,8 @@ export const purposes = {
     readers: ['central_team', 'secretary'],
   },
   // P3 "Trustee applications, stage 1": legitimate interests, 6 months after
-  // the decision, with the round-close backstop (#80). P4 "Trustee
+  // the decision. The round-close backstop (#80) is a proposed P3 change that
+  // still awaits the founder's decision. P4 "Trustee
   // applications": the secretary, the safeguarding lead and deputy, and the chair.
   trustee_application: {
     p3Row: 'Trustee applications, stage 1',
