@@ -33,4 +33,4 @@ Do not write one for choices already made in the F, SG, S and P documents. Link 
 | [0007](0007-self-hosted-fonts.md)              | Self-hosted fonts from Fontsource                                         | Accepted |
 | [0008](0008-worker-entry-in-front-of-nitro.md) | A Worker entry in front of Nitro for request body limits                  | Accepted |
 | [0009](0009-adopt-nuxthub.md)                  | Adopt NuxtHub, keeping our Worker entry, environments and migrations      | Accepted |
-| [0010](0010-generic-forms-and-mail.md)         | Forms built on the site, and a mail platform reimplemented from mailflare | Proposed |
+| [0010](0010-generic-forms-and-mail.md)         | Forms built on the site, and a mail platform reimplemented from mailflare | Accepted |
