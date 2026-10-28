@@ -5,7 +5,7 @@
  *
  * Staging and live are exact. Previews have no fixed host, so their
  * `SITE_ORIGIN` is a pattern such as
- * `https://*-kinmeet-staging.kinmeet.workers.dev`, where `*` stands for
+ * `https://*-platform.kinmeet.workers.dev`, where `*` stands for
  * exactly one DNS label (the preview name). The pattern is honoured only when
  * `KINMEET_ENV` is `preview`; anywhere else a `*` matches nothing.
  */
