@@ -82,6 +82,10 @@
       "vars": {
         "KINMEET_ENV": "staging",
         "NUXT_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAFl6M8Q-UZBb029_",
+        // The admin guard checks Access tokens against these (#125): the
+        // "platform-staging admin" application. AUD tags are public.
+        "ACCESS_TEAM_DOMAIN": "kinmeet.cloudflareaccess.com",
+        "ACCESS_AUD": "3050a2cd70ed3b54bd036fefbcf4e307ad7ed91b0547529b02f19236ce444129", // gitleaks:allow (public AUD tag, not a secret)
       },
       "triggers": { "crons": ["17 3 * * *"] },
       // No secrets.required on staging yet: the first staging deploy happens
@@ -115,6 +119,9 @@
         "vars": {
           "KINMEET_ENV": "preview",
           "NUXT_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAFl6NMpfqLbGGZRZ",
+          // The "platform-staging Previews" Access application (#125).
+          "ACCESS_TEAM_DOMAIN": "kinmeet.cloudflareaccess.com",
+          "ACCESS_AUD": "6e6586f6b72a5e016e093b9ee3816eb65b5560e76ca9121e28d4cbf9bb32e410", // gitleaks:allow (public AUD tag, not a secret)
         },
         "d1_databases": [
           {
@@ -164,6 +171,11 @@
         // The only origin the forms and admin actions accept (server/utils/forms/site-origin.ts).
         "SITE_ORIGIN": "https://platform.kinmeet.workers.dev",
         "NUXT_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAFl-e7Mi_U9gitR4",
+        // The "platform admin" Access application (#125). A Version URL is
+        // covered by the Previews application instead, so its admin requests
+        // carry another AUD and are refused here.
+        "ACCESS_TEAM_DOMAIN": "kinmeet.cloudflareaccess.com",
+        "ACCESS_AUD": "dad7c750d8f860eb54b95f57dddea1f1e20a97018d971b466cc32c08ce977581", // gitleaks:allow (public AUD tag, not a secret)
       },
       "triggers": { "crons": ["17 3 * * *"] },
       "secrets": {
@@ -211,6 +223,9 @@
           // KINMEET_ENV is `preview`.
           "SITE_ORIGIN": "https://*-platform.kinmeet.workers.dev",
           "NUXT_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAFl6NMpfqLbGGZRZ",
+          // The "platform Previews" Access application (#125).
+          "ACCESS_TEAM_DOMAIN": "kinmeet.cloudflareaccess.com",
+          "ACCESS_AUD": "94f2df42f3ae3d704972602c63522e45207962eeb79b08fa13b7acfeae620f09", // gitleaks:allow (public AUD tag, not a secret)
         },
         "d1_databases": [
           {

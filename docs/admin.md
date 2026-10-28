@@ -4,17 +4,24 @@
 
 ## Access
 
-- Cloudflare Access protects `/admin` and `/api/admin` on the staging and live Workers and lets only the founder through.
+- Cloudflare Access protects `/admin` and `/api/admin` on every deployed environment and lets only the founder through.
 - The Worker checks again on every admin request (`server/middleware/10.admin-access.ts`, which runs after the security headers middleware so a refusal still carries the P5 headers): the `Cf-Access-Jwt-Assertion` token must be signed by the team's published keys, for this application's audience, from this team, and not expired. Anything else gets `403`, including missing configuration or keys that cannot be fetched.
 - Actions (`POST`) must also come from this environment's own origin (`SITE_ORIGIN`).
 - Locally, without Access, the admin page always answers `403`.
 
-Each environment needs two variables, which are not secrets, once its Access application exists:
+Each environment needs two variables, which are not secrets. They are set in `wrangler.jsonc` for every deployed environment, Previews included, because Previews do not inherit production vars (#125). `tests/unit/config/access.test.ts` fails if either is missing anywhere, or if two environments share an application:
 
 | Variable             | Value                                                                        |
 | -------------------- | ---------------------------------------------------------------------------- |
 | `ACCESS_TEAM_DOMAIN` | The Access team domain, `<team>.cloudflareaccess.com`                        |
 | `ACCESS_AUD`         | The Access application's audience (AUD) tag, from its overview in Zero Trust |
+
+| Environment                            | Access application        |
+| -------------------------------------- | ------------------------- |
+| `platform` production (`env.live`)     | platform admin            |
+| `platform` Previews, including staging | platform Previews         |
+| Old staging Worker (`env.staging`)     | platform-staging admin    |
+| Old staging Worker's Previews          | platform-staging Previews |
 
 ## What it shows
 
