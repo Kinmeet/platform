@@ -7,6 +7,7 @@ import {
   accessRoutes,
   buildPublicRoutes,
   crossesFormBoundary,
+  draftablePages,
   draftRoutes,
   publicRoutes,
 } from '../../../shared/routes'
@@ -89,6 +90,44 @@ describe('route list', () => {
   })
 })
 
+/** The routes with only the draftable page at `path` published, if any (#149). */
+function build(path?: string) {
+  return buildPublicRoutes({
+    roles: publishedRoles(),
+    pages: draftablePages.map((page) => ({ path: page.path, published: page.path === path })),
+  })
+}
+
+// Each module in shared/pages/ exports one page object. The glob is resolved
+// when the test is built, as above.
+const pageModules = import.meta.glob<Record<string, unknown>>('../../../shared/pages/*.ts', {
+  eager: true,
+})
+
+describe('draftable pages', () => {
+  it('lists every page in shared/pages/, so none can be forgotten', () => {
+    const pages = Object.values(pageModules).flatMap((module) =>
+      Object.values(module).filter(
+        (value) => typeof value === 'object' && value !== null && 'published' in value,
+      ),
+    )
+    expect(pages.length).toBeGreaterThan(0)
+    expect(new Set(pages)).toEqual(new Set(draftablePages))
+  })
+
+  it('makes each unpublished page a draft route, and nothing else', () => {
+    expect(draftRoutes).toEqual(
+      draftablePages.filter((page) => !page.published).map((page) => page.path),
+    )
+  })
+
+  it('makes each published page a public route', () => {
+    for (const page of draftablePages.filter((page) => page.published)) {
+      expect(publicRoutes).toContainEqual({ path: page.path, form: false })
+    }
+  })
+})
+
 // The all-ages promise (#77) is built but not published until its copy is
 // agreed. Publishing it is one flag, and these show what that flag does.
 describe('all-ages promise page', () => {
@@ -99,31 +138,14 @@ describe('all-ages promise page', () => {
   })
 
   it('becomes a public route once published, so the end-to-end checks load it', () => {
-    const routes = buildPublicRoutes({
-      roles: publishedRoles(),
-      promise: true,
-      privacy: false,
-      accessibility: false,
-    })
+    const routes = build(promisePage.path)
     expect(routes).toContainEqual({ path: promisePage.path, form: false })
     expect(hasPage(promisePage.path, routes)).toBe(true)
   })
 
   it('keeps every other route the same either way', () => {
-    const published = buildPublicRoutes({
-      roles: publishedRoles(),
-      promise: true,
-      privacy: false,
-      accessibility: false,
-    })
-    expect(published.filter((route) => route.path !== promisePage.path)).toEqual(
-      buildPublicRoutes({
-        roles: publishedRoles(),
-        promise: false,
-        privacy: false,
-        accessibility: false,
-      }),
-    )
+    const published = build(promisePage.path)
+    expect(published.filter((route) => route.path !== promisePage.path)).toEqual(build())
   })
 })
 
@@ -137,31 +159,14 @@ describe('privacy notice page', () => {
   })
 
   it('becomes a public route once published, so the end-to-end checks load it', () => {
-    const routes = buildPublicRoutes({
-      roles: publishedRoles(),
-      promise: false,
-      privacy: true,
-      accessibility: false,
-    })
+    const routes = build(privacyPage.path)
     expect(routes).toContainEqual({ path: privacyPage.path, form: false })
     expect(hasPage(privacyPage.path, routes)).toBe(true)
   })
 
   it('keeps every other route the same either way', () => {
-    const published = buildPublicRoutes({
-      roles: publishedRoles(),
-      promise: false,
-      privacy: true,
-      accessibility: false,
-    })
-    expect(published.filter((route) => route.path !== privacyPage.path)).toEqual(
-      buildPublicRoutes({
-        roles: publishedRoles(),
-        promise: false,
-        privacy: false,
-        accessibility: false,
-      }),
-    )
+    const published = build(privacyPage.path)
+    expect(published.filter((route) => route.path !== privacyPage.path)).toEqual(build())
   })
 })
 
@@ -175,31 +180,14 @@ describe('accessibility statement page', () => {
   })
 
   it('becomes a public route once published, so the end-to-end checks load it', () => {
-    const routes = buildPublicRoutes({
-      roles: publishedRoles(),
-      promise: false,
-      privacy: false,
-      accessibility: true,
-    })
+    const routes = build(accessibilityPage.path)
     expect(routes).toContainEqual({ path: accessibilityPage.path, form: false })
     expect(hasPage(accessibilityPage.path, routes)).toBe(true)
   })
 
   it('keeps every other route the same either way', () => {
-    const published = buildPublicRoutes({
-      roles: publishedRoles(),
-      promise: false,
-      privacy: false,
-      accessibility: true,
-    })
-    expect(published.filter((route) => route.path !== accessibilityPage.path)).toEqual(
-      buildPublicRoutes({
-        roles: publishedRoles(),
-        promise: false,
-        privacy: false,
-        accessibility: false,
-      }),
-    )
+    const published = build(accessibilityPage.path)
+    expect(published.filter((route) => route.path !== accessibilityPage.path)).toEqual(build())
   })
 
   it('is the page the footer links to', () => {
