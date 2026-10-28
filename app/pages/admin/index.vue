@@ -100,6 +100,25 @@ async function markOutcomeTold(application: AdminApplication) {
   await nextTick()
   document.getElementById(`application-${application.id}`)?.focus()
 }
+
+// Passing to safeguarding removes the item from the list, so focus moves to
+// the list's heading. The announcement reminds the reader to tell the lead.
+async function passToSafeguarding(
+  kind: 'hello' | 'applications',
+  id: string,
+  refresh: () => Promise<void>,
+  refreshFailed: () => boolean,
+) {
+  const done = await act(
+    `/api/admin/${kind}/${id}/safeguarding`,
+    t('admin.safeguarding.done'),
+    refresh,
+    refreshFailed,
+  )
+  if (!done) return
+  await nextTick()
+  document.getElementById(kind === 'hello' ? 'hello-heading' : 'applications-heading')?.focus()
+}
 </script>
 
 <template>
@@ -109,7 +128,7 @@ async function markOutcomeTold(application: AdminApplication) {
     <p class="admin__status" role="status">{{ announcement }}</p>
 
     <section aria-labelledby="hello-heading">
-      <h2 id="hello-heading">{{ t('admin.hello.heading') }}</h2>
+      <h2 id="hello-heading" tabindex="-1">{{ t('admin.hello.heading') }}</h2>
       <p v-if="helloStatus === 'pending' && !hello">{{ t('admin.loading') }}</p>
       <p v-else-if="helloStatus === 'error' && !hello">{{ t('admin.loadFailed') }}</p>
       <p v-else-if="!hello?.messages.length">{{ t('admin.hello.empty') }}</p>
@@ -143,12 +162,19 @@ async function markOutcomeTold(application: AdminApplication) {
               t('admin.forName', { name: message.callName })
             }}</span>
           </button>
+          <AdminPassToSafeguarding
+            :name="message.callName"
+            :busy="busy !== null"
+            @confirm="
+              passToSafeguarding('hello', message.id, refreshHello, () => Boolean(helloError))
+            "
+          />
         </li>
       </ul>
     </section>
 
     <section aria-labelledby="applications-heading">
-      <h2 id="applications-heading">{{ t('admin.applications.heading') }}</h2>
+      <h2 id="applications-heading" tabindex="-1">{{ t('admin.applications.heading') }}</h2>
       <p v-if="applyStatus === 'pending' && !apply">{{ t('admin.loading') }}</p>
       <p v-else-if="applyStatus === 'error' && !apply">{{ t('admin.loadFailed') }}</p>
       <p v-else-if="!apply?.applications.length">{{ t('admin.applications.empty') }}</p>
@@ -197,6 +223,15 @@ async function markOutcomeTold(application: AdminApplication) {
               t('admin.forName', { name: application.callName })
             }}</span>
           </button>
+          <AdminPassToSafeguarding
+            :name="application.callName"
+            :busy="busy !== null"
+            @confirm="
+              passToSafeguarding('applications', application.id, refreshApply, () =>
+                Boolean(applyError),
+              )
+            "
+          />
         </li>
       </ul>
     </section>
@@ -253,7 +288,7 @@ async function markOutcomeTold(application: AdminApplication) {
   font-weight: 700;
 }
 
-.admin button {
+.admin :deep(button) {
   font: inherit;
   padding: 0.5rem 1rem;
   border: 2px solid var(--colour-moss);
@@ -263,12 +298,13 @@ async function markOutcomeTold(application: AdminApplication) {
   cursor: pointer;
 }
 
-.admin button[aria-disabled='true'] {
+.admin :deep(button[aria-disabled='true']) {
   opacity: 0.6;
   cursor: wait;
 }
 
-.admin button:focus-visible,
+.admin :deep(button:focus-visible),
+.admin h2:focus-visible,
 .admin h3:focus-visible {
   outline: 3px solid var(--colour-ink);
   outline-offset: 2px;

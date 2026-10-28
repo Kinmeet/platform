@@ -40,17 +40,20 @@ R2 buckets are named, not numbered: `kinmeet-staging`, `kinmeet-preview` and `ki
 
 Secrets are never in the repository. Each environment needs its own values, set by the founder (or another account admin) with Wrangler, never pasted into an issue, pull request or chat:
 
-| Secret                 | Used for                                                                         | How to make it                                 |
-| ---------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------- |
-| `TURNSTILE_SECRET_KEY` | Checking Turnstile tokens on forms (S5)                                          | From the Turnstile widget for that environment |
-| `RATE_LIMIT_HMAC_KEY`  | Keyed hashes for rate-limit keys, so no IP address is stored (P3)                | `openssl rand -base64 32`                      |
-| `EMAIL_LOG_HMAC_KEY`   | Keyed hashes in the email log (S3). Must be different from `RATE_LIMIT_HMAC_KEY` | `openssl rand -base64 32`                      |
+| Secret                 | Used for                                                                            | How to make it                                 |
+| ---------------------- | ----------------------------------------------------------------------------------- | ---------------------------------------------- |
+| `TURNSTILE_SECRET_KEY` | Checking Turnstile tokens on forms (S5)                                             | From the Turnstile widget for that environment |
+| `RATE_LIMIT_HMAC_KEY`  | Keyed hashes for rate-limit keys, so no IP address is stored (P3)                   | `openssl rand -base64 32`                      |
+| `EMAIL_LOG_HMAC_KEY`   | Keyed hashes in the email log (S3). Must be different from `RATE_LIMIT_HMAC_KEY`    | `openssl rand -base64 32`                      |
+| `SAFEGUARDING_KEY`     | Encrypting handed-over safeguarding items (#36, #95). The founder sets the live one | `printf 'v1.%s' "$(openssl rand -base64 32)"`  |
 
 ```sh
 openssl rand -base64 32 | bunx wrangler secret put RATE_LIMIT_HMAC_KEY --env staging
 openssl rand -base64 32 | bunx wrangler preview base-config secret put RATE_LIMIT_HMAC_KEY --env staging
 openssl rand -base64 32 | bunx wrangler secret put RATE_LIMIT_HMAC_KEY --env live
 ```
+
+**`SAFEGUARDING_KEY`** is different from the others (Nadia's condition 3 on #95). The founder generates and sets the live key themselves, with `wrangler secret put SAFEGUARDING_KEY --env live` or in the dashboard, and keeps an offline copy in a password manager with MFA or on paper somewhere physically secure. It never goes in `vars`, the repository, a chat, an issue, an email or a cloud document, and no agent is ever asked to handle it. Losing it loses every record it encrypted. Staging and Previews each get their own key, generated the same way, holding made-up data only. The `v1.` prefix is the key version; a rotation adds `SAFEGUARDING_KEY_PREVIOUS` for a while ([runbook](runbooks/rotate-safeguarding-key.md)). It is not in `secrets.required`: without it, the safeguarding routes answer `503` and store nothing.
 
 Generate a fresh value for every environment and every secret; never reuse one. `TURNSTILE_SECRET_KEY` must be the real secret of that environment's own widget, never Cloudflare's always-pass test secret; only local runs and CI use the test keys. The public site keys are `NUXT_PUBLIC_TURNSTILE_SITE_KEY` in each environment's `vars`, and each widget's hostname list holds only its own environment's host. Previews get their secrets from the Preview base config (`wrangler preview base-config secret`), which every new Preview starts with, separately from staging. `TURNSTILE_SECRET_KEY`, `RATE_LIMIT_HMAC_KEY` and `EMAIL_LOG_HMAC_KEY` are listed in `secrets.required` for local and live, because the form routes and the email sender read them: a deploy fails until all three are set for that environment. Staging leaves them out for now, because its first deploy comes before the secrets can be set. Until they are, its form routes answer `503 unavailable` and store nothing. A follow-up PR adds them back once the secrets exist.
 
