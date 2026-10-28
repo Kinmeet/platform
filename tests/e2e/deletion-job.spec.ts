@@ -44,6 +44,11 @@ const hello = (id: string, deleteAfter: number) =>
 const application = (id: string, deleteAfter: number) =>
   `INSERT INTO applications (id, submission_id, role, connection_to_founders, call_name, email, answers, received_at, delete_after)
    VALUES ('${id}', '${id}-s', 'trustee', 'no', 'Sample Applicant', 'sample@example.org', '{}', ${RECEIVED}, ${deleteAfter})`
+// A submission on the stored say hello form (ADR-0010, #156).
+const formSubmission = (id: string, deleteAfter: number) =>
+  `INSERT INTO form_submissions (id, submission_id, form_id, version, call_name, email, answers, received_at, delete_after)
+   SELECT '${id}', '${id}-s', id, current_version, 'Test Fox', 'test.fox@example.com', '{"message":"Made-up message."}', ${RECEIVED}, ${deleteAfter}
+   FROM forms WHERE slug = 'hello'`
 const emailLog = (id: string, deleteAfter: number) =>
   `INSERT INTO email_log (id, to_hmac, template_id, sent_at, delete_after)
    VALUES ('${id}', '${HMAC}', 'application_receipt', ${RECEIVED}, ${deleteAfter})`
@@ -64,6 +69,8 @@ test('the daily job deletes rows past their date and keeps the rest', async ({ r
       hello(`${run}-hello-new`, FUTURE),
       application(`${run}-app-old`, PAST),
       application(`${run}-app-new`, FUTURE),
+      formSubmission(`${run}-form-old`, PAST),
+      formSubmission(`${run}-form-new`, FUTURE),
       emailLog(`${run}-log-old`, PAST),
       emailLog(`${run}-log-new`, FUTURE),
       auditEntry(`${run}-audit-old`, `${run}-hello-old`, PAST),
@@ -78,6 +85,7 @@ test('the daily job deletes rows past their date and keeps the rest', async ({ r
     d1(
       `SELECT id FROM hello_messages WHERE id LIKE '${run}-%'
        UNION ALL SELECT id FROM applications WHERE id LIKE '${run}-%'
+       UNION ALL SELECT id FROM form_submissions WHERE id LIKE '${run}-%'
        UNION ALL SELECT id FROM email_log WHERE id LIKE '${run}-%'
        UNION ALL SELECT id FROM audit_log WHERE id LIKE '${run}-%'`,
     )
@@ -85,5 +93,15 @@ test('the daily job deletes rows past their date and keeps the rest', async ({ r
       .sort()
   await expect
     .poll(remaining, { timeout: 20_000 })
-    .toEqual([`${run}-app-new`, `${run}-audit-new`, `${run}-hello-new`, `${run}-log-new`])
+    // Until phase C, a row written to an old table is also copied into
+    // `form_submissions` under the same id, so each kept old row shows twice.
+    .toEqual([
+      `${run}-app-new`,
+      `${run}-app-new`,
+      `${run}-audit-new`,
+      `${run}-form-new`,
+      `${run}-hello-new`,
+      `${run}-hello-new`,
+      `${run}-log-new`,
+    ])
 })

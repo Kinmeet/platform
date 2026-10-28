@@ -54,7 +54,10 @@ let siteverify: { success: boolean; hostname?: string; action?: string }
 const logs: string[] = []
 
 beforeEach(async () => {
-  await env.DB.prepare('DELETE FROM hello_messages').run()
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM hello_messages'),
+    env.DB.prepare('DELETE FROM form_submissions'),
+  ])
   siteverify = { success: true, hostname: HOST, action: 'hello' }
   logs.length = 0
   vi.spyOn(globalThis, 'fetch').mockImplementation(
@@ -69,9 +72,26 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
+// Messages are stored on the `hello` form's current version (ADR-0010, #156).
+async function rows() {
+  const { results } = await env.DB.prepare(
+    `SELECT s.* FROM form_submissions AS s JOIN forms AS f ON f.id = s.form_id
+     WHERE f.slug = 'hello'`,
+  ).all<Record<string, unknown>>()
+  return results
+}
+
 async function rowCount() {
-  return (await env.DB.prepare('SELECT count(*) AS n FROM hello_messages').first<{ n: number }>())!
-    .n
+  const all = (await env.DB.prepare('SELECT count(*) AS n FROM form_submissions').first<{
+    n: number
+  }>())!.n
+  // Nothing lands on any other form, and nothing in the old table.
+  const legacy = (await env.DB.prepare('SELECT count(*) AS n FROM hello_messages').first<{
+    n: number
+  }>())!.n
+  expect(legacy).toBe(0)
+  expect((await rows()).length).toBe(all)
+  return all
 }
 
 describe('POST /api/hello', () => {
@@ -81,6 +101,16 @@ describe('POST /api/hello', () => {
     expect(await response.json()).toEqual({ ok: true, receipt: 'not_requested' })
     expect(response.headers.get('Cache-Control')).toBe('no-store')
     expect(await rowCount()).toBe(1)
+    const [row] = await rows()
+    expect(row).toMatchObject({
+      submission_id: valid.submissionId,
+      version: 1,
+      call_name: valid.callName,
+      email: valid.email,
+      replied_at: null,
+      outcome_told_at: null,
+    })
+    expect(JSON.parse(String(row!.answers))).toEqual({ message: valid.message })
   })
 
   it('answers a retry with 200 and stores nothing new', async () => {

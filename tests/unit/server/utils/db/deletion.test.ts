@@ -52,6 +52,7 @@ async function remaining(table: string): Promise<number[]> {
 beforeEach(async () => {
   await env.DB.batch([
     env.DB.prepare('DELETE FROM hello_messages'),
+    env.DB.prepare('DELETE FROM form_submissions'),
     env.DB.prepare('DELETE FROM applications'),
     env.DB.prepare('DELETE FROM email_log'),
   ])
@@ -66,7 +67,10 @@ describe('deleteExpiredRows (retention)', () => {
       await add(NOW + 30 * DAY)
     }
 
+    // Until phase C, a row written to an old table is also copied into
+    // `form_submissions` with the same date (ADR-0010, #156), so both go.
     expect(await deleteExpiredRows(env.DB, NOW)).toEqual({
+      form_submissions: 4,
       hello_messages: 2,
       applications: 2,
       email_log: 2,
@@ -76,6 +80,12 @@ describe('deleteExpiredRows (retention)', () => {
     for (const table of ['hello_messages', 'applications', 'email_log']) {
       expect(await remaining(table)).toEqual([NOW + 1, NOW + 30 * DAY])
     }
+    expect(await remaining('form_submissions')).toEqual([
+      NOW + 1,
+      NOW + 1,
+      NOW + 30 * DAY,
+      NOW + 30 * DAY,
+    ])
   })
 
   it('deletes a say hello message whose date a reply moved on only when the new date passes', async () => {
@@ -101,6 +111,7 @@ describe('deleteExpiredRows (retention)', () => {
 
   it('does nothing on an empty database', async () => {
     expect(await deleteExpiredRows(env.DB, NOW)).toEqual({
+      form_submissions: 0,
       hello_messages: 0,
       applications: 0,
       email_log: 0,

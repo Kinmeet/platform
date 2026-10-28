@@ -3,6 +3,7 @@
 Source documents: P3 Data map and retention, P4 Roles and access matrix, P6 DPIA, P9 Privacy notice. Area 5 owns the final retention rules and area 2 the safeguarding ones.
 
 - **Collect the minimum.** Every field you add must map to a row in P3. If it does not, stop and ask the Head of Delivery; do not add a new kind of personal data on your own.
+- **Every form and mailbox names a P3 purpose** (ADR-0010). Purposes are a reviewed list in `shared/privacy/purposes.ts`, one per P3 row: the lawful basis, the retention rule, the field types allowed, whether free text is allowed, and the widest P4 readers. A form may only shorten the retention and narrow the readers. A purpose that isn't in the list can't be collected, so nothing waiting on area 5 is built early. Changes to `purposes.ts` need the Privacy and Safeguarding Reviewer.
 - **Never store** IP addresses with form submissions, analytics of any kind, copies of DBS certificates, or survey answers linked to people.
 - **Never send IP addresses out either:** do not pass the optional `remoteip` to Turnstile siteverify.
 - **Every personal-data table has a retention rule.** Add the column the deletion job needs (for example `decided_at`, `last_reply_at`) and a test that the job deletes or anonymises the row when its period ends.

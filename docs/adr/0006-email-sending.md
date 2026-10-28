@@ -1,6 +1,6 @@
 # ADR-0006: Fixed-template email with a capture sink until we have a domain
 
-- **Status:** Accepted (merged in #43, 26 October 2026)
+- **Status:** Accepted (merged in #43, 26 October 2026). Partly superseded by [ADR-0010](0010-generic-forms-and-mail.md) for templates and links: template wording becomes admin-editable stored text, and own-origin links built by code replace the "no links" rule. The anti-abuse rules for publicly triggered emails stay.
 - **Date:** 25 October 2026
 - **Author:** Freya Lund (Email Engineer)
 - **Reviewers:** Theo Marsh, Nadia Haddad, Ezra Quinn, Kit Morgan

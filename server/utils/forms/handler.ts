@@ -1,7 +1,7 @@
 import type { H3Event } from 'h3'
 import { getRequestHeader, toWebRequest } from 'h3'
 import type { z } from 'zod'
-import { processFormSubmission, type FormSubmissionSteps } from './process'
+import { processFormSubmission, type FormRuntime, type FormSubmissionCommonSteps } from './process'
 import { withinRateLimit, type RateLimiter } from './rate-limit'
 import { sendFormResponse, type Receipt } from './responses'
 import { hostnameAllowed, originAllowed, type SitePattern } from './site-origin'
@@ -42,16 +42,25 @@ export function logFormCode(code: string) {
 }
 
 type RouteSteps<Schema extends z.ZodType<{ submissionId: string }>> = Pick<
-  FormSubmissionSteps<Schema>,
-  'form' | 'schema' | 'receipt' | 'bodyCap'
-> & {
-  exists: (event: H3Event, submissionId: string) => Promise<boolean>
-  store: (
-    event: H3Event,
-    submission: z.infer<Schema>,
-  ) => ReturnType<FormSubmissionSteps<Schema>['store']>
-  afterStore?: (event: H3Event, submission: z.infer<Schema>) => Promise<Receipt>
-}
+  FormSubmissionCommonSteps<Schema>,
+  'form' | 'receipt'
+> &
+  (
+    | (FormRuntime<Schema> & { load?: undefined })
+    | {
+        /** A stored form's current version (ADR-0010), loaded after the origin check. */
+        load: (event: H3Event) => Promise<FormRuntime<Schema>>
+        schema?: undefined
+        bodyCap?: undefined
+      }
+  ) & {
+    exists: (event: H3Event, submissionId: string) => Promise<boolean>
+    store: (
+      event: H3Event,
+      submission: z.infer<Schema>,
+    ) => ReturnType<FormSubmissionCommonSteps<Schema>['store']>
+    afterStore?: (event: H3Event, submission: z.infer<Schema>) => Promise<Receipt>
+  }
 
 /**
  * Handles one form submission from start to finish. The route supplies the
@@ -72,12 +81,11 @@ export async function handleFormSubmission<Schema extends z.ZodType<{ submission
 
   const request = toWebRequest(event)
   const site: SitePattern = { siteOrigin: env.SITE_ORIGIN, environment: env.KINMEET_ENV }
-  const { afterStore } = route
+  const { afterStore, load } = route
   const response = await processFormSubmission(request, {
     form: route.form,
-    schema: route.schema,
+    ...(load ? { load: () => load(event) } : { schema: route.schema, bodyCap: route.bodyCap }),
     receipt: route.receipt,
-    bodyCap: route.bodyCap,
     originAllowed: (origin) => originAllowed(origin, site),
     withinRateLimit: () =>
       withinRateLimit({

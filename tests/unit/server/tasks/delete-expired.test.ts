@@ -24,6 +24,7 @@ beforeEach(async () => {
   logs = vi.spyOn(console, 'log').mockImplementation(() => {})
   await env.DB.batch([
     env.DB.prepare('DELETE FROM hello_messages'),
+    env.DB.prepare('DELETE FROM form_submissions'),
     env.DB.prepare(
       `INSERT INTO hello_messages (id, submission_id, call_name, email, message, received_at, delete_after)
        VALUES ('00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-0000000000a1',
@@ -39,12 +40,25 @@ const withDb = (db: unknown) => ({ context: { cloudflare: { env: { DB: db } } } 
 describe('the deletion task', () => {
   it('finds DB in the task context, deletes and logs counts only', async () => {
     const { result } = await task.run(withDb(env.DB))
-    expect(result).toEqual({ hello_messages: 1, applications: 0, email_log: 0, audit_log: 0 })
+    // The old table's row and its copy in `form_submissions` (ADR-0010, #156).
+    expect(result).toEqual({
+      form_submissions: 1,
+      hello_messages: 1,
+      applications: 0,
+      email_log: 0,
+      audit_log: 0,
+    })
     expect(logs.mock.calls).toEqual([
       [
         JSON.stringify({
           code: 'deletion_done',
-          deleted: { hello_messages: 1, applications: 0, email_log: 0, audit_log: 0 },
+          deleted: {
+            form_submissions: 1,
+            hello_messages: 1,
+            applications: 0,
+            email_log: 0,
+            audit_log: 0,
+          },
         }),
       ],
     ])

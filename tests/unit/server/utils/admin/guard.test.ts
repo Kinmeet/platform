@@ -24,6 +24,7 @@ beforeEach(async () => {
   vi.spyOn(console, 'error').mockImplementation(() => {})
   await env.DB.batch([
     env.DB.prepare('DELETE FROM hello_messages'),
+    env.DB.prepare('DELETE FROM form_submissions'),
     env.DB.prepare(
       `INSERT INTO hello_messages (id, submission_id, call_name, email, message, received_at, delete_after)
        VALUES (?, '00000000-0000-4000-8000-0000000000a1', 'Test Fox', 'test.fox@example.com', 'Made-up.', 1, 2)`,

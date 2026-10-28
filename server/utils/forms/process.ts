@@ -9,7 +9,7 @@ import type { TurnstileResult } from './turnstile'
  * order (docs/api/forms.md, "Order of checks"), cheap ones first so garbage
  * never costs a siteverify call:
  *
- * method, origin and content type → size cap → per-network limit → global
+ * method, origin and content type → (a stored form's version) → size cap → per-network limit → global
  * limit → parse and validate → Turnstile → idempotency lookup → store →
  * receipt limit → queue receipt.
  *
@@ -20,14 +20,30 @@ import type { TurnstileResult } from './turnstile'
 
 export type StoreResult = 'stored' | 'duplicate'
 
-export interface FormSubmissionSteps<Schema extends z.ZodType<{ submissionId: string }>> {
-  /** Short form name, also the Turnstile action, for example `hello`. */
-  form: string
+/** What a request is checked against: its schema and its body cap. */
+export interface FormRuntime<Schema> {
   schema: Schema
-  /** Whether an `Origin` header is this environment's site, from configuration. */
-  originAllowed: (origin: string | null) => boolean
   /** Largest body a valid request can have, worked out from the schema. */
   bodyCap: number
+}
+
+/**
+ * Either a fixed schema and cap, or `load` for a form stored in D1
+ * (ADR-0010), called after the origin check. If `load` throws, the answer
+ * is `503 unavailable`.
+ */
+export type FormRuntimeSource<Schema> =
+  | (FormRuntime<Schema> & { load?: undefined })
+  | { load: () => Promise<FormRuntime<Schema>>; schema?: undefined; bodyCap?: undefined }
+
+export type FormSubmissionSteps<Schema extends z.ZodType<{ submissionId: string }>> =
+  FormSubmissionCommonSteps<Schema> & FormRuntimeSource<Schema>
+
+export interface FormSubmissionCommonSteps<Schema extends z.ZodType<{ submissionId: string }>> {
+  /** Short form name, also the Turnstile action, for example `hello`. */
+  form: string
+  /** Whether an `Origin` header is this environment's site, from configuration. */
+  originAllowed: (origin: string | null) => boolean
   /** What a 201 says when there is no receipt step, and what a repeat says. */
   receipt: Receipt
   /** Per-network limit, then the global limit. */
@@ -57,7 +73,10 @@ export async function processFormSubmission<Schema extends z.ZodType<{ submissio
 
   try {
     if (!isSameOriginJsonPost(request, steps.originAllowed)) return badRequest()
-    const read = await readCappedBody(request, steps.bodyCap)
+    const { schema, bodyCap } = steps.load
+      ? await steps.load()
+      : { schema: steps.schema, bodyCap: steps.bodyCap }
+    const read = await readCappedBody(request, bodyCap)
     if (!read.ok) return badRequest()
 
     if (!(await steps.withinRateLimit())) {
@@ -67,7 +86,7 @@ export async function processFormSubmission<Schema extends z.ZodType<{ submissio
 
     const parsedJson = parseJsonObject(read.text)
     if (!parsedJson.ok) return badRequest()
-    const parsed = steps.schema.safeParse(parsedJson.body)
+    const parsed = schema.safeParse(parsedJson.body)
     if (!parsed.success) {
       const mapped = toFieldErrors(parsed.error.issues, parsedJson.body)
       if (!mapped.ok) return badRequest()
