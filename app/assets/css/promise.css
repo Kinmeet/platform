@@ -1,0 +1,23 @@
+/* The all-ages promise (#77): an intro, then one patch per section. */
+.promise-intro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: 28px var(--gutter) 20px;
+}
+
+.promise-intro h1 {
+  font-size: var(--text-title);
+}
+
+.promise-intro .lede {
+  max-width: 52ch;
+}
+
+.promise-sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: 48rem;
+  padding: 0 var(--gutter) var(--space-7);
+}
