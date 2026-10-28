@@ -283,6 +283,8 @@ export async function publishDraft(
   const draft = detail.draft!
   const previous = detail.form.version
   const next = (previous ?? 0) + 1
+  const definitionJson = JSON.stringify(draft.definition)
+  const textJson = JSON.stringify(draft.text)
   try {
     const [inserted] = await db.batch([
       db
@@ -292,29 +294,22 @@ export async function publishDraft(
            SELECT ?, ?, ?, ?, ?, ?, ?
            WHERE EXISTS (SELECT 1 FROM forms WHERE id = ? AND current_version IS ?)`,
         )
-        .bind(
-          id,
-          next,
-          draft.purpose,
-          JSON.stringify(draft.definition),
-          JSON.stringify(draft.text),
-          now,
-          actor,
-          id,
-          previous,
-        ),
+        .bind(id, next, draft.purpose, definitionJson, textJson, now, actor, id, previous),
       db
         .prepare(
           `UPDATE forms SET current_version = ? WHERE id = ? AND current_version IS ?
            AND EXISTS (SELECT 1 FROM form_versions WHERE form_id = ? AND version = ?)`,
         )
         .bind(next, id, previous, id, next),
+      // Only the draft that was checked and published: one saved since then
+      // is newer work and stays (Theo, #163).
       db
         .prepare(
-          `DELETE FROM form_drafts WHERE form_id = ?
-           AND EXISTS (SELECT 1 FROM forms WHERE id = ? AND current_version = ?)`,
+          `DELETE FROM form_drafts
+           WHERE form_id = ? AND purpose = ? AND definition = ? AND text = ?
+             AND EXISTS (SELECT 1 FROM forms WHERE id = ? AND current_version = ?)`,
         )
-        .bind(id, id, next),
+        .bind(id, draft.purpose, definitionJson, textJson, id, next),
       db
         .prepare(
           `INSERT INTO audit_log (id, at, actor, action, target_table, target_id, delete_after)

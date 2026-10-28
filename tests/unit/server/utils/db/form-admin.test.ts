@@ -254,6 +254,33 @@ describe('publishing a draft', () => {
     })
   })
 
+  // Theo, #163: a draft saved while a publish is under way is newer work, so it stays.
+  it('keeps a draft saved after the publish read the one it publishes', async () => {
+    const id = await freshForm('application')
+    const draft = await draftOf(id)
+    draft.text['en-GB'].title = 'A made-up title to publish'
+    await saveDraft(env.DB, id, draft, ACTOR, NOW)
+    const newer = await draftOf(id)
+    newer.text['en-GB'].title = 'A made-up title saved meanwhile'
+    // The newer save lands between the publish's read and its batch.
+    const db = new Proxy(env.DB, {
+      get(target, key) {
+        if (key !== 'batch') return Reflect.get(target, key, target)
+        return async (statements: Parameters<typeof target.batch>[0]) => {
+          await saveDraft(target, id, newer, ACTOR, NOW + 1)
+          return target.batch(statements)
+        }
+      },
+    })
+    expect(await publishDraft(db, id, ACTOR, NOW + 2)).toEqual({ ok: true, version: 2 })
+    const detail = (await getForm(env.DB, id))!
+    expect(detail.form.title).toBe('A made-up title to publish')
+    expect(detail.draft).toMatchObject({ updatedAt: NOW + 1 })
+    expect((detail.draft!.text as { 'en-GB': Record<string, string> })['en-GB'].title).toBe(
+      'A made-up title saved meanwhile',
+    )
+  })
+
   it('refuses a draft that needs a second approval, and changes nothing', async () => {
     const id = await freshForm('application')
     const draft = await draftOf(id)
