@@ -1,13 +1,21 @@
 import { describe, expect, it } from 'vitest'
 import { publishedRoles } from '../../../shared/forms/roles'
-import { accessRoutes, crossesFormBoundary, publicRoutes } from '../../../shared/routes'
+import { promisePage } from '../../../shared/pages/promise'
+import {
+  accessRoutes,
+  buildPublicRoutes,
+  crossesFormBoundary,
+  draftRoutes,
+  publicRoutes,
+} from '../../../shared/routes'
+import { hasPage } from '../../../shared/site-nav'
 
 // Every page must be listed in shared/routes.ts, as a public route (loaded
-// by the no-third-party and accessibility tests) or an Access route (checked
-// to refuse without an Access token). The glob is resolved when the test is
+// by the no-third-party and accessibility tests), an Access route (checked
+// to refuse without an Access token) or a draft route (checked to be a 404). The glob is resolved when the test is
 // built, so this works inside workerd without file system access.
 const pageFiles = Object.keys(import.meta.glob('../../../app/pages/**/*.vue'))
-const listedPaths = [...publicRoutes.map((route) => route.path), ...accessRoutes]
+const listedPaths = [...publicRoutes.map((route) => route.path), ...accessRoutes, ...draftRoutes]
 
 /** Turns a page file name into its route pattern, e.g. groups/[slug].vue → /groups/:slug */
 function routePattern(file: string): string {
@@ -58,7 +66,7 @@ describe('route list', () => {
     expect(stale, 'remove these routes or add their pages').toEqual([])
   })
 
-  it('lists each route once, and never as both public and Access', () => {
+  it('lists each route once, and never as more than one of public, Access and draft', () => {
     expect(new Set(listedPaths).size).toBe(listedPaths.length)
   })
   // The no-third-party test doesn't check Turnstile on arrival for these
@@ -76,6 +84,29 @@ describe('route list', () => {
   it('waits to load the spam check only on form routes', () => {
     const notForms = publicRoutes.filter((route) => route.spamCheckOnLoad === false && !route.form)
     expect(notForms).toEqual([])
+  })
+})
+
+// The all-ages promise (#77) is built but not published until its copy is
+// agreed. Publishing it is one flag, and these show what that flag does.
+describe('all-ages promise page', () => {
+  it('is a draft while unpublished, so its links stay hidden', () => {
+    expect(promisePage.published).toBe(false)
+    expect(draftRoutes).toContain(promisePage.path)
+    expect(hasPage(promisePage.path)).toBe(false)
+  })
+
+  it('becomes a public route once published, so the end-to-end checks load it', () => {
+    const routes = buildPublicRoutes({ roles: publishedRoles(), promise: true })
+    expect(routes).toContainEqual({ path: promisePage.path, form: false })
+    expect(hasPage(promisePage.path, routes)).toBe(true)
+  })
+
+  it('keeps every other route the same either way', () => {
+    const published = buildPublicRoutes({ roles: publishedRoles(), promise: true })
+    expect(published.filter((route) => route.path !== promisePage.path)).toEqual(
+      buildPublicRoutes({ roles: publishedRoles(), promise: false }),
+    )
   })
 })
 

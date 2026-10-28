@@ -474,5 +474,24 @@
       "body": "This page didn't load properly. Please try again in a minute."
     },
     "home": "Go to the home page"
+  },
+  "promise": {
+    "page_title": "",
+    "title": "",
+    "lede": "",
+    "sections": {
+      "policy": {
+        "heading": "",
+        "blocks": []
+      },
+      "ages": {
+        "heading": "",
+        "blocks": []
+      },
+      "adults": {
+        "heading": "",
+        "blocks": []
+      }
+    }
   }
 }
