@@ -38,6 +38,8 @@ jobs:
         env:
           CLOUDFLARE_ENV: live
       - run: bun run check:generated-config
+      # No bot detection or fingerprinting code in the build (#141).
+      - run: bun run check:build-output
 
   e2e:
     name: End-to-end, no-third-party and accessibility tests
