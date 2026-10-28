@@ -161,7 +161,7 @@ We leave out mailflare's:
 - `postal-mime` parses the message. This is a new dependency, MIT licensed and the one Cloudflare's docs use.
 - **We keep no raw MIME.** Its `Received:` and similar headers carry IP addresses, which we never store (privacy rule; Ezra). We keep:
   - the text part and the HTML part;
-  - the few headers we need: `From`, `To`, `Subject`, `Date`, `Message-ID`, `In-Reply-To` and `References`, plus the SPF, DKIM and DMARC results;
+  - the few headers we need: `From`, `To`, `Subject`, `Date`, `Message-ID`, `In-Reply-To` and `References`, plus the SPF, DKIM and DMARC results as verdicts only, never the header text, which can carry the sending IP (Nadia);
   - the attachments.
     The parts go into D1, and attachments go into private R2 in the EU jurisdiction under random names. If parsing fails, the message is rejected and nothing is kept. Logs carry a code and ids only.
 - Over-size messages are refused before parsing, and parsing is written with the Workers CPU budget in mind.
@@ -176,6 +176,7 @@ We leave out mailflare's:
 - **The safeguarding address is never a plain mailbox.** Until it's decided otherwise, it accepts into the encrypted store only, and never writes any part of a message or its attachments to R2 in plain (SG6, firm rule 5).
   - Forwarding it to the safeguarding lead's own inbox would put disclosures in plain text in a personal inbox. That is a founder decision under SG-03 and the #95 exception, not an engineering default.
   - If inbound safeguarding mail can't be encrypted this way, the address stays unbuilt (Ezra).
+  - Any automatic reply or bounce from the safeguarding address uses fixed wording that points to 999 and the web form, and never echoes the message. Ezra and the SG-03 owner agree the wording (Nadia).
 - **Every general mailbox has "pass to safeguarding"**, as forms do. The hand-over moves the message and its attachments into the encrypted store. The plain copies in D1 and R2 are deleted only after the encrypted copy has been checked, so nothing stays behind (Nadia, Ezra).
 - **Viewing mail safely** (Nadia's settings):
   - The text part is shown by default.
