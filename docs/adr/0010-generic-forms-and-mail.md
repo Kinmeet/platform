@@ -1,6 +1,6 @@
 # ADR-0010: Forms built on the site, and a mail platform reimplemented from mailflare
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #154, 28 October 2026)
 - **Date:** 28 October 2026
 - **Author:** Theo Marsh (Tech Lead)
 - **Reviewers:** Nadia Haddad, Ezra Quinn, Robin Achterberg, Rowan Hale; input from Sol Ferreira, Callum Reid, Mei Lin Tan, Freya Lund, Ines Duarte
@@ -221,12 +221,13 @@ We leave out mailflare's:
 - **Tokens** are random, at least 128 bits, stored only as a hash, single-use and expiring. An unsubscribe token may be a per-recipient HMAC, as long as it can't be guessed from the address.
 - **A GET never changes state.** Mail scanners and link previewers follow links, so confirmation and unsubscribe pages show a button that POSTs. One-click unsubscribe uses RFC 8058's `List-Unsubscribe-Post`.
 
-**Newsletters**, only if the founder chooses them:
+**Newsletters.** The founder chose "mailbox suite plus newsletters" on 28 October 2026, through Rowan's scope card. So we build:
 
 - lists, contacts and memberships;
 - double opt-in, with hashed and expiring confirmation tokens;
 - a one-click unsubscribe header (RFC 8058) and an unsubscribe page;
-- campaigns sent through a Queue, within Email Service's daily limits.
+- campaigns sent through a Queue, within Email Service's daily limits;
+- suppression of bounces, complaints and unsubscribes, as above, with no tracking of any kind.
 
 We build the mechanism, but nothing is collected until area 5 decides the newsletter rules (double opt-in, retention, minimum age) and the under-13s question. Until then the code ships with its P3 purpose missing, so a list can't be opened.
 
@@ -238,7 +239,7 @@ We build the mechanism, but nothing is collected until area 5 decides the newsle
 | B. Builder     | Admin screens to build, preview, publish and close forms, behind Access, following Callum's redesigned canvas. Generic submission lists and the hand-over.                                                                                                                                                                                   | Fixture forms of every field type in the e2e routes                                          |
 | C. Clean-up    | Drop `hello_messages`, `applications`, the TypeScript role config and the per-form copy keys. This is a separate migration, once the deletion job and the admin page have run on the new tables.                                                                                                                                             | Retention test for each purpose                                                              |
 | D. Mailboxes   | Inbound mail, shared mailboxes, replies and suppression events. Starts once a domain is bought.                                                                                                                                                                                                                                              | Local `email()` tests with Wrangler's local email endpoint                                   |
-| E. Newsletters | Only if chosen, and after area 5.                                                                                                                                                                                                                                                                                                            | Retention and opt-in tests                                                                   |
+| E. Newsletters | Chosen by the founder (28 October). Built, but nothing is collected until area 5 decides.                                                                                                                                                                                                                                                    | Retention and opt-in tests                                                                   |
 
 We don't touch the `safeguarding_items` rows. Existing ciphertext stays keyed by the old row ids.
 
@@ -289,7 +290,6 @@ It also names the Privacy and Safeguarding Reviewer for `purposes.ts`, the hand-
   - `privacy.md` adds that every form and mailbox names a P3 purpose.
   - ADR-0006 is marked "partly superseded by ADR-0010" for templates and links. Its anti-abuse rules stay.
 - **Open, for the founder through Rowan:**
-  - which mail scope: mailboxes, newsletters, or both;
   - whether calendar and drive are wanted later;
   - whether the safeguarding address may forward to the safeguarding lead before M2c, or accepts into the encrypted store only;
   - how second approvals work while the founder holds every role: wait for a second person, or record a check done outside the platform in the audit log.
