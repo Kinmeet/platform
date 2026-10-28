@@ -25,6 +25,18 @@ for (const route of publicRoutes) {
       await expect(page.getByRole('main')).toBeFocused()
     })
 
+    // WCAG 1.4.10 reflow: nothing scrolls sideways at 320px. axe and the
+    // 412px mobile project don't catch this (Robin, #146).
+    test('fits a 320px screen without scrolling sideways', async ({ page }) => {
+      await page.setViewportSize({ width: 320, height: 640 })
+      await page.goto(route.path)
+      const { scrollWidth, clientWidth } = await page.evaluate(() => ({
+        scrollWidth: document.documentElement.scrollWidth,
+        clientWidth: document.documentElement.clientWidth,
+      }))
+      expect(scrollWidth).toBeLessThanOrEqual(clientWidth)
+    })
+
     test('puts the site name after the page title', async ({ page }) => {
       await page.goto(route.path)
       await expect(page).toHaveTitle(/^.+ – Kinmeet$/)
