@@ -27,12 +27,31 @@ export interface PublicRoute {
   spamCheckOnLoad?: boolean
 }
 
+/** A page that is built before it is published, as in `shared/pages/`. */
+export interface DraftablePage {
+  path: string
+  published: boolean
+}
+
+/**
+ * Every draftable page, in the order its route is listed. A new one needs its
+ * file in `shared/pages/`, plus its import and one line here, and nothing
+ * else in this file, so two draft-page PRs no longer conflict (#149). A unit
+ * test checks that every page in `shared/pages/` is listed:
+ * - the all-ages promise (#77), once its copy is agreed;
+ * - the privacy notice (#144) and the accessibility statement (#145), once
+ *   the founder's M1 review has agreed them.
+ */
+export const draftablePages: readonly DraftablePage[] = [
+  promisePage,
+  privacyPage,
+  accessibilityPage,
+]
+
 /** What decides which pages are public. Tests pass their own to try a flag. */
 export interface PublishedContent {
   roles: readonly PublishedRole[]
-  promise: boolean
-  privacy: boolean
-  accessibility: boolean
+  pages: readonly DraftablePage[]
 }
 
 export function buildPublicRoutes(content: PublishedContent): PublicRoute[] {
@@ -42,12 +61,10 @@ export function buildPublicRoutes(content: PublishedContent): PublicRoute[] {
     ...content.roles.map((role) => ({ path: `/roles/${role.slug}`, form: false })),
     // Say hello (#14): the spam check loads with the page (S5).
     { path: '/say-hello', form: true },
-    // The all-ages promise (#77), once its copy is agreed and it's published.
-    ...(content.promise ? [{ path: promisePage.path, form: false }] : []),
-    // The privacy notice (#144), once the founder's M1 review has agreed it.
-    ...(content.privacy ? [{ path: privacyPage.path, form: false }] : []),
-    // The accessibility statement (#145), once the founder's M1 review has agreed it.
-    ...(content.accessibility ? [{ path: accessibilityPage.path, form: false }] : []),
+    // Each draftable page, once it's published.
+    ...content.pages
+      .filter((page) => page.published)
+      .map((page) => ({ path: page.path, form: false })),
     // Each role's apply flow (#15): every step is one page, so the policy allows the
     // spam check throughout, but it only loads on step 4.
     ...content.roles.map((role) => ({
@@ -61,9 +78,7 @@ export function buildPublicRoutes(content: PublishedContent): PublicRoute[] {
 
 export const publicRoutes: readonly PublicRoute[] = buildPublicRoutes({
   roles: publishedRoles(),
-  promise: promisePage.published,
-  privacy: privacyPage.published,
-  accessibility: accessibilityPage.published,
+  pages: draftablePages,
 })
 
 /**
@@ -71,7 +86,7 @@ export const publicRoutes: readonly PublicRoute[] = buildPublicRoutes({
  * flag is turned on, which moves it into `publicRoutes`. The end-to-end tests
  * check each one is a 404.
  */
-export const draftRoutes: readonly string[] = [promisePage, privacyPage, accessibilityPage]
+export const draftRoutes: readonly string[] = draftablePages
   .filter((page) => !page.published)
   .map((page) => page.path)
 
