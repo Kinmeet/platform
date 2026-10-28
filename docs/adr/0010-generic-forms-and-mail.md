@@ -1,6 +1,6 @@
 # ADR-0010: Forms built on the site, and a mail platform reimplemented from mailflare
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #154, 28 October 2026)
 - **Date:** 28 October 2026
 - **Author:** Theo Marsh (Tech Lead)
 - **Reviewers:** Nadia Haddad, Ezra Quinn, Robin Achterberg, Rowan Hale; input from Sol Ferreira, Callum Reid, Mei Lin Tan, Freya Lund, Ines Duarte
