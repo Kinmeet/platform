@@ -192,6 +192,9 @@ export function watchRealTurnstile(page: Page) {
         `Turnstile's script didn't answer within ${REAL_SCRIPT_TIMEOUT_MS / 1000}s: check that ${TURNSTILE_ORIGIN} can be reached from the test machine`,
       )
     })
+  // Nothing awaits it if a test fails before calling loaded(), so this keeps
+  // that rejection from being reported as unhandled (Theo, #150).
+  script.catch(() => {})
   return {
     loaded: async () => {
       const response = await script
