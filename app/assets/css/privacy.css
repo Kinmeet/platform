@@ -1,0 +1,50 @@
+/* The privacy notice (#144): an intro, then one patch per section. */
+.privacy-intro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: 28px var(--gutter) 20px;
+}
+
+.privacy-intro h1 {
+  font-size: var(--text-title);
+}
+
+.privacy-intro .lede {
+  max-width: 52ch;
+}
+
+.privacy-sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: 48rem;
+  padding: 0 var(--gutter) var(--space-7);
+}
+
+.privacy-sections ul {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-left: 1.25em;
+  list-style: disc;
+}
+
+.privacy-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.privacy-table :is(th, td) {
+  padding: var(--space-2) var(--space-3) var(--space-2) 0;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: var(--border);
+}
+
+/* A proposed P9 edit, still to be agreed at the founder's review. The page
+   can't be published while any are left (#144). */
+.privacy-draft {
+  padding-left: var(--space-3);
+  border-left: 3px dashed var(--colour-text-muted);
+}
