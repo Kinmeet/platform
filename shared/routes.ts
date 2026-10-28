@@ -1,4 +1,5 @@
 import { publishedRoles, type PublishedRole } from './forms/roles'
+import { privacyPage } from './pages/privacy'
 import { accessibilityPage } from './pages/accessibility'
 import { promisePage } from './pages/promise'
 
@@ -30,6 +31,7 @@ export interface PublicRoute {
 export interface PublishedContent {
   roles: readonly PublishedRole[]
   promise: boolean
+  privacy: boolean
   accessibility: boolean
 }
 
@@ -42,6 +44,8 @@ export function buildPublicRoutes(content: PublishedContent): PublicRoute[] {
     { path: '/say-hello', form: true },
     // The all-ages promise (#77), once its copy is agreed and it's published.
     ...(content.promise ? [{ path: promisePage.path, form: false }] : []),
+    // The privacy notice (#144), once the founder's M1 review has agreed it.
+    ...(content.privacy ? [{ path: privacyPage.path, form: false }] : []),
     // The accessibility statement (#145), once the founder's M1 review has agreed it.
     ...(content.accessibility ? [{ path: accessibilityPage.path, form: false }] : []),
     // Each role's apply flow (#15): every step is one page, so the policy allows the
@@ -58,6 +62,7 @@ export function buildPublicRoutes(content: PublishedContent): PublicRoute[] {
 export const publicRoutes: readonly PublicRoute[] = buildPublicRoutes({
   roles: publishedRoles(),
   promise: promisePage.published,
+  privacy: privacyPage.published,
   accessibility: accessibilityPage.published,
 })
 
@@ -66,7 +71,7 @@ export const publicRoutes: readonly PublicRoute[] = buildPublicRoutes({
  * flag is turned on, which moves it into `publicRoutes`. The end-to-end tests
  * check each one is a 404.
  */
-export const draftRoutes: readonly string[] = [promisePage, accessibilityPage]
+export const draftRoutes: readonly string[] = [promisePage, privacyPage, accessibilityPage]
   .filter((page) => !page.published)
   .map((page) => page.path)
 

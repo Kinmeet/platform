@@ -495,6 +495,95 @@
       }
     }
   },
+  "privacy": {
+    "page_title": "Privacy notice",
+    "title": "Privacy notice",
+    "last_updated": "Last updated {date}.",
+    "intro": "Kinmeet is being set up as a charity for the alterhuman community. We collect as little about you as we can, we never track you, and we never sell or share your details for marketing.",
+    "controller": {
+      "heading": "Who is responsible for your data",
+      "not_yet": "Kinmeet is not yet a registered charity. Until it is, the person responsible for your data is Kinmeet's founder.",
+      "contact": "You can contact us at {address}.",
+      "cio": "When Kinmeet becomes a charity (a CIO), it will take over responsibility and we will update this page."
+    },
+    "collect": {
+      "heading": "What we collect",
+      "hello_label": "If you use the say hello form:",
+      "hello": "{label} the name you choose to give us (a community name is fine), your email address and your message.",
+      "trustee_label": "If you apply to be a founding trustee:",
+      "trustee": "{label} your community name, your contact details and your answers on the form. We only ask for your legal name and other details if we offer you a place.",
+      "form_label": "When you send a form:",
+      "form": "{label} Cloudflare Turnstile checks that you are a person, not a bot. It runs only on pages with forms."
+    },
+    "never": {
+      "heading": "What we never collect",
+      "analytics": "No analytics or tracking of any kind, and no advertising.",
+      "cookies": "No tracking cookies. Any cookie used by us or by Turnstile is only there to make the site or a form work.",
+      "ip": "No record of your IP address with anything you send us.",
+      "other_sites": "Nothing from other websites: our pages load only from our own site, apart from Turnstile on form pages."
+    },
+    "why": {
+      "heading": "Why we use it",
+      "what": "What",
+      "why": "Why",
+      "basis": "Legal reason",
+      "hello": {
+        "what": "Say hello messages",
+        "why": "To reply to you",
+        "basis": "Our legitimate interest in answering people who contact us"
+      },
+      "trustee": {
+        "what": "Trustee applications",
+        "why": "To choose Kinmeet's first trustees",
+        "basis": "Our legitimate interest in setting up the charity safely"
+      },
+      "turnstile": {
+        "what": "Turnstile check",
+        "why": "To stop spam and abuse of our forms",
+        "basis": "Our legitimate interest in keeping the forms safe"
+      }
+    },
+    "others": {
+      "heading": "Who else sees it",
+      "cloudflare": "Cloudflare",
+      "body": "Only {cloudflare}, which hosts our website and stores our data for us under a contract, and runs Turnstile. Cloudflare is not allowed to use your data for anything else. We keep our data in Europe where Cloudflare lets us choose. Nobody else sees your details unless the law requires it, or someone is at risk of harm."
+    },
+    "keep": {
+      "heading": "How long we keep it",
+      "hello": "Say hello messages: 12 months after our last reply.",
+      "trustee": "Trustee applications that are not taken forward: 6 months after we tell you.",
+      "trustee_record": "If you become a trustee, your application becomes part of your trustee record, which we explain to you at the time.",
+      "automatic": "The website deletes these automatically."
+    },
+    "rights": {
+      "heading": "Your rights",
+      "ask": "You can ask us for a copy of what we hold about you, ask us to correct it, or ask us to delete it. You can also object to how we use it.",
+      "email": "Email {address} and we will reply within one month. It is free.",
+      "complain": "If you are unhappy with how we handle your data, please tell us first. You can also complain to the Information Commissioner's Office at ico.org.uk or on 0303 123 1113."
+    },
+    "under_18": {
+      "heading": "If you are under 18",
+      "rights": "You have the same rights as everyone else. You do not need a parent's permission to write to us.",
+      "private": "Please do not send us anything private about yourself or anyone else in a message.",
+      "danger": "If you are worried about someone's safety, call 999 in an emergency."
+    },
+    "changes": {
+      "heading": "Changes",
+      "body": "We will update this page when Kinmeet becomes a charity and when we add new features, and show the date at the top."
+    },
+    "draft": {
+      "scrambled_ip": "To stop spam, our website briefly uses a scrambled version of your internet connection's address (IP address) to limit how many forms can be sent from one place in a minute. It is never saved with what you send and is forgotten within minutes.",
+      "turnstile_what": "Turnstile check and sending limits",
+      "backups": "After deletion, a copy may stay in our secure recovery backups for up to 7 days before it is gone for good.",
+      "collect_trustee": "{label} your community name, your email address and your answers on the form. We only ask for your legal name and other details if we offer you a place.",
+      "safety_what": "A message that tells us someone may be at risk",
+      "safety_why": "To keep people safe",
+      "keep_hello": "Say hello messages: 12 months after our last reply, or 12 months after you sent it if we haven't replied.",
+      "keep_email_log": "A scrambled record that we emailed you a receipt: 30 days.",
+      "keep_safety": "If your message tells us someone may be at risk, we pass it to our safeguarding lead, who keeps it securely and separately under our safeguarding policy. The website does not delete it automatically. If someone needs protecting, they may share it with services that can help, such as the police.",
+      "under_18_private": "You only need to tell us what you want to. If you're worried about your safety or someone else's, you can tell us, and our safeguarding lead will deal with it carefully."
+    }
+  },
   "accessibility": {
     "page_title": "Accessibility statement",
     "title": "Accessibility statement",

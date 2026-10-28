@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { publishedRoles } from '../../../shared/forms/roles'
+import { privacyPage } from '../../../shared/pages/privacy'
 import { accessibilityPage } from '../../../shared/pages/accessibility'
 import { promisePage } from '../../../shared/pages/promise'
 import {
@@ -101,6 +102,7 @@ describe('all-ages promise page', () => {
     const routes = buildPublicRoutes({
       roles: publishedRoles(),
       promise: true,
+      privacy: false,
       accessibility: false,
     })
     expect(routes).toContainEqual({ path: promisePage.path, form: false })
@@ -111,10 +113,54 @@ describe('all-ages promise page', () => {
     const published = buildPublicRoutes({
       roles: publishedRoles(),
       promise: true,
+      privacy: false,
       accessibility: false,
     })
     expect(published.filter((route) => route.path !== promisePage.path)).toEqual(
-      buildPublicRoutes({ roles: publishedRoles(), promise: false, accessibility: false }),
+      buildPublicRoutes({
+        roles: publishedRoles(),
+        promise: false,
+        privacy: false,
+        accessibility: false,
+      }),
+    )
+  })
+})
+
+// The privacy notice (#144) waits for the founder's M1 review. Publishing it
+// is one flag, which also shows the footer and say hello links to it.
+describe('privacy notice page', () => {
+  it('is a draft while unpublished, so its links stay hidden', () => {
+    expect(privacyPage.published).toBe(false)
+    expect(draftRoutes).toContain(privacyPage.path)
+    expect(hasPage(privacyPage.path)).toBe(false)
+  })
+
+  it('becomes a public route once published, so the end-to-end checks load it', () => {
+    const routes = buildPublicRoutes({
+      roles: publishedRoles(),
+      promise: false,
+      privacy: true,
+      accessibility: false,
+    })
+    expect(routes).toContainEqual({ path: privacyPage.path, form: false })
+    expect(hasPage(privacyPage.path, routes)).toBe(true)
+  })
+
+  it('keeps every other route the same either way', () => {
+    const published = buildPublicRoutes({
+      roles: publishedRoles(),
+      promise: false,
+      privacy: true,
+      accessibility: false,
+    })
+    expect(published.filter((route) => route.path !== privacyPage.path)).toEqual(
+      buildPublicRoutes({
+        roles: publishedRoles(),
+        promise: false,
+        privacy: false,
+        accessibility: false,
+      }),
     )
   })
 })
@@ -132,6 +178,7 @@ describe('accessibility statement page', () => {
     const routes = buildPublicRoutes({
       roles: publishedRoles(),
       promise: false,
+      privacy: false,
       accessibility: true,
     })
     expect(routes).toContainEqual({ path: accessibilityPage.path, form: false })
@@ -142,14 +189,21 @@ describe('accessibility statement page', () => {
     const published = buildPublicRoutes({
       roles: publishedRoles(),
       promise: false,
+      privacy: false,
       accessibility: true,
     })
     expect(published.filter((route) => route.path !== accessibilityPage.path)).toEqual(
-      buildPublicRoutes({ roles: publishedRoles(), promise: false, accessibility: false }),
+      buildPublicRoutes({
+        roles: publishedRoles(),
+        promise: false,
+        privacy: false,
+        accessibility: false,
+      }),
     )
   })
 
   it('is the page the footer links to', () => {
+    expect(footerNav.find((link) => link.id === 'data')?.path).toBe(privacyPage.path)
     expect(footerNav.find((link) => link.id === 'accessibility')?.path).toBe(accessibilityPage.path)
   })
 })

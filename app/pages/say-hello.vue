@@ -6,12 +6,13 @@
 // typed is held in memory only and kept on any failure. The route is a form
 // page, so the spam check loads with it (S5), and moving onto or off it loads
 // a new document (#20).
+import { privacyPage } from '#shared/pages/privacy'
 import { hasPage } from '#shared/site-nav'
 
 const { t } = useI18n()
 
 // The privacy notice link waits for its page (Sprint 2), like the footer's.
-const PRIVACY_PATH = '/how-we-handle-data'
+const PRIVACY_PATH = privacyPage.path
 const privacyLink = hasPage(PRIVACY_PATH)
 
 const draft = ref<HelloDraft | null>(import.meta.client ? createHelloDraft() : null)
