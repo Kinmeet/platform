@@ -3,18 +3,9 @@
   "main": "index.mjs",
   "workers_dev": true,
   "preview_urls": true,
-  "compatibility_flags": [
-    "nodejs_compat",
-    "no_nodejs_compat_v2"
-  ],
-  "crons": [
-    "17 3 * * *"
-  ],
-  "required_secrets": [
-    "TURNSTILE_SECRET_KEY",
-    "RATE_LIMIT_HMAC_KEY",
-    "EMAIL_LOG_HMAC_KEY"
-  ],
+  "compatibility_flags": ["nodejs_compat", "no_nodejs_compat_v2"],
+  "crons": ["17 3 * * *"],
+  "required_secrets": ["TURNSTILE_SECRET_KEY", "RATE_LIMIT_HMAC_KEY", "EMAIL_LOG_HMAC_KEY"],
   "bindings": {
     "observability": {
       "enabled": true,
