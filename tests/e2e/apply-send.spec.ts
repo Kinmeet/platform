@@ -35,6 +35,9 @@ test.describe('apply send', () => {
   test.beforeEach(async ({ page }) => {
     turnstile = await useTurnstileStandIn(page)
   })
+  test.afterEach(() => {
+    expect(turnstile.realRequests(), 'the real widget should never load here').toEqual([])
+  })
 
   test('sends the answers and shows the sent page', async ({ page }) => {
     const bodies = await mockApply(page, { status: 201, body: { ok: true, receipt: 'queued' } })

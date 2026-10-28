@@ -48,6 +48,9 @@ test.describe('say hello', () => {
   test.beforeEach(async ({ page }) => {
     turnstile = await useTurnstileStandIn(page)
   })
+  test.afterEach(() => {
+    expect(turnstile.realRequests(), 'the real widget should never load here').toEqual([])
+  })
 
   test('has the form, with no extra fields', async ({ page }) => {
     await open(page)

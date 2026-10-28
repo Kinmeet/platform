@@ -11,8 +11,10 @@ import { TURNSTILE_ORIGIN } from '../../shared/turnstile'
 // - the server rejecting a missing, failed or wrong-action token is tested by
 //   the siteverify unit tests (#48, #80);
 // - the real widget loading on every form page, under our policy and with no
-//   other outside origin, is checked by `expectRealTurnstile` in
-//   no-third-party.spec.ts and apply.spec.ts;
+//   other outside origin, is checked by `watchRealTurnstile` in
+//   no-third-party.spec.ts, apply.spec.ts, accessibility.spec.ts and
+//   form-navigation.spec.ts;
+// - getting a real token and sending it is a manual go-live check on staging;
 // - "the spam check couldn't load" still aborts the real URL.
 //
 // The stand-in is served at the real script URL, so the browser applies our
@@ -67,6 +69,11 @@ const STAND_IN = `(() => {
  */
 export async function useTurnstileStandIn(page: Page) {
   let hits = 0
+  const real: string[] = []
+  page.on('request', (request) => {
+    const url = request.url()
+    if (url.startsWith(`${TURNSTILE_ORIGIN}/`) && url !== SCRIPT_URL) real.push(url)
+  })
   await page.route(SCRIPT_URL, (route) => {
     hits += 1
     return route.fulfill({ contentType: 'text/javascript', body: STAND_IN })
@@ -74,6 +81,12 @@ export async function useTurnstileStandIn(page: Page) {
   return {
     /** How many times the page asked for the script and got the stand-in. */
     hits: () => hits,
+    /**
+     * Requests to Turnstile's origin other than the script the stand-in
+     * answers. Any at all means the real widget loaded, for example because
+     * the script URL changed (Kit, #150).
+     */
+    realRequests: () => real,
     renders: () =>
       page.evaluate(
         () =>
@@ -118,7 +131,11 @@ export function watchOwnRequests(page: Page, ownOrigin: string) {
     try {
       return new Set(
         await page.evaluate(() =>
-          performance.getEntriesByType('resource').map((entry) => entry.name),
+          (performance.getEntriesByType('resource') as PerformanceResourceTiming[])
+            // Only scripts and styles: a repeated API call to the same URL
+            // must still be waited for (Theo, #150).
+            .filter((entry) => entry.initiatorType === 'script' || entry.initiatorType === 'link')
+            .map((entry) => entry.name),
         ),
       )
     } catch {
@@ -151,15 +168,30 @@ export function watchOwnRequests(page: Page, ownOrigin: string) {
  * frame from Turnstile's origin must appear. It doesn't wait for a token,
  * because that is the part that can hang.
  */
+/** How long the real script may take before we call Cloudflare unreachable. */
+const REAL_SCRIPT_TIMEOUT_MS = 20_000
+
 export function watchRealTurnstile(page: Page) {
   // Turnstile redirects the script URL to a versioned one, so this waits for
   // the end of that chain.
-  const script = page.waitForResponse((response) => {
-    let first = response.request()
-    while (first.redirectedFrom()) first = first.redirectedFrom()!
-    const redirect = response.status() >= 300 && response.status() < 400
-    return first.url() === SCRIPT_URL && !redirect
-  })
+  // Its own timeout and message, so a hang reads as Cloudflare being
+  // unreachable from the test machine rather than a fault in our code. It
+  // still fails: these checks exist to prove the real widget loads.
+  const script = page
+    .waitForResponse(
+      (response) => {
+        let first = response.request()
+        while (first.redirectedFrom()) first = first.redirectedFrom()!
+        const redirect = response.status() >= 300 && response.status() < 400
+        return first.url() === SCRIPT_URL && !redirect
+      },
+      { timeout: REAL_SCRIPT_TIMEOUT_MS },
+    )
+    .catch(() => {
+      throw new Error(
+        `Turnstile's script didn't answer within ${REAL_SCRIPT_TIMEOUT_MS / 1000}s: check that ${TURNSTILE_ORIGIN} can be reached from the test machine`,
+      )
+    })
   return {
     loaded: async () => {
       const response = await script
