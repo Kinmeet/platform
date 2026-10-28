@@ -14,12 +14,13 @@ function leaves(tree: Tree, prefix = ''): [string, string][] {
 }
 
 const copy = messages.accessibility
-// P11's "[List known problems here, or say that none are known.]"
-const KNOWN = 'accessibility.known.body'
+// P11's "[List known problems here, or say that none are known.]", one
+// sentence per item.
+const known = copy.known.items as string[]
 const texts = leaves(copy as unknown as Tree, 'accessibility.')
 
 describe('accessibility statement copy', () => {
-  it.each(texts.filter(([key]) => key !== KNOWN))('fills in %s', (_key, text) => {
+  it.each(texts)('fills in %s', (_key, text) => {
     expect(text.trim()).not.toBe('')
   })
 
@@ -30,7 +31,7 @@ describe('accessibility statement copy', () => {
 
   // Each gap is closed exactly when the page is published.
   it(`${accessibilityPage.published ? 'has' : 'waits for'} the known problems`, () => {
-    expect(copy.known.body.trim() !== '').toBe(accessibilityPage.published)
+    expect(known.length > 0).toBe(accessibilityPage.published)
   })
 
   it(`${accessibilityPage.published ? 'has' : 'waits for'} the date at the top`, () => {

@@ -72,4 +72,20 @@ describe('accessibility statement', () => {
     expect(text).toContain(copy('accessibility.meets.body', { address: 'hello@example.org' }))
     expect(wrapper.find('h2#meets').text()).toBe(copy('accessibility.meets.heading'))
   })
+
+  // Last, because it adds made-up items to the locale for the rest of the file.
+  it('shows the known problems as a list once the review has agreed them', async () => {
+    const { $i18n } = useNuxtApp()
+    $i18n.mergeLocaleMessage('en-GB', {
+      accessibility: { known: { items: ['Made-up problem one.', 'Made-up problem two.'] } },
+    })
+    const wrapper = await mount()
+    const heading = wrapper.find('h2#what-we-know-is-not-right-yet')
+    expect(heading.text()).toBe(copy('accessibility.known.heading'))
+    const items = heading.element.parentElement!.querySelectorAll('ul > li')
+    expect([...items].map((li) => li.textContent)).toEqual([
+      'Made-up problem one.',
+      'Made-up problem two.',
+    ])
+  })
 })

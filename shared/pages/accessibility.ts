@@ -7,7 +7,8 @@
  * Publishing needs P11's gaps closed, or the unit tests fail:
  * - `lastReviewed`: the date P11 shows at the top, as YYYY-MM-DD;
  * - `address`: the role address people write to, once there is a domain;
- * - `accessibility.known.body`: P11's known problems, or that none are known.
+ * - `accessibility.known.items`: P11's known problems, one sentence each, or
+ *   a single item saying that none are known.
  */
 export const accessibilityPage: {
   path: string

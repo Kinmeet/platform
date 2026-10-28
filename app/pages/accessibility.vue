@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { accessibilityPage } from '#shared/pages/accessibility'
+import type { MessageFunction, VueMessageType } from 'vue-i18n'
 
 // The accessibility statement (#145), in P11's own words. It's a 404 until
 // the founder's M1 review publishes it. Until then, P11's gaps are left out
 // rather than filled in: the date at the top, the known problems and the
 // address people write to.
-const { t } = useI18n()
+const { t, tm, rt } = useI18n()
 
 if (!accessibilityPage.published) {
   throw createError({ statusCode: 404, statusMessage: 'Not Found' })
@@ -21,7 +22,11 @@ const lastReviewed = accessibilityPage.lastReviewed
   ? dateFormat.format(new Date(`${accessibilityPage.lastReviewed}T00:00:00Z`))
   : undefined
 const address = accessibilityPage.address ?? undefined
-const known = t('accessibility.known.body')
+// P11's known problems: one whole sentence per item, shown as a list
+// (Robin, #147). Empty until the founder's review agrees them.
+const known = tm('accessibility.known.items') as unknown as (
+  string | MessageFunction<VueMessageType>
+)[]
 
 const aims = ['keyboard', 'zoom', 'screen_reader', 'motion', 'plain_english'] as const
 
@@ -50,9 +55,11 @@ useHead({
         </ul>
       </section>
 
-      <section v-if="known" class="patch">
+      <section v-if="known.length" class="patch">
         <h2 id="what-we-know-is-not-right-yet">{{ t('accessibility.known.heading') }}</h2>
-        <p>{{ known }}</p>
+        <ul>
+          <li v-for="(item, index) in known" :key="index">{{ rt(item) }}</li>
+        </ul>
       </section>
 
       <section class="patch">
