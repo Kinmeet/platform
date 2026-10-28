@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { publishedRoles } from '../../../shared/forms/roles'
+import { accessibilityPage } from '../../../shared/pages/accessibility'
 import { promisePage } from '../../../shared/pages/promise'
 import {
   accessRoutes,
@@ -8,7 +9,7 @@ import {
   draftRoutes,
   publicRoutes,
 } from '../../../shared/routes'
-import { hasPage } from '../../../shared/site-nav'
+import { footerNav, hasPage } from '../../../shared/site-nav'
 
 // Every page must be listed in shared/routes.ts, as a public route (loaded
 // by the no-third-party and accessibility tests), an Access route (checked
@@ -97,16 +98,59 @@ describe('all-ages promise page', () => {
   })
 
   it('becomes a public route once published, so the end-to-end checks load it', () => {
-    const routes = buildPublicRoutes({ roles: publishedRoles(), promise: true })
+    const routes = buildPublicRoutes({
+      roles: publishedRoles(),
+      promise: true,
+      accessibility: false,
+    })
     expect(routes).toContainEqual({ path: promisePage.path, form: false })
     expect(hasPage(promisePage.path, routes)).toBe(true)
   })
 
   it('keeps every other route the same either way', () => {
-    const published = buildPublicRoutes({ roles: publishedRoles(), promise: true })
+    const published = buildPublicRoutes({
+      roles: publishedRoles(),
+      promise: true,
+      accessibility: false,
+    })
     expect(published.filter((route) => route.path !== promisePage.path)).toEqual(
-      buildPublicRoutes({ roles: publishedRoles(), promise: false }),
+      buildPublicRoutes({ roles: publishedRoles(), promise: false, accessibility: false }),
     )
+  })
+})
+
+// The accessibility statement (#145) waits for the founder's M1 review.
+// Publishing it is one flag, which also shows its footer link.
+describe('accessibility statement page', () => {
+  it('is a draft while unpublished, so its footer link stays hidden', () => {
+    expect(accessibilityPage.published).toBe(false)
+    expect(draftRoutes).toContain(accessibilityPage.path)
+    expect(hasPage(accessibilityPage.path)).toBe(false)
+  })
+
+  it('becomes a public route once published, so the end-to-end checks load it', () => {
+    const routes = buildPublicRoutes({
+      roles: publishedRoles(),
+      promise: false,
+      accessibility: true,
+    })
+    expect(routes).toContainEqual({ path: accessibilityPage.path, form: false })
+    expect(hasPage(accessibilityPage.path, routes)).toBe(true)
+  })
+
+  it('keeps every other route the same either way', () => {
+    const published = buildPublicRoutes({
+      roles: publishedRoles(),
+      promise: false,
+      accessibility: true,
+    })
+    expect(published.filter((route) => route.path !== accessibilityPage.path)).toEqual(
+      buildPublicRoutes({ roles: publishedRoles(), promise: false, accessibility: false }),
+    )
+  })
+
+  it('is the page the footer links to', () => {
+    expect(footerNav.find((link) => link.id === 'accessibility')?.path).toBe(accessibilityPage.path)
   })
 })
 

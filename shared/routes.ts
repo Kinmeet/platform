@@ -1,4 +1,5 @@
 import { publishedRoles, type PublishedRole } from './forms/roles'
+import { accessibilityPage } from './pages/accessibility'
 import { promisePage } from './pages/promise'
 
 /**
@@ -29,6 +30,7 @@ export interface PublicRoute {
 export interface PublishedContent {
   roles: readonly PublishedRole[]
   promise: boolean
+  accessibility: boolean
 }
 
 export function buildPublicRoutes(content: PublishedContent): PublicRoute[] {
@@ -40,7 +42,9 @@ export function buildPublicRoutes(content: PublishedContent): PublicRoute[] {
     { path: '/say-hello', form: true },
     // The all-ages promise (#77), once its copy is agreed and it's published.
     ...(content.promise ? [{ path: promisePage.path, form: false }] : []),
-    // Its apply flow (#15): every step is one page, so the policy allows the
+    // The accessibility statement (#145), once the founder's M1 review has agreed it.
+    ...(content.accessibility ? [{ path: accessibilityPage.path, form: false }] : []),
+    // Each role's apply flow (#15): every step is one page, so the policy allows the
     // spam check throughout, but it only loads on step 4.
     ...content.roles.map((role) => ({
       path: `/roles/${role.slug}/apply`,
@@ -54,6 +58,7 @@ export function buildPublicRoutes(content: PublishedContent): PublicRoute[] {
 export const publicRoutes: readonly PublicRoute[] = buildPublicRoutes({
   roles: publishedRoles(),
   promise: promisePage.published,
+  accessibility: accessibilityPage.published,
 })
 
 /**
@@ -61,7 +66,9 @@ export const publicRoutes: readonly PublicRoute[] = buildPublicRoutes({
  * flag is turned on, which moves it into `publicRoutes`. The end-to-end tests
  * check each one is a 404.
  */
-export const draftRoutes: readonly string[] = promisePage.published ? [] : [promisePage.path]
+export const draftRoutes: readonly string[] = [promisePage, accessibilityPage]
+  .filter((page) => !page.published)
+  .map((page) => page.path)
 
 /**
  * Pages behind Cloudflare Access (P4), such as the founder's admin page. They
