@@ -35,13 +35,15 @@ interface SeededVersion {
   published_by: string
 }
 
-async function seeded(slug: string): Promise<SeededVersion> {
+/** A form's current version, or the one asked for. */
+async function seeded(slug: string, version?: number): Promise<SeededVersion> {
   return (await env.DB.prepare(
     `SELECT f.slug, f.kind, f.status, v.version, v.purpose, v.definition, v.text, v.published_by
-     FROM forms AS f JOIN form_versions AS v ON v.form_id = f.id AND v.version = f.current_version
+     FROM forms AS f JOIN form_versions AS v
+       ON v.form_id = f.id AND v.version = coalesce(?, f.current_version)
      WHERE f.slug = ?`,
   )
-    .bind(slug)
+    .bind(version ?? null, slug)
     .first<SeededVersion>())!
 }
 
@@ -85,7 +87,7 @@ describe('the seeded version 1 forms', () => {
   })
 
   it('seeds the trustee application from its role config and copy', async () => {
-    const form = await seeded('trustee')
+    const form = await seeded('trustee', 1)
     expect(form).toMatchObject({
       kind: 'application',
       status: 'open',
@@ -127,7 +129,24 @@ describe('the seeded version 1 forms', () => {
           flatten(`${prefix}.${key}`, inner)
     }
     for (const [id, words] of Object.entries(role.questions)) flatten(`fields.${id}`, words)
-    expect(JSON.parse(form.text)).toEqual({ 'en-GB': expected })
+    // Version 1 kept the old short name, which 0007 replaced (Robin, #158).
+    expect(JSON.parse(form.text)).toEqual({
+      'en-GB': { ...expected, 'fields.why_trustee.summary': 'Why' },
+    })
+  })
+
+  it('publishes trustee version 2 with only the new summary wording (0007)', async () => {
+    const [first, second] = [await seeded('trustee', 1), await seeded('trustee')]
+    expect(second).toMatchObject({ version: 2, status: 'open', purpose: first.purpose })
+    expect(second.definition).toBe(first.definition)
+    const [before, after] = [first, second].map(
+      (version) => (JSON.parse(version.text) as { 'en-GB': Record<string, string> })['en-GB'],
+    )
+    expect(after).toEqual({
+      ...before,
+      'fields.why_trustee.summary': enGB.roles.trustee.questions.why_trustee.summary,
+    })
+    expect(after['fields.why_trustee.summary']).toBe("Why you'd like to be a trustee")
   })
 
   it('lists every role, open or not, so a closed one is still role_closed', async () => {
@@ -140,7 +159,8 @@ describe('the seeded version 1 forms', () => {
         .map((role) => ({
           slug: role.slug,
           status: role.published ? 'open' : 'draft',
-          current_version: role.published ? 1 : null,
+          // Trustee is on version 2 since 0007.
+          current_version: role.published ? 2 : null,
         })),
     )
   })
@@ -256,7 +276,9 @@ const expectedCopies = [
     id: application.id,
     submission_id: application.submission_id,
     slug: 'trustee',
-    version: 1,
+    // The form's current version when the copy is made: 2 once 0007 has run.
+    // Its definition is the same as version 1's.
+    version: 2,
     call_name: application.call_name,
     email: application.email,
     answers: {

@@ -233,6 +233,15 @@ export const definitionSchema = z
           } else if (field.showIf.in.some((choice) => !target.choices.includes(choice))) {
             problem('show_if_choice', [...path, 'showIf'])
           }
+          // On the trigger's own step, a revealed question comes straight
+          // after it (or after another it reveals), so it appears where the
+          // person is looking (Robin, #158).
+          const trigger = field.showIf.field
+          if (current.fields.some((other) => other.id === trigger)) {
+            const before = current.fields[f - 1]
+            if (before?.id !== trigger && before?.showIf?.field !== trigger)
+              problem('show_if_not_next', [...path, 'showIf'])
+          }
         }
         seen.set(field.id, field)
       })
@@ -241,9 +250,15 @@ export const definitionSchema = z
 
 export type FormDefinition = z.infer<typeof definitionSchema>
 
+/**
+ * The parts of a definition a page needs to draw and check the form. The
+ * readers, actions, receipt and retention never leave the server.
+ */
+export type FormShape = Pick<FormDefinition, 'steps' | 'aboutYou' | 'note'>
+
 /** Every field, in order, with the body key of its step. */
 export function fieldsOf(
-  definition: FormDefinition,
+  definition: Pick<FormDefinition, 'steps'>,
 ): { field: FieldDefinition; body: BodyKey | null }[] {
   return definition.steps.flatMap((current) =>
     current.fields.map((field) => ({ field, body: current.body })),

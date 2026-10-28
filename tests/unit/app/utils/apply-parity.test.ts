@@ -1,15 +1,21 @@
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import { createDraft, readSendResponse, stepErrors } from '../../../../app/utils/apply-flow'
 import { RATE_LIMIT_PERIOD_SECONDS } from '../../../../server/utils/forms/rate-limit'
 import { toFieldErrors } from '../../../../shared/forms/errors'
 import { helloSchema } from '../../../../shared/forms/hello'
-import { trustee } from '../../../../shared/forms/roles/trustee'
+import type { PublicForm } from '../../../../shared/forms/view'
+import { loadPublicForm } from '../../helpers/stored-forms'
 
 // The page and the API must agree exactly (ADR-0005, Theo on #78). Step 2
 // uses the shared field schemas from #44; this table runs the same inputs
 // through the page and the server's schema, so they can never drift.
 const serverFields = helloSchema.pick({ callName: true, email: true })
+
+let trustee: PublicForm
+beforeAll(async () => {
+  trustee = await loadPublicForm('trustee')
+})
 
 function serverCodes(callName: string, email: string) {
   const result = serverFields.safeParse({ callName, email })
@@ -46,7 +52,7 @@ describe('step 2 matches the API', () => {
 
 describe('the rate limit fallback', () => {
   it("waits the API's own period when it doesn't say", () => {
-    expect(readSendResponse(429, null)).toEqual({
+    expect(readSendResponse(429, null, trustee)).toEqual({
       kind: 'rate_limited',
       retryAfter: RATE_LIMIT_PERIOD_SECONDS,
     })

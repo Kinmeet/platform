@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // The desktop list of steps (#15), with the current one marked for screen
 // readers (`aria-current="step"`) and in words, not only by colour.
-defineProps<{ step: Step }>()
+defineProps<{ step: Step; titles: readonly string[] }>()
 const { t } = useI18n()
 </script>
 
@@ -10,19 +10,26 @@ const { t } = useI18n()
   <div class="apply-steps">
     <ol class="apply-steps__list" :aria-label="t('apply.steps_label')">
       <li
-        v-for="n in STEPS"
-        :key="n"
+        v-for="(title, index) in titles"
+        :key="index"
         :class="[
           'apply-steps__item',
-          { 'apply-steps__item--done': n < step, 'apply-steps__item--current': n === step },
+          {
+            'apply-steps__item--done': index + 1 < step,
+            'apply-steps__item--current': index + 1 === step,
+          },
         ]"
-        :aria-current="n === step ? 'step' : undefined"
+        :aria-current="index + 1 === step ? 'step' : undefined"
       >
-        <span class="apply-steps__number" aria-hidden="true">{{ n }}</span>
+        <span class="apply-steps__number" aria-hidden="true">{{ index + 1 }}</span>
         <span class="apply-steps__text">
-          <span class="apply-steps__title">{{ t(`apply.steps.${n}`) }}</span>
+          <span class="apply-steps__title">{{ title }}</span>
           <span class="apply-steps__status muted small">
-            {{ t(`apply.step_status.${n < step ? 'done' : n === step ? 'current' : 'todo'}`) }}
+            {{
+              t(
+                `apply.step_status.${index + 1 < step ? 'done' : index + 1 === step ? 'current' : 'todo'}`,
+              )
+            }}
           </span>
         </span>
       </li>

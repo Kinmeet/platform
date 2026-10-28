@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 import {
   allowedStep,
   answersText,
@@ -15,7 +15,15 @@ import {
   type ApplicationDraft,
 } from '../../../../app/utils/apply-flow'
 import en from '../../../../i18n/locales/en-GB.json'
-import { trustee } from '../../../../shared/forms/roles/trustee'
+import { trustee as trusteeRole } from '../../../../shared/forms/roles/trustee'
+import type { PublicForm } from '../../../../shared/forms/view'
+import { loadPublicForm } from '../../helpers/stored-forms'
+
+// The apply flow on the trustee application's stored version (ADR-0010, A2).
+let trustee: PublicForm
+beforeAll(async () => {
+  trustee = await loadPublicForm('trustee')
+})
 
 const ID = '00000000-0000-4000-8000-000000000000'
 
@@ -23,15 +31,21 @@ const ID = '00000000-0000-4000-8000-000000000000'
 function draftUpTo(step: 0 | 1 | 2 | 3): ApplicationDraft {
   const draft = createDraft(trustee, ID)
   if (step >= 1) {
-    draft.checks = { over_18: 'yes', connection_to_founders: 'no', trustee_rules_confirmed: 'yes' }
+    Object.assign(draft.values, {
+      over_18: 'yes',
+      connection_to_founders: 'no',
+      trustee_rules_confirmed: 'yes',
+    })
   }
   if (step >= 2) {
     draft.callName = 'Test Applicant'
     draft.email = 'test.applicant@example.com'
   }
-  if (step >= 3) draft.answers = { why_trustee: 'Made-up reason for testing.' }
+  if (step >= 3) draft.values.why_trustee = 'Made-up reason for testing.'
   return draft
 }
+
+const read = (status: number, body: unknown) => readSendResponse(status, body, trustee)
 
 function lookup(key: string): unknown {
   return key
@@ -42,7 +56,6 @@ function lookup(key: string): unknown {
 describe('apply flow: steps and guards', () => {
   it('starts at step 1 with a UUID v4 submission id', () => {
     const draft = createDraft(trustee)
-    expect(draft.role).toBe('trustee')
     expect(draft.submissionId).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
     )
@@ -73,19 +86,19 @@ describe('apply flow: steps and guards', () => {
 
   it('stays on step 1 when an answer stops the flow', () => {
     const draft = draftUpTo(3)
-    draft.checks.over_18 = 'no'
+    draft.values.over_18 = 'no'
     expect(stopReason(draft, trustee)).toBe('under_18')
     expect(allowedStep('4', draft, trustee)).toBe(1)
 
-    draft.checks.over_18 = 'yes'
-    draft.checks.connection_to_founders = 'related_or_household'
+    draft.values.over_18 = 'yes'
+    draft.values.connection_to_founders = 'related_or_household'
     expect(stopReason(draft, trustee)).toBe('not_independent')
   })
 
   it('lets notes-only answers carry on', () => {
     const draft = draftUpTo(3)
     for (const answer of ['friend_or_acquaintance', 'not_sure']) {
-      draft.checks.connection_to_founders = answer
+      draft.values.connection_to_founders = answer
       expect(stopReason(draft, trustee)).toBeUndefined()
       expect(furthestStep(draft, trustee)).toBe(4)
     }
@@ -108,7 +121,7 @@ describe('apply flow: why the guard moved the visitor', () => {
 
   it('leaves a stopped flow to its stop message', () => {
     const draft = draftUpTo(1)
-    draft.checks.over_18 = 'no'
+    draft.values.over_18 = 'no'
     expect(redirectReason('2', draft, trustee)).toBeUndefined()
   })
 })
@@ -121,7 +134,7 @@ describe('apply flow: checking each step', () => {
       'checks.trustee_rules_confirmed',
     ])
     const draft = draftUpTo(1)
-    draft.checks.over_18 = 'maybe'
+    draft.values.over_18 = 'maybe'
     expect(stepErrors(draft, trustee, 1)).toEqual([
       { field: 'checks.over_18', code: 'invalid_choice' },
     ])
@@ -154,7 +167,7 @@ describe('apply flow: checking each step', () => {
     expect(stepErrors(draft, trustee, 3)).toEqual([
       { field: 'answers.why_trustee', code: 'required' },
     ])
-    draft.answers = { why_trustee: 'Fine.', experience: 'x'.repeat(2001) }
+    Object.assign(draft.values, { why_trustee: 'Fine.', experience: 'x'.repeat(2001) })
     expect(stepErrors(draft, trustee, 3)).toEqual([
       { field: 'answers.experience', code: 'too_long' },
     ])
@@ -166,12 +179,10 @@ describe('apply flow: clearing', () => {
     const draft = draftUpTo(3)
     clearDraft(draft, '11111111-1111-4111-8111-111111111111')
     expect(draft).toEqual({
-      role: 'trustee',
       submissionId: '11111111-1111-4111-8111-111111111111',
-      checks: {},
       callName: '',
       email: '',
-      answers: {},
+      values: {},
     })
     expect(furthestStep(draft, trustee)).toBe(1)
   })
@@ -181,7 +192,7 @@ describe('apply flow: sending', () => {
   it('builds the request the contract describes', () => {
     const draft = draftUpTo(3)
     draft.callName = '  Test Applicant  '
-    draft.answers.experience = '   '
+    draft.values.experience = '   '
     expect(toRequest(draft, trustee, 'token-for-testing')).toEqual({
       submissionId: ID,
       role: 'trustee',
@@ -195,11 +206,12 @@ describe('apply flow: sending', () => {
 
   it('never sends answers to questions the role does not have', () => {
     const draft = draftUpTo(3)
-    draft.answers.not_a_question = 'stray'
-    draft.checks.not_a_check = 'stray'
+    draft.values.not_a_question = 'stray'
+    draft.values.not_a_check = 'stray'
     const body = toRequest(draft, trustee, 'token')
-    expect(Object.keys(body.answers)).toEqual(['why_trustee'])
-    expect(Object.keys(body.checks)).not.toContain('not_a_check')
+    expect(Object.keys(body.answers as object)).toEqual(['why_trustee'])
+    expect(Object.keys(body.checks as object)).not.toContain('not_a_check')
+    expect(JSON.stringify(body)).not.toContain('stray')
   })
 
   it('keeps the same submission id on every attempt', () => {
@@ -212,26 +224,26 @@ describe('apply flow: sending', () => {
 
 describe('apply flow: reading the reply', () => {
   it('treats 201 and a repeat 200 as sent', () => {
-    expect(readSendResponse(201, { ok: true, receipt: 'queued' })).toEqual({
+    expect(read(201, { ok: true, receipt: 'queued' })).toEqual({
       kind: 'sent',
       receipt: 'queued',
     })
-    expect(readSendResponse(200, { ok: true, receipt: 'queued' })).toEqual({
+    expect(read(200, { ok: true, receipt: 'queued' })).toEqual({
       kind: 'sent',
       receipt: 'queued',
     })
   })
 
   it('only says a receipt was emailed when the server queued one', () => {
-    expect(readSendResponse(201, { ok: true, receipt: 'not_requested' })).toEqual({
+    expect(read(201, { ok: true, receipt: 'not_requested' })).toEqual({
       kind: 'sent',
       receipt: 'not_requested',
     })
-    expect(readSendResponse(201, null)).toEqual({ kind: 'sent', receipt: 'not_requested' })
+    expect(read(201, null)).toEqual({ kind: 'sent', receipt: 'not_requested' })
   })
 
   it("sends 422 field errors back to the earliest step with a problem, keeping only that step's errors", () => {
-    const outcome = readSendResponse(422, {
+    const outcome = read(422, {
       ok: false,
       errors: [
         { field: 'answers.why_trustee', code: 'too_long' },
@@ -248,10 +260,10 @@ describe('apply flow: reading the reply', () => {
 
   it('ends on the stop page for the server backstops', () => {
     expect(
-      readSendResponse(422, { ok: false, errors: [{ field: 'checks.over_18', code: 'under_18' }] }),
+      read(422, { ok: false, errors: [{ field: 'checks.over_18', code: 'under_18' }] }),
     ).toEqual({ kind: 'stopped', reason: 'under_18' })
     expect(
-      readSendResponse(422, {
+      read(422, {
         ok: false,
         errors: [{ field: 'checks.connection_to_founders', code: 'not_independent' }],
       }),
@@ -260,7 +272,7 @@ describe('apply flow: reading the reply', () => {
 
   it('asks for a fresh spam check on 403 turnstile_failed', () => {
     expect(
-      readSendResponse(403, {
+      read(403, {
         ok: false,
         errors: [{ field: 'turnstileToken', code: 'turnstile_failed' }],
       }),
@@ -268,11 +280,11 @@ describe('apply flow: reading the reply', () => {
   })
 
   it('passes on the wait for 429, with a minute if none is given', () => {
-    expect(readSendResponse(429, { ok: false, error: 'rate_limited', retryAfter: 30 })).toEqual({
+    expect(read(429, { ok: false, error: 'rate_limited', retryAfter: 30 })).toEqual({
       kind: 'rate_limited',
       retryAfter: 30,
     })
-    expect(readSendResponse(429, null)).toEqual({ kind: 'rate_limited', retryAfter: 60 })
+    expect(read(429, null)).toEqual({ kind: 'rate_limited', retryAfter: 60 })
   })
 
   it.each([
@@ -286,56 +298,62 @@ describe('apply flow: reading the reply', () => {
     [422, { ok: false, errors: [{ field: 1, code: 'required' }] }],
     [403, { ok: false }],
   ])('treats %i %j as a failed send', (status, body) => {
-    expect(readSendResponse(status, body)).toEqual({ kind: 'failed' })
+    expect(read(status, body)).toEqual({ kind: 'failed' })
   })
 
   it('knows which step holds each field', () => {
-    expect(stepForField('checks.over_18')).toBe(1)
-    expect(stepForField('callName')).toBe(2)
-    expect(stepForField('email')).toBe(2)
-    expect(stepForField('answers.experience')).toBe(3)
-    expect(stepForField('turnstileToken')).toBe(4)
+    expect(stepForField('checks.over_18', trustee)).toBe(1)
+    expect(stepForField('callName', trustee)).toBe(2)
+    expect(stepForField('email', trustee)).toBe(2)
+    expect(stepForField('answers.experience', trustee)).toBe(3)
+    expect(stepForField('turnstileToken', trustee)).toBe(4)
   })
 })
 
 describe('apply flow: error wording', () => {
   const fields: [string, string[]][] = [
-    ...trustee.apply.checks.map((check): [string, string[]] => [
+    ...trusteeRole.apply.checks.map((check): [string, string[]] => [
       `checks.${check.id}`,
       ['required', 'invalid_choice'],
     ]),
     ['callName', ['required', 'too_long']],
     ['email', ['required', 'too_long', 'invalid_email']],
-    ...trustee.apply.questions.map((question): [string, string[]] => [
+    ...trusteeRole.apply.questions.map((question): [string, string[]] => [
       `answers.${question.id}`,
       ['required', 'too_long'],
     ]),
   ]
 
-  it('has a message and a question label for every error the page or the server can give', () => {
+  it('has a message and a question name for every error the page or the server can give', () => {
     expect(typeof lookup('apply.errors.summary_item')).toBe('string')
     for (const [field, codes] of fields) {
       for (const code of codes) {
-        const { key, questionKey } = errorMessage({ field, code }, trustee)
+        const { key, question } = errorMessage({ field, code }, trustee)
         expect(typeof lookup(key), `${field} ${code} → ${key}`).toBe('string')
-        expect(typeof lookup(questionKey), `${field} → ${questionKey}`).toBe('string')
+        const name = 'text' in question ? question.text : lookup(question.key)
+        expect(typeof name, `${field} → ${JSON.stringify(question)}`).toBe('string')
+        expect(String(name).length, `${field}`).toBeGreaterThan(0)
       }
     }
   })
 
-  it('names the question, so summary items are never identical', () => {
-    const labels = trustee.apply.checks.map(
-      (check) =>
-        errorMessage({ field: `checks.${check.id}`, code: 'required' }, trustee).questionKey,
+  it('names the question with its summary from the version, so items are never identical', () => {
+    const names = trusteeRole.apply.checks.map((check) =>
+      JSON.stringify(
+        errorMessage({ field: `checks.${check.id}`, code: 'required' }, trustee).question,
+      ),
     )
-    expect(new Set(labels).size).toBe(labels.length)
+    expect(new Set(names).size).toBe(names.length)
+    expect(errorMessage({ field: 'checks.over_18', code: 'required' }, trustee).question).toEqual({
+      text: en.roles.trustee.questions.over_18.summary,
+    })
   })
 
   it('words a failed spam check as an item that links to Send', () => {
     expect(errorMessage({ field: 'turnstileToken', code: 'turnstile_failed' }, trustee)).toEqual({
       key: 'forms.turnstile.failed',
       params: {},
-      questionKey: 'apply.fields.spam_check',
+      question: { key: 'apply.fields.spam_check' },
     })
   })
 
@@ -349,11 +367,11 @@ describe('apply flow: error wording', () => {
   })
 
   it('gives the limit for answers and names that are too long', () => {
-    const experience = trustee.apply.questions.find((question) => question.id === 'experience')
+    const experience = trusteeRole.apply.questions.find((question) => question.id === 'experience')
     expect(errorMessage({ field: 'answers.experience', code: 'too_long' }, trustee)).toEqual({
       key: 'apply.errors.answer_too_long',
       params: { max: experience?.maxLength },
-      questionKey: 'roles.trustee.questions.experience.summary',
+      question: { text: en.roles.trustee.questions.experience.summary },
     })
     expect(errorMessage({ field: 'callName', code: 'too_long' }, trustee).params).toEqual({
       max: 60,

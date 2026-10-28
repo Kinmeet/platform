@@ -91,6 +91,21 @@ A receipt email is queued after the row is stored (`receipt: "queued"`); a faile
 
 The founder (later the chair and secretary, P3) reads applications on the admin page.
 
+## 3. Reading a form: `GET /api/forms/<slug>`
+
+Both pages draw their questions from the form's current stored version (ADR-0010, #156), so an admin's published wording change shows without a code change.
+
+| Status | Body                                                                | When                                                                                                                        |
+| ------ | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `200`  | `{ "ok": true, "form": { slug, kind, version, definition, text } }` | The form is open and its current version passes the read checks.                                                            |
+| `404`  | `{ "ok": false, "error": "not_found" }`                             | No such form, a draft or closed one, or no current version.                                                                 |
+| `503`  | `{ "ok": false, "error": "unavailable" }`                           | The database failed, or the stored version fails its read checks. Logged as the code `form_read_unavailable`, nothing else. |
+
+- `definition` holds only `steps`, `aboutYou` and `note`. Readers, actions, the receipt setting, the P3 purpose and the retention never leave the server.
+- `text` is the version's `en-GB` text, keyed as the version stores it (`title`, `intro`, `fields.<id>.label`, `fields.<id>.summary` and so on). Pages always show it as text, never as HTML or Markdown.
+- On read, the server checks only the purpose and the text's shape (every key the definition needs is there). The copy and editorial rules (banned terms, US spellings, repeated labels, short summaries, vague link text) run when a version is published, so a rule added later never takes down a form that is already open.
+- The page checks answers with the same run-time schema the `POST` route builds from that version, and sends them in the order of sections 1 and 2.
+
 ## For the admin page (later tickets)
 
 Every field in these rows is attacker-controlled text. The admin page renders it as plain text only, never `v-html` (ADR-0004), and strips or shows bidirectional override and control characters so a name can't disguise itself to the reader.

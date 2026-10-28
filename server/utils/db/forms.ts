@@ -1,6 +1,6 @@
 import type { D1Database } from '@cloudflare/workers-types'
 import { definitionSchema, type FormDefinition } from '../../../shared/forms/definition'
-import { purposeProblems } from '../../../shared/forms/publish'
+import { purposeProblems, textShapeProblems } from '../../../shared/forms/publish'
 import { storedAnswers, type FormKind } from '../../../shared/forms/runtime'
 import { findPurpose, type Purpose } from '../../../shared/privacy/purposes'
 import type { StoreResult } from '../forms/process'
@@ -27,6 +27,8 @@ export interface StoredVersion {
   purposeId: string
   purpose: Purpose
   definition: FormDefinition
+  /** The version's en-GB wording, by key (`shared/forms/publish.ts`, `textKeys`). */
+  text: Readonly<Record<string, string>>
 }
 
 export interface FormRow {
@@ -37,10 +39,11 @@ export interface FormRow {
   version: number | null
   purpose: string | null
   definition: string | null
+  text: string | null
 }
 
 const SELECT_FORMS = `SELECT f.id, f.slug, f.kind, f.status, f.current_version AS version,
-         v.purpose, v.definition
+         v.purpose, v.definition, v.text
   FROM forms AS f
   LEFT JOIN form_versions AS v ON v.form_id = f.id AND v.version = f.current_version`
 
@@ -49,10 +52,11 @@ const versions = new Map<string, StoredVersion>()
 
 /**
  * A stored version, checked again on the way out: a row that doesn't pass
- * the definition schema, or names a purpose we don't have, is never used.
+ * the definition schema, names a purpose we don't have, breaks its purpose,
+ * or has text of the wrong shape is never used.
  */
 export function toVersion(
-  row: Pick<FormRow, 'id' | 'kind' | 'version' | 'purpose' | 'definition'>,
+  row: Pick<FormRow, 'id' | 'kind' | 'version' | 'purpose' | 'definition' | 'text'>,
 ): StoredVersion | null {
   if (row.version === null || row.purpose === null || row.definition === null) return null
   const key = `${row.id}:${row.version}`
@@ -60,13 +64,15 @@ export function toVersion(
   if (cached) return cached
   const purpose = findPurpose(row.purpose)
   const definition = definitionSchema.safeParse(JSON.parse(row.definition))
+  const text: unknown = row.text === null ? null : JSON.parse(row.text)
   // The same purpose checks as publishing (field types, readers, retention,
-  // the safeguarding hand-over, the body cap), so a row changed outside
-  // publishing is never used.
+  // the safeguarding hand-over, the body cap), and the text's shape, so a
+  // row changed outside publishing is never used.
   if (
     !purpose ||
     !definition.success ||
-    purposeProblems(definition.data, purpose, row.kind).length > 0
+    purposeProblems(definition.data, purpose, row.kind).length > 0 ||
+    textShapeProblems(definition.data, text).length > 0
   ) {
     throw new Error('form_version_invalid')
   }
@@ -75,6 +81,7 @@ export function toVersion(
     purposeId: row.purpose,
     purpose,
     definition: definition.data,
+    text: (text as Record<string, Record<string, string>>)['en-GB']!,
   }
   versions.set(key, version)
   return version

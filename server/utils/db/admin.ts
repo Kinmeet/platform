@@ -26,6 +26,7 @@ interface SubmissionRow {
   version: number
   purpose: string
   definition: string
+  text: string
   call_name: string
   email: string
   answers: string
@@ -35,7 +36,7 @@ interface SubmissionRow {
   delete_after: number
 }
 
-const SELECT_SUBMISSIONS = `SELECT s.id, s.form_id, f.slug, f.kind, s.version, v.purpose, v.definition,
+const SELECT_SUBMISSIONS = `SELECT s.id, s.form_id, f.slug, f.kind, s.version, v.purpose, v.definition, v.text,
          s.call_name, s.email, s.answers, s.received_at, s.replied_at, s.outcome_told_at,
          s.delete_after
   FROM form_submissions AS s

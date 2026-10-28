@@ -66,7 +66,7 @@ function baseText(): Json {
       'fields.group_name.label': 'What is the group called?',
       'fields.group_name.summary': 'Group name',
       'fields.message.label': 'Your message',
-      'fields.message.summary': 'Message',
+      'fields.message.summary': 'Your message',
     },
   }
 }
@@ -204,6 +204,16 @@ describe('refused: limits on the definition', () => {
       'show_if_target',
     ],
     [
+      'a show-if question away from its trigger on the same step',
+      (c) => {
+        const [choice, revealed, message] = fields(c)
+        c.definition.steps = [
+          { id: 'about_the_group', body: 'answers', fields: [choice, message, revealed] },
+        ]
+      },
+      'show_if_not_next',
+    ],
+    [
       'a show-if on a choice the field does not have',
       (c) => void (fields(c)[1]!.showIf = { field: 'has_group', in: ['maybe'] }),
       'show_if_choice',
@@ -333,8 +343,8 @@ describe('refused: the body cap', () => {
         'en-GB': Object.fromEntries([
           ['title', 'Sample form'],
           ...ids.flatMap((id) => [
-            [`fields.${id}.label`, 'A made-up question'],
-            [`fields.${id}.summary`, 'Answer'],
+            [`fields.${id}.label`, `A made-up question ${id}`],
+            [`fields.${id}.summary`, `Answer ${id}`],
           ]),
         ]),
       }
@@ -409,8 +419,75 @@ describe('refused: the text', () => {
       (c) => void (text(c)['fields.message.label'] = 'Type the verification code we sent'),
       'asks_for_credentials',
     ],
+    // Robin, #158: the commonest barriers an admin could make.
+    [
+      'two labels on one step that read the same',
+      (c) => void (text(c)['fields.message.label'] = 'What is the group called'),
+      'duplicate_label',
+    ],
+    [
+      'two choices that read the same',
+      (c) => void (text(c)['fields.has_group.choices.no'] = 'yes.'),
+      'duplicate_choice_text',
+    ],
+    [
+      'a hint that repeats its label',
+      (c) => void (text(c)['fields.message.hint'] = 'Your message.'),
+      'hint_repeats_label',
+    ],
+    [
+      'a one-word summary',
+      (c) => void (text(c)['fields.message.summary'] = 'Why'),
+      'summary_too_short',
+    ],
+    [
+      'two summaries that read the same',
+      (c) => void (text(c)['fields.message.summary'] = 'group name'),
+      'duplicate_summary',
+    ],
   ])('%s', (_name, change, code) => {
     expect(codes(candidate(change))).toContain(code)
+  })
+
+  it.each(['here', 'Click here', 'read more', 'https://www.gov.uk/guidance', 'www.gov.uk'])(
+    'link text that says nothing about where it goes: %s',
+    (words) => {
+      const linked = candidate((c) => {
+        fields(c).push({
+          id: 'rules_read',
+          type: 'confirm',
+          required: true,
+          link: 'https://www.gov.uk/guidance/sample',
+        })
+        Object.assign(text(c), {
+          'fields.rules_read.label': 'I have read the rules',
+          'fields.rules_read.summary': 'Rules read',
+          'fields.rules_read.choices.yes': 'Read',
+          'fields.rules_read.link': words,
+        })
+      })
+      expect(codes(linked)).toEqual(['vague_link_text'])
+    },
+  )
+
+  it('needs a heading for a top-level step in a form with more than one step', () => {
+    const twoSteps = candidate((c) => {
+      c.definition.steps = [
+        ...(c.definition.steps as Json[]),
+        {
+          id: 'more',
+          body: null,
+          fields: [{ id: 'anything_else', type: 'long_text', required: false, maxLength: 200 }],
+        },
+      ]
+      Object.assign(text(c), {
+        'fields.anything_else.label': 'Anything else to tell us?',
+        'fields.anything_else.summary': 'Anything else',
+      })
+    })
+    expect(codes(twoSteps)).toEqual(['text_missing'])
+    text(twoSteps)['steps.more.heading'] = 'A little more'
+    expect(codes(twoSteps)).toEqual([])
   })
 
   it('a text object over its size limit', () => {

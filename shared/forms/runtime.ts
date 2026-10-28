@@ -17,7 +17,7 @@ import {
   fieldsOf,
   type BodyKey,
   type FieldDefinition,
-  type FormDefinition,
+  type FormShape,
 } from './definition'
 
 /**
@@ -101,7 +101,7 @@ function answerAt(body: Record<string, unknown>, key: BodyKey | null, fieldId: s
  * the form's slug; `applicationSchema` checks unknown and closed roles first.
  */
 export function submissionSchema(
-  definition: FormDefinition,
+  definition: FormShape,
   { kind, slug }: { kind: FormKind; slug: string },
 ) {
   const shape: Record<string, z.ZodType> = { submissionId }
@@ -143,7 +143,7 @@ export type StoredSubmission = { submissionId: string; callName: string; email: 
 export interface ApplicationForm {
   slug: string
   status: 'draft' | 'open' | 'closed'
-  definition: FormDefinition | null
+  definition: FormShape | null
 }
 
 /**
@@ -173,7 +173,7 @@ export function applicationSchema(forms: readonly ApplicationForm[]) {
 }
 
 /** The largest body a valid request for this version can have. */
-export function bodyCapFor(definition: FormDefinition, kind: FormKind): number {
+export function bodyCapFor(definition: Pick<FormShape, 'steps'>, kind: FormKind): number {
   return bodyCapBytes([
     SUBMISSION_ID_LENGTH,
     ...(kind === 'application' ? [ROLE_SLUG_MAX] : []),
@@ -205,7 +205,7 @@ export function isStored(field: FieldDefinition): boolean {
  * with empty optional answers and unstored fields left out.
  */
 export function storedAnswers(
-  definition: FormDefinition,
+  definition: Pick<FormShape, 'steps'>,
   submission: Record<string, unknown>,
 ): Record<string, string> {
   const answers: Record<string, string> = {}

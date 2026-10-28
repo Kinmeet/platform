@@ -1,15 +1,21 @@
 <script setup lang="ts">
-// Say hello (#14, W5): call name, email and a message, nothing else. Checked
-// with the API's own schema, sent to `POST /api/hello` with a spam check
-// token, and every reply in docs/api/forms.md is shown: sent, errors, a
-// refused spam check, or "That didn't send" with Copy my message. What was
-// typed is held in memory only and kept on any failure. The route is a form
-// page, so the spam check loads with it (S5), and moving onto or off it loads
-// a new document (#20).
+// Say hello (#14, W5), drawn from its stored form (ADR-0010, A2): call name,
+// email and the version's own questions (today, a message), nothing else.
+// Checked with the API's own run-time schema, sent to `POST /api/hello` with
+// a spam check token, and every reply in docs/api/forms.md is shown: sent,
+// errors, a refused spam check, or "That didn't send" with Copy my message.
+// What was typed is held in memory only and kept on any failure. The route
+// is a form page, so the spam check loads with it (S5), and moving onto or
+// off it loads a new document (#20).
 import { privacyPage } from '#shared/pages/privacy'
+import { fieldPath, shownFieldIds } from '#shared/forms/view'
 import { hasPage } from '#shared/site-nav'
 
 const { t } = useI18n()
+const form = await useStoredForm('hello')
+// A one-page form: "About you" sits before the step at `aboutYou`.
+const step = form.definition.steps[0]!
+const parts = form.definition.aboutYou === 0 ? ['about_you', 'step'] : ['step', 'about_you']
 
 // The privacy notice link waits for its page (Sprint 2), like the footer's.
 const PRIVACY_PATH = privacyPage.path
@@ -33,29 +39,29 @@ useHead({
     if (sentName.value !== undefined) return t('hello.sent.page_title')
     return t(errors.value.length ? 'hello.page_title_error' : 'hello.page_title')
   },
-  meta: [{ name: 'description', content: () => t('hello.lede') }],
+  meta: [{ name: 'description', content: () => form.text.intro ?? form.text.title }],
 })
+
+function wordsFor(error: FieldError) {
+  const message = helloErrorMessage(error, form)
+  return { message: t(message.key, message.params), question: questionText(message.question, t) }
+}
 
 function messageFor(field: string): string | undefined {
   const error = errors.value.find((item) => item.field === field)
-  if (!error) return undefined
-  const message = helloErrorMessage(error)
-  return t(message.key, message.params)
+  return error ? wordsFor(error).message : undefined
 }
 
 const summaryItems = computed<ErrorSummaryItem[]>(() =>
-  errors.value.map((error) => {
-    const message = helloErrorMessage(error)
-    return {
-      target: fieldId(error.field),
-      text: t('apply.errors.summary_item', {
-        question: t(message.questionKey),
-        message: t(message.key, message.params),
-      }),
-    }
-  }),
+  errors.value.map((error) => ({
+    target: fieldId(error.field),
+    text: t('apply.errors.summary_item', wordsFor(error)),
+  })),
 )
-const copyText = computed(() => (draft.value ? helloText(draft.value, t) : ''))
+const copyText = computed(() => (draft.value ? helloText(draft.value, form, t) : ''))
+const shown = computed(() =>
+  draft.value ? shownFieldIds(form.definition, draft.value.values) : new Set<string>(),
+)
 
 async function showErrors(found: FieldError[]) {
   problem.value = undefined
@@ -73,7 +79,7 @@ async function showProblem(reason: SendProblem) {
 
 async function onSend() {
   if (!draft.value || sending.value) return
-  const found = helloErrors(draft.value)
+  const found = helloErrors(draft.value, form)
   if (found.length) return showErrors(found)
 
   sending.value = true
@@ -88,7 +94,7 @@ async function onSend() {
       }
       return showProblem('spam_check')
     }
-    const outcome = await post(toHelloRequest(draft.value, token))
+    const outcome = await post(toHelloRequest(draft.value, form, token))
     // Every token is single use, whatever came back (#20).
     turnstile.value?.reset()
     await show(outcome)
@@ -105,7 +111,7 @@ async function post(body: ReturnType<typeof toHelloRequest>): Promise<HelloOutco
       body: JSON.stringify(body),
     })
     const reply: unknown = await response.json().catch(() => null)
-    return readHelloResponse(response.status, reply)
+    return readHelloResponse(response.status, reply, form)
   } catch {
     return { kind: 'failed' }
   }
@@ -142,8 +148,8 @@ async function writeAnother() {
 <template>
   <div class="hello">
     <section class="hello__intro" aria-labelledby="hello-title">
-      <h1 id="hello-title">{{ t('hello.title') }}</h1>
-      <p class="lede">{{ t('hello.lede') }}</p>
+      <h1 id="hello-title">{{ form.text.title }}</h1>
+      <p v-if="form.text.intro" class="lede">{{ form.text.intro }}</p>
     </section>
 
     <div class="hello__layout">
@@ -180,30 +186,37 @@ async function writeAnother() {
               :reason="problem"
               :answers="copyText"
             />
-            <FormTextField
-              :id="fieldId('callName')"
-              v-model="draft.callName"
-              :label="t('hello.callName.label')"
-              :hint="t('hello.callName.hint')"
-              :error="messageFor('callName')"
-              autocomplete="nickname"
-            />
-            <FormTextField
-              :id="fieldId('email')"
-              v-model="draft.email"
-              type="email"
-              :label="t('hello.email.label')"
-              :hint="t('hello.email.hint')"
-              :error="messageFor('email')"
-              autocomplete="email"
-            />
-            <FormTextField
-              :id="fieldId('message')"
-              v-model="draft.message"
-              multiline
-              :label="t('hello.message.label')"
-              :error="messageFor('message')"
-            />
+            <template v-for="part in parts" :key="part">
+              <template v-if="part === 'about_you'">
+                <FormTextField
+                  :id="fieldId('callName')"
+                  v-model="draft.callName"
+                  :label="t('hello.callName.label')"
+                  :hint="t('hello.callName.hint')"
+                  :error="messageFor('callName')"
+                  autocomplete="nickname"
+                />
+                <FormTextField
+                  :id="fieldId('email')"
+                  v-model="draft.email"
+                  type="email"
+                  :label="t('hello.email.label')"
+                  :hint="t('hello.email.hint')"
+                  :error="messageFor('email')"
+                  autocomplete="email"
+                />
+              </template>
+              <template v-for="field in step.fields" v-else :key="field.id">
+                <FormField
+                  v-if="shown.has(field.id)"
+                  v-model="draft.values[field.id]"
+                  :field="field"
+                  :text="form.text"
+                  :path="fieldPath(step, field)"
+                  :error="messageFor(fieldPath(step, field))"
+                />
+              </template>
+            </template>
             <div class="hello__actions">
               <button :id="fieldId(TURNSTILE_FIELD)" type="submit" class="button button--primary">
                 {{ t(problem ? 'hello.send_again' : 'hello.send') }}
