@@ -482,15 +482,15 @@
     "sections": {
       "policy": {
         "heading": "",
-        "body": ""
+        "blocks": []
       },
       "ages": {
         "heading": "",
-        "body": ""
+        "blocks": []
       },
       "adults": {
         "heading": "",
-        "body": ""
+        "blocks": []
       }
     }
   }

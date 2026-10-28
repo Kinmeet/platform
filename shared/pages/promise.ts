@@ -16,3 +16,11 @@ export const promisePage = {
 } as const
 
 export type PromiseSection = (typeof promisePage.sections)[number]
+
+/**
+ * One block of a section's copy, in `promise.sections.<id>.blocks`: a
+ * paragraph, or a list such as the age rules or what adults never do (Robin,
+ * #140). Each text is a whole sentence, so the copy sets the order and shape
+ * without a change to the page.
+ */
+export type PromiseBlock = { text: string } | { items: string[] }
