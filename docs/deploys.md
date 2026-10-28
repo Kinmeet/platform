@@ -14,7 +14,7 @@ Every Preview, including staging, shares the same made-up-data resources. Migrat
 
 ## How a build picks its environment (ADR-0009)
 
-NuxtHub turns on Nitro's `deployConfig`. So `bun run build` writes `.output/server/wrangler.json` from the hand-kept `wrangler.jsonc`, flattening one environment into its top level, and every Wrangler command after the build reads that generated file. The environment comes **only** from the `CLOUDFLARE_ENV` build variable: after a build, Wrangler ignores `--env`. That is why the deploy and Preview commands below have no `--env`.
+NuxtHub turns on Nitro's `deployConfig`. So `bun run build` writes `.output/server/wrangler.json` from the hand-kept `wrangler.jsonc`, flattening one environment into its top level. After a build, Wrangler's `deploy`, `versions` and `preview` commands read that generated file and ignore `--env` ([redirected configuration](https://developers.cloudflare.com/workers/wrangler/configuration/#generated-wrangler-configuration)). So for a deploy, the environment comes **only** from the `CLOUDFLARE_ENV` build variable, and the deploy and Preview commands below have no `--env`. Other commands may follow the redirect too, so hand-run commands name the hand-kept file (below).
 
 - Workers Builds sets `CLOUDFLARE_ENV=live` on `platform`, for production and Previews alike (Previews use the `previews` block inside `env.live`). The old `platform-staging` Worker uses `staging` until it is retired.
 - A build check stops any Workers Builds build (`WORKERS_CI=1`) whose `CLOUDFLARE_ENV` is not `live` or `staging`, so the local config can never ship.
