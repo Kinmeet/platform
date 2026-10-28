@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page, type Request } from '@playwright/test'
 import en from '../../i18n/locales/en-GB.json' with { type: 'json' }
+import { hasPage } from '../../shared/site-nav'
 import { TURNSTILE_ORIGIN } from '../../shared/turnstile'
 
 // Say hello (#14). The API is mocked, so these tests never store anything;
@@ -48,8 +49,25 @@ test.describe('say hello', () => {
     await expect(form.getByRole('textbox')).toHaveCount(3)
     await expect(form.getByRole('checkbox')).toHaveCount(0)
     await expect(page.getByText(hello.kept.body)).toBeVisible()
+    // A message about someone's safety goes to the safeguarding lead (SG-03
+    // section 4, go-live condition 7).
+    await expect(page.getByText(hello.kept.safety)).toBeVisible()
     await expect(page.getByText(hello.danger.body)).toBeVisible()
     await expect(page.getByText(en.forms.turnstile.notice)).toBeVisible()
+  })
+
+  test('links the privacy notice only once its page exists', async ({ page }) => {
+    await open(page)
+    const notes = page.locator('.hello__side')
+    const link = notes.getByRole('link', { name: hello.kept.privacy_link })
+    if (hasPage('/how-we-handle-data')) {
+      await expect(link).toHaveAttribute('href', '/how-we-handle-data')
+      await expect(notes).toContainText(
+        hello.kept.privacy.replace('{link}', hello.kept.privacy_link),
+      )
+    } else {
+      await expect(link).toHaveCount(0)
+    }
   })
 
   test('checks the fields before sending, and sends nothing', async ({ page }) => {

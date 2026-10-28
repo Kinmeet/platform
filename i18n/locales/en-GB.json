@@ -373,7 +373,10 @@
     },
     "kept": {
       "heading": "What happens to your message",
-      "body": "Your message is stored securely by Kinmeet. We delete it automatically 12 months after our last reply to you."
+      "body": "Your message is stored securely by Kinmeet. We delete it automatically 12 months after our last reply to you, or 12 months after you sent it if we haven't replied.",
+      "safety": "If your message tells us someone may be at risk, we pass it to our safeguarding lead, who keeps it securely and separately. If someone needs protecting, they may share it with services that can help, such as the police.",
+      "privacy": "The {link} has the details.",
+      "privacy_link": "privacy notice"
     },
     "danger": {
       "heading": "If someone is in danger",
