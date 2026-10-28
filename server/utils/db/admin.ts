@@ -87,12 +87,17 @@ export async function listApplications(db: D1Database): Promise<AdminApplication
   return results.map((row) => {
     const answers = JSON.parse(row.answers) as Record<string, string>
     const connection = answers.connection_to_founders ?? ''
+    const version = versionOf(row)
+    const shown = roleAnswers(version, answers)
     return {
       id: row.id,
       role: row.slug,
       callName: row.call_name,
       email: row.email,
-      answers: roleAnswers(versionOf(row), answers),
+      answers: shown,
+      labels: Object.fromEntries(
+        Object.keys(shown).map((id) => [id, version.text[`fields.${id}.label`] ?? id]),
+      ),
       conflictToDeclare: CONFLICT_ANSWERS.has(connection),
       connectionToFounders: connection,
       receivedAt: row.received_at,

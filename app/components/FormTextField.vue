@@ -2,7 +2,7 @@
 // One labelled text input or text area, with its hint and error message
 // joined to it by `aria-describedby` (#15). Shared by apply and say hello.
 // A long answer (Robin, #158) also says its limit in the hint and counts
-// what's left, announced politely only once it's close.
+// what's left, announced politely only once it's close and typing pauses.
 const props = defineProps<{
   id: string
   label: string
@@ -34,6 +34,18 @@ const count = computed(() => {
     ? t('forms.count.left', { count: left.value }, left.value)
     : t('forms.count.over', { count: -left.value }, -left.value)
 })
+// The status updates once typing pauses, so a screen reader says one count
+// per pause instead of queueing one per key (Robin, #159). Leaving the last
+// tenth clears it straight away.
+const COUNT_PAUSE_MS = 750
+const spoken = ref('')
+let pause: ReturnType<typeof setTimeout> | undefined
+watch(count, (value) => {
+  clearTimeout(pause)
+  if (value === '') spoken.value = ''
+  else pause = setTimeout(() => (spoken.value = value), COUNT_PAUSE_MS)
+})
+onBeforeUnmount(() => clearTimeout(pause))
 
 const describedBy = computed(
   () =>
@@ -73,6 +85,6 @@ const describedBy = computed(
       :aria-describedby="describedBy"
       :aria-invalid="error ? 'true' : undefined"
     />
-    <p v-if="counted" class="hint field__count" role="status">{{ count }}</p>
+    <p v-if="counted" class="hint field__count" role="status">{{ spoken }}</p>
   </div>
 </template>

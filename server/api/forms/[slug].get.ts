@@ -31,6 +31,7 @@ export default defineEventHandler(
           version: form.current.version,
           definition: form.current.definition,
           text: form.current.text,
+          purpose: form.current.purpose,
         }),
       }
     } catch {

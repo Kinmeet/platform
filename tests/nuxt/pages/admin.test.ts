@@ -35,6 +35,7 @@ beforeEach(() => {
       callName: 'Test Hare',
       email: 'test.hare@example.com',
       answers: { why_trustee: 'Made-up answer.', removed_question: 'Old answer.' },
+      labels: { why_trustee: 'A made-up question label' },
       conflictToDeclare: true,
       connectionToFounders: 'not_sure',
       receivedAt: RECEIVED,
@@ -114,6 +115,8 @@ describe('admin page', () => {
     expect(wrapper.findAll('h3').map((h) => h.text())).toEqual(['Test Fox', 'Test Hare'])
     expect(wrapper.text()).toContain('Conflict to declare')
     expect(wrapper.text()).toContain('Not sure')
+    // Each answer is labelled from its own version's text (Theo, #159).
+    expect(wrapper.text()).toContain('A made-up question label')
     // Ids without wording are shown as the id itself, never hidden.
     expect(wrapper.text()).toContain('removed_question')
   })

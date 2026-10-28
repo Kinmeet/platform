@@ -17,15 +17,28 @@ import type { FormRuntime } from './process'
 
 type Schema = z.ZodType<StoredSubmission>
 
+/**
+ * Most schemas kept at once. Each publish adds a key, so without a cap an
+ * isolate that lives through many publishes would keep every old one (Nadia,
+ * #158). The oldest goes first; a dropped one is simply built again.
+ */
+export const RUNTIME_CACHE_MAX = 32
+
 const cache = new Map<string, FormRuntime<Schema>>()
 
 function cached(key: string, build: () => FormRuntime<Schema>): FormRuntime<Schema> {
   let runtime = cache.get(key)
   if (!runtime) {
     runtime = build()
+    if (cache.size >= RUNTIME_CACHE_MAX) cache.delete(cache.keys().next().value!)
     cache.set(key, runtime)
   }
   return runtime
+}
+
+/** How many schemas are kept now, for tests. */
+export function runtimeCacheSize(): number {
+  return cache.size
 }
 
 /** An open form of kind `form`, with what its requests are checked against. */

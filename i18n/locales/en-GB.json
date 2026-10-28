@@ -341,7 +341,8 @@
       "left": "You have {count} character left | You have {count} characters left",
       "over": "You have {count} character too many | You have {count} characters too many"
     },
-    "reveals_more": "Depending on your answer, we may ask one or two more questions."
+    "reveals_more": "Depending on your answer, we may ask more questions.",
+    "safety_note": "If your answers tell us someone may be at risk, we pass them to our safeguarding lead, who keeps them securely and separately. If someone needs protecting, they may share them with services that can help, such as the police."
   },
   "hello": {
     "page_title": "Say hello",

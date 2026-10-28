@@ -88,15 +88,7 @@ const ticked = computed({
       </p>
     </template>
     <template v-else>
-      <label class="choice choice--statement">
-        <input
-          :id="id"
-          v-model="ticked"
-          type="checkbox"
-          :aria-invalid="error ? 'true' : undefined"
-        />
-        <span>{{ words('label') }}</span>
-      </label>
+      <!-- The rules come before the box, so they can be read before ticking (Robin, #159). -->
       <a
         v-if="field.link"
         :href="field.link"
@@ -106,6 +98,15 @@ const ticked = computed({
       >
         {{ words('link') }}
       </a>
+      <label class="choice choice--statement">
+        <input
+          :id="id"
+          v-model="ticked"
+          type="checkbox"
+          :aria-invalid="error ? 'true' : undefined"
+        />
+        <span>{{ words('label') }}</span>
+      </label>
     </template>
   </fieldset>
 </template>

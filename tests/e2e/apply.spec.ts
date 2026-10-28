@@ -95,6 +95,8 @@ test.describe('apply flow steps', () => {
       await expect(answers.getByText(text, { exact: true }).first()).toBeVisible()
     }
     await expect(page.getByText(en.apply.where_it_goes.body)).toBeVisible()
+    // The trustee purpose takes free text, so its safety note shows (SG6, Ezra #162).
+    await expect(page.getByText(en.forms.safety_note)).toBeVisible()
 
     await page.getByRole('link', { name: 'Change your answers: About you' }).click()
     await expect(page).toHaveURL(/step=2$/)

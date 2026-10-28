@@ -1,6 +1,7 @@
 import { env } from 'cloudflare:test'
 import { definitionSchema } from '../../../shared/forms/definition'
 import { toPublicForm, type PublicForm } from '../../../shared/forms/view'
+import { findPurpose } from '../../../shared/privacy/purposes'
 
 /**
  * A seeded form's current version, as `GET /api/forms/<slug>` serves it to
@@ -8,7 +9,7 @@ import { toPublicForm, type PublicForm } from '../../../shared/forms/view'
  */
 export async function loadPublicForm(slug: string): Promise<PublicForm> {
   const row = await env.DB.prepare(
-    `SELECT f.slug, f.kind, v.version, v.definition, v.text FROM forms AS f
+    `SELECT f.slug, f.kind, v.version, v.purpose, v.definition, v.text FROM forms AS f
      JOIN form_versions AS v ON v.form_id = f.id AND v.version = f.current_version
      WHERE f.slug = ?`,
   )
@@ -17,6 +18,7 @@ export async function loadPublicForm(slug: string): Promise<PublicForm> {
       slug: string
       kind: 'form' | 'application'
       version: number
+      purpose: string
       definition: string
       text: string
     }>()
@@ -27,5 +29,6 @@ export async function loadPublicForm(slug: string): Promise<PublicForm> {
     version: row.version,
     definition: definitionSchema.parse(JSON.parse(row.definition)),
     text: JSON.parse(row.text)['en-GB'],
+    purpose: findPurpose(row.purpose)!,
   })
 }

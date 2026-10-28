@@ -8,6 +8,7 @@ import {
   freeTextTypes,
   type FormDefinition,
 } from './definition'
+import { bodyLimitFor, submitPathFor } from '../routes'
 import { bodyCapFor, type FormKind } from './runtime'
 
 /**
@@ -84,7 +85,17 @@ export const TEXT_LIMITS = {
 
 /** Labels must never ask for these, so nobody can use our name to collect them (Nadia). */
 const CREDENTIALS =
-  /\b(?:pass(?:word|code|phrase)s?|pins?|pin (?:number|code)s?|bank details|card (?:number|details)s?|sort codes?|account numbers?|security codes?|cvv|one[- ]time (?:code|password)s?|verification codes?|log-?in details)\b/i
+  /\b(?:pass(?:word|code|phrase)s?|pins?|pin (?:number|code)s?|bank (?:details|accounts?)|(?:credit|debit) cards?|card (?:number|details)s?|sort codes?|account numbers?|iban|security (?:codes?|questions?)|cvv|one[- ]time (?:code|password)s?|verification codes?|(?:log|sign)[- ]?in details)\b/i
+
+/**
+ * Text as the copy checks read it: compatibility forms folded (NFKC, so
+ * full-width or styled letters match) and invisible format characters
+ * removed (`\p{Cf}`, such as zero-width spaces), so neither can slip a
+ * banned word past them (Nadia, #158). The stored text is left as written.
+ */
+export function normaliseForChecks(value: string): string {
+  return value.normalize('NFKC').replace(/\p{Cf}/gu, '')
+}
 
 /** Common US spellings, with the British one to use. */
 const US_SPELLINGS: readonly { pattern: RegExp; use: string }[] = [
@@ -138,7 +149,8 @@ export function textKeys(definition: Pick<FormDefinition, 'steps' | 'note'>): {
 }
 
 /** Copy problems in one piece of admin text, as codes. */
-export function copyProblems(value: string): string[] {
+export function copyProblems(written: string): string[] {
+  const value = normaliseForChecks(written)
   const codes: string[] = []
   if (bannedTerms.some(({ pattern }) => pattern.test(value))) codes.push('banned_term')
   if (US_SPELLINGS.some(({ pattern }) => pattern.test(value))) codes.push('us_spelling')
@@ -200,7 +212,7 @@ const VAGUE_LINK =
 /** The same words, ignoring letter case, spacing and closing punctuation. */
 function sameWords(a: string, b: string): boolean {
   const plain = (value: string) =>
-    value
+    normaliseForChecks(value)
       .trim()
       .toLowerCase()
       .replace(/\s+/g, ' ')
@@ -246,7 +258,7 @@ function copyRules(
           add('hint_repeats_label', `text.en-GB.${key}.hint`)
       }
       if (summary !== undefined) {
-        if (summary.trim().split(/\s+/).length < 2)
+        if (normaliseForChecks(summary).trim().split(/\s+/).length < 2)
           add('summary_too_short', `text.en-GB.${key}.summary`)
         if (summaries.some((other) => sameWords(other.value, summary)))
           add('duplicate_summary', `text.en-GB.${key}.summary`)
@@ -264,19 +276,27 @@ function copyRules(
       }
       if (field.type === 'confirm' && field.link) {
         const words = text(`${key}.link`)
-        if (words !== undefined && VAGUE_LINK.test(words.trim()))
+        if (words !== undefined && VAGUE_LINK.test(normaliseForChecks(words).trim()))
           add('vague_link_text', `text.en-GB.${key}.link`)
       }
     }
   }
 }
 
-function checkText(definition: FormDefinition, text: unknown, problems: PublishProblem[]) {
-  const shape = textShapeProblems(definition, text)
-  problems.push(...shape)
+/**
+ * Every text check publishing runs: the shape, then the copy rules. Also run
+ * by a migration test over every stored version, so wording that arrives by
+ * a reviewed migration gets the same checks as the admin screen (Nadia, #159).
+ */
+export function textProblems(
+  definition: Pick<FormDefinition, 'steps' | 'note'>,
+  text: unknown,
+): PublishProblem[] {
+  const problems = textShapeProblems(definition, text)
   const entries = (text as Record<string, Record<string, unknown>> | null)?.['en-GB']
   if (typeof entries === 'object' && entries !== null && !Array.isArray(entries))
     copyRules(definition, entries, problems)
+  return problems
 }
 
 /** Whether a new version changes what is collected or who sees it (Ezra). */
@@ -359,8 +379,12 @@ export function checkPublish(
   const definition = parsed.data
 
   if (purpose) problems.push(...purposeProblems(definition, purpose, candidate.kind))
+  // The Worker entry refuses a bigger body before the route sees it (ADR-0008).
+  const routeLimit = bodyLimitFor('POST', submitPathFor(candidate.slug, candidate.kind))
+  if (bodyCapFor(definition, candidate.kind) > routeLimit)
+    add('body_cap_over_route_limit', 'definition')
 
-  checkText(definition, candidate.text, problems)
+  problems.push(...textProblems(definition, candidate.text))
 
   const second = needsSecondApproval(previous, { purpose: candidate.purpose, definition })
   // Phase 1: nobody can give a second approval yet, so such a version waits.

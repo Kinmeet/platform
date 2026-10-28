@@ -81,6 +81,21 @@ describe('admin reads', () => {
     ])
     expect(applications[0]!.answers).toEqual({ why_trustee: 'Made-up.' })
   })
+
+  // Theo, #159: an answer keeps the question its own version asked.
+  it('labels each answer from the version it was sent on', async () => {
+    const rows = await env.DB.prepare(
+      `SELECT s.version, v.text FROM form_submissions AS s
+       JOIN form_versions AS v ON v.form_id = s.form_id AND v.version = s.version
+       WHERE s.id = ?`,
+    )
+      .bind(APPLICATION_IDS.not_sure)
+      .first<{ version: number; text: string }>()
+    const label = JSON.parse(rows!.text)['en-GB']['fields.why_trustee.label'] as string
+    expect(label.length).toBeGreaterThan(0)
+    const [newest] = await listApplications(env.DB)
+    expect(newest!.labels).toEqual({ why_trustee: label })
+  })
 })
 
 describe('mark replied', () => {
