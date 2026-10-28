@@ -1,0 +1,19 @@
+/* The missing page and error page (#18): one patch with a way home. */
+.error-page {
+  padding: 28px var(--gutter) var(--space-7);
+}
+
+.error-page__patch {
+  max-width: 40rem;
+  gap: var(--space-4);
+}
+
+.error-page__patch h1 {
+  font-size: var(--text-title);
+}
+
+.error-page__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
