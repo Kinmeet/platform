@@ -51,7 +51,7 @@ Whichever renderer is chosen, the axe scan in `tests/e2e/` covers every route. A
 
 ## A shape for ADR-0010 to consider
 
-This is a sketch for the Tech Lead, not a decision.
+This is a sketch written before the decision, kept for the record. **Build from [ADR-0010](https://github.com/Kinmeet/platform/pull/154), not from this sketch.** In particular, a form does not set its own retention: it names a reviewed P3 purpose from code, and any purpose that allows free text forces the SG6 hand-over.
 
 - **`form_definitions`**: id, slug, status (draft, published, closed), version, and `definition` (JSON). A published version never changes; editing creates a new version, and each submission records the version it answered.
 - **The definition** is validated on save by a Zod "meta-schema". It holds:
