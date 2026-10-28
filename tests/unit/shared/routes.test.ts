@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { publishedRoles } from '../../../shared/forms/roles'
 import { accessRoutes, crossesFormBoundary, publicRoutes } from '../../../shared/routes'
 
 // Every page must be listed in shared/routes.ts, as a public route (loaded
@@ -59,6 +60,22 @@ describe('route list', () => {
 
   it('lists each route once, and never as both public and Access', () => {
     expect(new Set(listedPaths).size).toBe(listedPaths.length)
+  })
+  // The no-third-party test doesn't check Turnstile on arrival for these
+  // routes, so each one needs a spec that reaches its spam check step and
+  // asserts Turnstile loads there (Nadia, #81; Kit, #85). Today that's only
+  // the apply flow, covered by tests/e2e/apply.spec.ts. A new route here
+  // fails this test until its spec exists and the list below is updated.
+  it('waits to load the spam check only on routes with a spec for the later step', () => {
+    const later = publicRoutes
+      .filter((route) => route.spamCheckOnLoad === false)
+      .map((route) => route.path)
+    expect(later).toEqual(publishedRoles().map((role) => `/roles/${role.slug}/apply`))
+  })
+
+  it('waits to load the spam check only on form routes', () => {
+    const notForms = publicRoutes.filter((route) => route.spamCheckOnLoad === false && !route.form)
+    expect(notForms).toEqual([])
   })
 })
 

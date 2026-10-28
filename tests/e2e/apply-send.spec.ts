@@ -123,7 +123,8 @@ test.describe('apply send', () => {
         status: 403,
         body: { ok: false, errors: [{ field: 'turnstileToken', code: 'turnstile_failed' }] },
       },
-      { status: 200, body: { ok: true, receipt: 'queued' } },
+      // A repeat of a stored submission gets no second receipt (#80).
+      { status: 200, body: { ok: true, receipt: 'not_requested' } },
     )
     await reachCheckAndSend(page)
     await send(page)
@@ -142,7 +143,28 @@ test.describe('apply send', () => {
     // A new token each time, but the same id, so the server never stores it twice.
     expect(bodies[1]!.submissionId).toBe(bodies[0]!.submissionId)
     expect(bodies[1]!.turnstileToken).toBeTruthy()
+    await expect(page.getByText(en.apply.sent.receipt_not_requested)).toBeVisible()
+    await expect(page.getByText(en.apply.sent.receipt_queued)).toHaveCount(0)
   })
+
+  for (const [name, reply] of [
+    ['a server error', { status: 500, body: { ok: false, error: 'unavailable' } }],
+    ['too many tries', { status: 429, body: { ok: false, error: 'rate_limited', retryAfter: 60 } }],
+  ] as const) {
+    test(`Send again after ${name} keeps the same submission`, async ({ page }) => {
+      const bodies = await mockApply(page, reply, {
+        status: 201,
+        body: { ok: true, receipt: 'queued' },
+      })
+      await reachCheckAndSend(page)
+      await send(page)
+      await expect(failedBox(page)).toBeFocused()
+      await page.getByRole('button', { name: en.apply.send_again }).click()
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText(SENT_TITLE)
+      expect(bodies).toHaveLength(2)
+      expect(bodies[1]!.submissionId).toBe(bodies[0]!.submissionId)
+    })
+  }
 
   test('says to wait a minute when there have been too many tries', async ({ page }) => {
     await mockApply(page, {
@@ -200,7 +222,7 @@ test.describe('apply send', () => {
 
   test('copies the answers, and confirms it', async ({ page, context }) => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write'])
-    await mockApply(page, { status: 500 })
+    const bodies = await mockApply(page, { status: 500 })
     await reachCheckAndSend(page)
     await send(page)
 
@@ -209,6 +231,9 @@ test.describe('apply send', () => {
     const copied = await page.evaluate(() => navigator.clipboard.readText())
     expect(copied).toContain(`${en.apply.fields.callName}: Test Applicant`)
     expect(copied).toContain('Made-up reason for testing.')
+    // Only their answers: no id or spam check token.
+    expect(copied).not.toContain(String(bodies[0]!.submissionId))
+    expect(copied).not.toContain(String(bodies[0]!.turnstileToken))
   })
 
   test('shows the answers to copy by hand when the clipboard is blocked', async ({ page }) => {
