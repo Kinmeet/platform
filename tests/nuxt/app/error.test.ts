@@ -19,7 +19,10 @@ afterEach(() => {
 // The copy as the app renders it (the locale files are compiled in this
 // environment, so they can't be read as plain strings).
 function copy(key: string): string {
-  return useNuxtApp().$i18n.t(key)
+  const text = useNuxtApp().$i18n.t(key)
+  // A missing key comes back as itself, which would let a test pass on nothing.
+  expect(text, `${key} should be in the locale file`).not.toBe(key)
+  return text
 }
 
 async function mountWith(statusCode: number) {
