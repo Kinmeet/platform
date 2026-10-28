@@ -1,5 +1,8 @@
 import type { D1Database } from '@cloudflare/workers-types'
 import type { H3Event } from 'h3'
+import type { FormKind } from '../../shared/forms/runtime'
+import { roleAnswers } from '../utils/db/admin'
+import { toVersion } from '../utils/db/forms'
 import { auditLogDeleteAfter, nowSeconds } from '../utils/retention'
 import { storeFromEnv, type HandoverStore, type SourceForm } from './store'
 
@@ -16,7 +19,8 @@ import { storeFromEnv, type HandoverStore, type SourceForm } from './store'
  * 1. encrypt the row into the store (doing nothing if the copy already
  *    exists),
  * 2. read the copy back, decrypt it and check it matches,
- * 3. delete the row from its table and write the audit entry, in one batch.
+ * 3. delete the row, and its copy in the old table, and write the audit
+ *    entry, in one batch.
  * A failure part-way leaves the row in the main database, visible and
  * retryable, and never in neither. A retry finds the copy from step 1 and
  * carries on.
@@ -31,64 +35,80 @@ interface HandoverEnv {
 }
 
 /**
- * Whole statements for each form, so no SQL is ever built from a value. The
- * audit entry holds the date, who acted, the action and the item id, never
- * anything from the row. It names the item, not the table it came from, so
- * the log does not say in clear which form a concern was raised through
- * (Ezra, #95).
+ * Whole statements for each list, so no SQL is ever built from a value. The
+ * row is read from `form_submissions` (ADR-0010, #156), and deleted there
+ * and from its copy in the old table, which stays until phase C, in the same
+ * batch: a hand-over never leaves a plain copy behind. The audit entry holds
+ * the date, who acted, the action and the item id, never anything from the
+ * row. It names the item, not the form it came from, so the log does not say
+ * in clear which form a concern was raised through (Ezra, #95).
  */
+const READ = `SELECT f.slug, s.answers, s.call_name, s.email, s.received_at, v.definition,
+                     f.id AS form_id, f.kind, s.version, v.purpose
+              FROM form_submissions AS s
+              JOIN forms AS f ON f.id = s.form_id
+              JOIN form_versions AS v ON v.form_id = s.form_id AND v.version = s.version`
+
+const AUDIT = `INSERT INTO audit_log (id, at, actor, action, target_table, target_id, delete_after)
+               SELECT ?, ?, ?, 'pass_to_safeguarding', 'safeguarding_items', ?, ?
+               WHERE NOT EXISTS (SELECT 1 FROM form_submissions WHERE id = ?)
+                 AND NOT EXISTS (
+                   SELECT 1 FROM audit_log
+                   WHERE action = 'pass_to_safeguarding' AND target_id = ?
+                 )`
+
 const STATEMENTS = {
   hello: {
-    read: `SELECT call_name, email, message, received_at FROM hello_messages WHERE id = ?`,
-    remove: `DELETE FROM hello_messages WHERE id = ?`,
-    audit: `INSERT INTO audit_log (id, at, actor, action, target_table, target_id, delete_after)
-            SELECT ?, ?, ?, 'pass_to_safeguarding', 'safeguarding_items', ?, ?
-            WHERE NOT EXISTS (SELECT 1 FROM hello_messages WHERE id = ?)
-              AND NOT EXISTS (
-                SELECT 1 FROM audit_log
-                WHERE action = 'pass_to_safeguarding' AND target_id = ?
-              )`,
+    read: `${READ} WHERE s.id = ? AND f.slug = 'hello'`,
+    removeLegacy: `DELETE FROM hello_messages WHERE id = ?`,
   },
   apply: {
-    read: `SELECT role, call_name, email, answers, received_at FROM applications WHERE id = ?`,
-    remove: `DELETE FROM applications WHERE id = ?`,
-    audit: `INSERT INTO audit_log (id, at, actor, action, target_table, target_id, delete_after)
-            SELECT ?, ?, ?, 'pass_to_safeguarding', 'safeguarding_items', ?, ?
-            WHERE NOT EXISTS (SELECT 1 FROM applications WHERE id = ?)
-              AND NOT EXISTS (
-                SELECT 1 FROM audit_log
-                WHERE action = 'pass_to_safeguarding' AND target_id = ?
-              )`,
+    read: `${READ} WHERE s.id = ? AND f.kind = 'application'`,
+    removeLegacy: `DELETE FROM applications WHERE id = ?`,
   },
 } as const
 
-/** The submission as it was sent, in a fixed key order so a retry builds the same text. */
+interface SubmissionRow {
+  slug: string
+  answers: string
+  call_name: string
+  email: string
+  received_at: number
+  definition: string
+  form_id: string
+  kind: FormKind
+  version: number
+  purpose: string
+}
+
+/**
+ * The submission as it was sent, in a fixed key order so a retry builds the
+ * same text. The shape is the one #91 encrypted, so every item opens the
+ * same way in the acting lead's view (#93): the form's slug is inside, as
+ * `role` for an application.
+ */
 async function readSubmission(main: D1Database, source: HandoverSource, id: string) {
+  const row = await main.prepare(STATEMENTS[source].read).bind(id).first<SubmissionRow>()
+  if (row === null) return null
+  const answers = JSON.parse(row.answers) as Record<string, string>
   if (source === 'hello') {
-    const row = await main
-      .prepare(STATEMENTS.hello.read)
-      .bind(id)
-      .first<{ call_name: string; email: string; message: string; received_at: number }>()
-    if (row === null) return null
     return {
-      content: JSON.stringify({ callName: row.call_name, email: row.email, message: row.message }),
+      content: JSON.stringify({
+        callName: row.call_name,
+        email: row.email,
+        message: answers.message ?? '',
+      }),
       receivedAt: row.received_at,
     }
   }
-  const row = await main.prepare(STATEMENTS.apply.read).bind(id).first<{
-    role: string
-    call_name: string
-    email: string
-    answers: string
-    received_at: number
-  }>()
-  if (row === null) return null
+  const version = toVersion({ ...row, id: row.form_id })
+  if (version === null) throw new Error('form_version_invalid')
   return {
     content: JSON.stringify({
-      role: row.role,
+      role: row.slug,
       callName: row.call_name,
       email: row.email,
-      answers: JSON.parse(row.answers) as Record<string, string>,
+      answers: roleAnswers(version, answers),
     }),
     receivedAt: row.received_at,
   }
@@ -127,13 +147,11 @@ export async function handOver(
     throw new Error('handover_copy_mismatch')
   }
 
-  const statements = STATEMENTS[source]
   const [removed] = await main.batch([
-    main.prepare(statements.remove).bind(id),
+    main.prepare('DELETE FROM form_submissions WHERE id = ?').bind(id),
+    main.prepare(STATEMENTS[source].removeLegacy).bind(id),
     // Written only once the row has gone, and only once per row.
-    main
-      .prepare(statements.audit)
-      .bind(crypto.randomUUID(), now, actor, id, auditLogDeleteAfter(now), id, id),
+    main.prepare(AUDIT).bind(crypto.randomUUID(), now, actor, id, auditLogDeleteAfter(now), id, id),
   ])
   return (removed?.meta.changes ?? 0) === 1 ? 'handed_over' : 'not_found'
 }

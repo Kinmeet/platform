@@ -44,6 +44,7 @@ beforeEach(async () => {
   APPLICATION_ID = crypto.randomUUID()
   await env.DB.batch([
     env.DB.prepare('DELETE FROM hello_messages'),
+    env.DB.prepare('DELETE FROM form_submissions'),
     env.DB.prepare('DELETE FROM applications'),
     env.DB.prepare(
       `INSERT INTO hello_messages (id, submission_id, call_name, email, message, received_at, delete_after)
@@ -160,6 +161,58 @@ describe('pass to safeguarding', () => {
       target_table: 'safeguarding_items',
       target_id: APPLICATION_ID,
     })
+  })
+
+  // Sol and Ezra, #156: until phase C a row can sit in both `form_submissions`
+  // and its old table, so a hand-over must leave no plain copy in either.
+  it('leaves no plain copy of a message or an application in any table', async () => {
+    await handOver(env.DB, await store(), 'hello', HELLO_ID, ACTOR, NOW)
+    await handOver(env.DB, await store(), 'apply', APPLICATION_ID, ACTOR, NOW)
+    const copies = await env.DB.batch(
+      ['form_submissions', 'hello_messages', 'applications'].map((table) =>
+        env.DB.prepare(`SELECT count(*) AS n FROM ${table} WHERE id IN (?, ?)`).bind(
+          HELLO_ID,
+          APPLICATION_ID,
+        ),
+      ),
+    )
+    expect(copies.map((result) => (result.results[0] as { n: number }).n)).toEqual([0, 0, 0])
+    // Nor anything they wrote, under any id: only the other message is left.
+    const { results } = await env.DB.prepare(
+      `SELECT call_name, email, answers FROM form_submissions
+       UNION ALL SELECT call_name, email, message FROM hello_messages
+       UNION ALL SELECT call_name, email, answers FROM applications`,
+    ).all()
+    const text = JSON.stringify(results)
+    for (const word of SECRET_WORDS) expect(text).not.toContain(word)
+    expect(text).toContain('Made-up hello.')
+  })
+
+  it('also hands over a submission that has no copy in the old table', async () => {
+    const id = crypto.randomUUID()
+    APPLICATION_ID = id
+    await env.DB.prepare(
+      `INSERT INTO form_submissions (id, submission_id, form_id, version, call_name, email,
+                                     answers, received_at, delete_after)
+       SELECT ?, ?, id, current_version, 'Sample Applicant', 'sample@example.org',
+              '{"connection_to_founders":"no","why_trustee":"Made-up answer."}', ?, ?
+       FROM forms WHERE slug = 'trustee'`,
+    )
+      .bind(id, crypto.randomUUID(), RECEIVED, RECEIVED + 99999)
+      .run()
+    expect(await handOver(env.DB, await store(), 'apply', id, ACTOR, NOW)).toBe('handed_over')
+    const [item] = await items()
+    // The same shape as before (#91), so the lead's view opens every item alike.
+    expect(JSON.parse(item!.content)).toEqual({
+      role: 'trustee',
+      callName: 'Sample Applicant',
+      email: 'sample@example.org',
+      answers: { why_trustee: 'Made-up answer.' },
+    })
+    const left = await env.DB.prepare('SELECT count(*) AS n FROM form_submissions WHERE id = ?')
+      .bind(id)
+      .first<{ n: number }>()
+    expect(left!.n).toBe(0)
   })
 
   it('writes nothing from the row into the audit log', async () => {

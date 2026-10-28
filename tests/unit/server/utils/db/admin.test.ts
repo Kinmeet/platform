@@ -27,6 +27,7 @@ const APPLICATION_IDS = {
 beforeEach(async () => {
   await env.DB.batch([
     env.DB.prepare('DELETE FROM hello_messages'),
+    env.DB.prepare('DELETE FROM form_submissions'),
     env.DB.prepare('DELETE FROM applications'),
     env.DB.prepare(
       `INSERT INTO hello_messages (id, submission_id, call_name, email, message, received_at, delete_after)
@@ -94,7 +95,7 @@ describe('mark replied', () => {
       at: NOW,
       actor: ACTOR,
       action: 'mark_replied',
-      target_table: 'hello_messages',
+      target_table: 'form_submissions',
       target_id: HELLO_ID,
     })
   })
@@ -128,6 +129,7 @@ describe('mark outcome told', () => {
     expect(entries.length).toBe(before + 1)
     expect(entries.at(-1)).toMatchObject({
       action: 'mark_outcome_told',
+      target_table: 'form_submissions',
       target_id: APPLICATION_IDS.no,
     })
   })
@@ -196,25 +198,31 @@ describe('audit log', () => {
 })
 
 describe('list views', () => {
-  it('records each fetch of a list once, with no target row', async () => {
+  it('records each fetch of a list once, naming its form and no row', async () => {
+    const formId = async (slug: string) =>
+      (await env.DB.prepare('SELECT id FROM forms WHERE slug = ?')
+        .bind(slug)
+        .first<{ id: string }>())!.id
     const { results: before } = await env.DB.prepare('SELECT id FROM audit_log').all()
     await recordListView(env.DB, 'hello_messages', ACTOR, NOW)
     await recordListView(env.DB, 'applications', ACTOR, NOW + 1)
     const entries = (await auditEntries()).slice(before.length)
+    // One entry per form the list shows: say hello, and the one open
+    // application form (ADR-0010, #156).
     expect(entries).toEqual([
       {
         at: NOW,
         actor: ACTOR,
-        action: 'view_hello_messages',
-        target_table: 'hello_messages',
-        target_id: null,
+        action: 'view_form_submissions',
+        target_table: 'forms',
+        target_id: await formId('hello'),
       },
       {
         at: NOW + 1,
         actor: ACTOR,
-        action: 'view_applications',
-        target_table: 'applications',
-        target_id: null,
+        action: 'view_form_submissions',
+        target_table: 'forms',
+        target_id: await formId('trustee'),
       },
     ])
     const row = await env.DB.prepare(
@@ -243,6 +251,20 @@ describe('list views', () => {
       /CHECK constraint failed/,
     )
     await expect(insert('mark_outcome_told', 'hello_messages', HELLO_ID)).rejects.toThrow(
+      /CHECK constraint failed/,
+    )
+    // The generic names (ADR-0010): a form list view names its form, and an
+    // action on a submission names `form_submissions`.
+    await expect(insert('view_form_submissions', 'forms', null)).rejects.toThrow(
+      /CHECK constraint failed/,
+    )
+    await expect(insert('view_form_submissions', 'form_submissions', HELLO_ID)).rejects.toThrow(
+      /CHECK constraint failed/,
+    )
+    await expect(insert('mark_replied', 'applications', HELLO_ID)).rejects.toThrow(
+      /CHECK constraint failed/,
+    )
+    await expect(insert('mark_replied', 'forms', HELLO_ID)).rejects.toThrow(
       /CHECK constraint failed/,
     )
   })

@@ -7,6 +7,8 @@
  * D1 schema.
  */
 
+import type { Purpose, RetentionBase } from '../../shared/privacy/purposes'
+
 const SECONDS_PER_DAY = 24 * 60 * 60
 
 /** Say hello messages: 12 months after our last reply. */
@@ -75,4 +77,42 @@ export function emailLogDeleteAfter(sentAt: number): number {
 /** Admin audit log: 2 years after the action. */
 export function auditLogDeleteAfter(at: number): number {
   return addMonths(at, AUDIT_LOG_RETENTION_MONTHS)
+}
+
+/**
+ * Stored forms (ADR-0010): the rule for a version is its P3 purpose's, with
+ * the shorter period if the form sets one. A form can never lengthen it.
+ */
+export interface RetentionRule {
+  base: RetentionBase
+  months: number
+  backstop?: 'round_close'
+}
+
+export function retentionRule(purpose: Purpose, retentionMonths?: number): RetentionRule {
+  return {
+    ...purpose.retention,
+    months: Math.min(purpose.retention.months, retentionMonths ?? purpose.retention.months),
+  }
+}
+
+/**
+ * On insert. Kept until a reply: `months` after receipt. Kept until the
+ * outcome is told: `months` after the round closes, or after receipt if
+ * that is later, so the date is always in the future. These match
+ * `helloDeleteAfterReceipt` and `applicationDeleteAfterReceipt` for the
+ * seeded forms, and a test checks they do.
+ */
+export function deleteAfterReceipt(
+  rule: RetentionRule,
+  receivedAt: number,
+  roundClosesAt: number,
+): number {
+  const from = rule.backstop === 'round_close' ? Math.max(receivedAt, roundClosesAt) : receivedAt
+  return addMonths(from, rule.months)
+}
+
+/** On the event the rule counts from (each reply, or the outcome being told). */
+export function deleteAfterEvent(rule: RetentionRule, at: number): number {
+  return addMonths(at, rule.months)
 }

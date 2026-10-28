@@ -10,6 +10,9 @@ import { nowSeconds } from '../retention'
  */
 
 export interface DeletionCounts {
+  form_submissions: number
+  // The old per-form tables keep their rows, and their own dates, until
+  // ADR-0010 phase C drops them.
   hello_messages: number
   applications: number
   email_log: number
@@ -21,7 +24,8 @@ export async function deleteExpiredRows(
   now: number = nowSeconds(),
 ): Promise<DeletionCounts> {
   // Fixed statements with a bound time; one batch, so it runs as a single transaction.
-  const [hello, applications, emailLog, auditLog] = await db.batch([
+  const [submissions, hello, applications, emailLog, auditLog] = await db.batch([
+    db.prepare('DELETE FROM form_submissions WHERE delete_after <= ?').bind(now),
     db.prepare('DELETE FROM hello_messages WHERE delete_after <= ?').bind(now),
     db.prepare('DELETE FROM applications WHERE delete_after <= ?').bind(now),
     db.prepare('DELETE FROM email_log WHERE delete_after <= ?').bind(now),
@@ -33,6 +37,7 @@ export async function deleteExpiredRows(
       .bind(now),
   ])
   return {
+    form_submissions: submissions?.meta.changes ?? 0,
     hello_messages: hello?.meta.changes ?? 0,
     applications: applications?.meta.changes ?? 0,
     email_log: emailLog?.meta.changes ?? 0,

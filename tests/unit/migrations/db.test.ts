@@ -56,6 +56,7 @@ async function columnsOf(table: string): Promise<string[]> {
 beforeEach(async () => {
   await env.DB.batch([
     env.DB.prepare('DELETE FROM hello_messages'),
+    env.DB.prepare('DELETE FROM form_submissions'),
     env.DB.prepare('DELETE FROM applications'),
     env.DB.prepare('DELETE FROM email_log'),
   ])

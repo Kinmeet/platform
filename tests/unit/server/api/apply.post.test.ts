@@ -66,6 +66,7 @@ const logs: string[] = []
 beforeEach(async () => {
   await env.DB.batch([
     env.DB.prepare('DELETE FROM applications'),
+    env.DB.prepare('DELETE FROM form_submissions'),
     env.DB.prepare('DELETE FROM email_log'),
   ])
   siteverify = { success: true, hostname: HOST, action: 'apply' }
@@ -86,10 +87,18 @@ afterEach(async () => {
   vi.restoreAllMocks()
 })
 
+// Applications are stored on their role's form (ADR-0010, #156). Every row in
+// `form_submissions` is returned, so a row on the wrong form still counts,
+// and the old table must stay empty.
 async function rows() {
-  const { results } = await env.DB.prepare('SELECT * FROM applications').all<
-    Record<string, unknown>
-  >()
+  const legacy = await env.DB.prepare('SELECT count(*) AS n FROM applications').first<{
+    n: number
+  }>()
+  expect(legacy!.n).toBe(0)
+  const { results } = await env.DB.prepare(
+    `SELECT s.*, f.slug AS form_slug FROM form_submissions AS s
+     LEFT JOIN forms AS f ON f.id = s.form_id`,
+  ).all<Record<string, unknown>>()
   return results
 }
 
@@ -108,25 +117,32 @@ describe('POST /api/apply', () => {
       [
         'answers',
         'call_name',
-        'connection_to_founders',
         'delete_after',
         'email',
+        'form_id',
+        'form_slug',
         'id',
         'outcome_told_at',
         'received_at',
-        'role',
+        'replied_at',
         'submission_id',
+        'version',
       ].sort(),
     )
     expect(row).toMatchObject({
-      role: 'trustee',
-      connection_to_founders: 'not_sure',
+      form_slug: 'trustee',
+      version: 1,
       call_name: 'Sample Applicant',
       email: 'sample.applicant@example.org',
+      replied_at: null,
       outcome_told_at: null,
     })
-    // The empty optional answer is not kept.
-    expect(JSON.parse(String(row!.answers))).toEqual({ why_trustee: 'A made-up reason.' })
+    // Of the checks, only the founder-connection answer is kept, and the
+    // empty optional answer is not kept.
+    expect(JSON.parse(String(row!.answers))).toEqual({
+      connection_to_founders: 'not_sure',
+      why_trustee: 'A made-up reason.',
+    })
     expect(await emailLogCount()).toBe(1)
   })
 
@@ -136,7 +152,7 @@ describe('POST /api/apply', () => {
     const receivedAt = Number(first!.received_at)
     expect(first!.delete_after).toBe(addMonths(receivedAt, 6))
 
-    await env.DB.prepare('DELETE FROM applications').run()
+    await env.DB.prepare('DELETE FROM form_submissions').run()
     const closes = receivedAt + 90 * 24 * 60 * 60
     await call(valid, { APPLY_ROUND_CLOSES_AT: String(closes) })
     const [second] = await rows()
