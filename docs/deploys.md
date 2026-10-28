@@ -19,6 +19,7 @@ NuxtHub turns on Nitro's `deployConfig`. So `bun run build` writes `.output/serv
 - Workers Builds sets `CLOUDFLARE_ENV=live` on `platform`, for production and Previews alike (Previews use the `previews` block inside `env.live`). The old `platform-staging` Worker uses `staging` until it is retired.
 - A build check stops any Workers Builds build (`WORKERS_CI=1`) whose `CLOUDFLARE_ENV` is not `live` or `staging`, so the local config can never ship.
 - CI builds for live and compares the generated bindings with `scripts/generated-config.live.json` (`bun run check:generated-config`). It also checks that nothing in its `previews` block names a live resource. After a reviewed binding change, refresh the snapshot with `bun run check:generated-config --update` after a live build, and commit it in the same pull request.
+- **Live is never deployed by hand.** After a build for live, the Bash hook refuses any `wrangler deploy` (a `--dry-run` is fine), because the generated config would deploy live whatever the command says. Rebuild with `bun run build` and no `CLOUDFLARE_ENV` to go back to the local config. Never delete `.output` to get past the hook.
 - **Any Wrangler command run by hand that names an environment** passes `--config wrangler.jsonc`, so `--env` is honoured. That covers `d1`, `secret` and `preview` commands. The Bash hook refuses a remote `wrangler d1 migrations` command without it, and treats a remote D1 command on `DB` as live unless it names a staging database, or passes both `--env staging` and `--config wrangler.jsonc`.
 
 ## Releasing to live
