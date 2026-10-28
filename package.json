@@ -24,6 +24,7 @@
     "check:copy": "bun scripts/check-copy.ts",
     "check:cloudflare": "bun scripts/check-cloudflare-features.ts",
     "check:generated-config": "bun scripts/check-generated-config.ts",
+    "check:build-output": "bun scripts/check-build-output.ts",
     "db:migrate:local": "wrangler d1 migrations apply DB --local --config wrangler.jsonc"
   },
   "dependencies": {
@@ -31,6 +32,7 @@
     "@fontsource/atkinson-hyperlegible-next": "5.3.0",
     "@nuxthub/core": "0.10.11",
     "@nuxtjs/i18n": "10.6.0",
+    "@nuxtjs/robots": "7.0.2",
     "drizzle-orm": "0.45.4",
     "nuxt": "4.6.2",
     "vue": "3.5.44",
