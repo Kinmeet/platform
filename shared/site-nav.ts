@@ -26,6 +26,7 @@ export const footerNav: readonly NavLink[] = [
   { id: 'say_hello', path: '/say-hello' },
   { id: 'promise', path: '/all-ages-promise' },
   { id: 'data', path: '/how-we-handle-data' },
+  { id: 'accessibility', path: '/accessibility' },
 ]
 
 /** True once a page for this path is listed in `shared/routes.ts`. */

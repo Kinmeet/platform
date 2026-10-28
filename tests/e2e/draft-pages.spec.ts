@@ -2,7 +2,8 @@ import { expect, test } from '@playwright/test'
 import { draftRoutes, publicRoutes } from '../../shared/routes'
 
 // Pages that are built but not published yet, such as the all-ages promise
-// (#77) and the privacy notice (#144). Each must answer 404 and have no link to it anywhere public. Once
+// (#77), the privacy notice (#144) and the accessibility statement (#145).
+// Each must answer 404 and have no link to it anywhere public. Once
 // published, a page moves to `publicRoutes` and the no-third-party and
 // accessibility tests load it instead.
 for (const path of draftRoutes) {

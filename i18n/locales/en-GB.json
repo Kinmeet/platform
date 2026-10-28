@@ -9,7 +9,8 @@
       "roles": "Roles",
       "say_hello": "Say hello",
       "promise": "Our all-ages promise",
-      "data": "How we handle data"
+      "data": "How we handle data",
+      "accessibility": "Accessibility statement"
     },
     "leave": "Leave the application (answers won't be kept)",
     "footer": {
@@ -581,6 +582,38 @@
       "keep_email_log": "A scrambled record that we emailed you a receipt: 30 days.",
       "keep_safety": "If your message tells us someone may be at risk, we pass it to our safeguarding lead, who keeps it securely and separately under our safeguarding policy. The website does not delete it automatically. If someone needs protecting, they may share it with services that can help, such as the police.",
       "under_18_private": "You only need to tell us what you want to. If you're worried about your safety or someone else's, you can tell us, and our safeguarding lead will deal with it carefully."
+    }
+  },
+  "accessibility": {
+    "page_title": "Accessibility statement",
+    "title": "Accessibility statement",
+    "last_reviewed": "Last reviewed {date}.",
+    "intro": "We want everyone in our community to be able to use this website, including people who use a screen reader, keyboard only, voice control, magnification or other tools.",
+    "aim": {
+      "heading": "What we aim for",
+      "body": "We build the site to meet the Web Content Accessibility Guidelines (WCAG) 2.2 at level AA. That means, for example, you can:",
+      "keyboard": "use every part of the site with a keyboard;",
+      "zoom": "zoom text up to 400% without losing content;",
+      "screen_reader": "use the site with a screen reader;",
+      "motion": "turn off animation through your device settings;",
+      "plain_english": "read the content in plain English."
+    },
+    "known": {
+      "heading": "What we know is not right yet",
+      "items": []
+    },
+    "report": {
+      "heading": "Telling us about a problem",
+      "email": "If something on the site does not work for you, or you need information in another format, email {address}.",
+      "then": "Tell us the page and what went wrong. We will reply within 5 working days and try to fix the problem or find another way to help."
+    },
+    "meets": {
+      "heading": "Meets",
+      "body": "If you need adjustments to take part in a meet, contact your local group or {address}. We will work with you to make it possible."
+    },
+    "test": {
+      "heading": "How we test",
+      "body": "We check the site with automated tools and by hand with a keyboard and screen readers before each major change. We review this statement every year."
     }
   }
 }
