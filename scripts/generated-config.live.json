@@ -18,7 +18,13 @@
       }
     },
     "logpush": false,
-    "var_names": ["KINMEET_ENV", "NUXT_PUBLIC_TURNSTILE_SITE_KEY", "SITE_ORIGIN"],
+    "var_names": [
+      "ACCESS_AUD",
+      "ACCESS_TEAM_DOMAIN",
+      "KINMEET_ENV",
+      "NUXT_PUBLIC_TURNSTILE_SITE_KEY",
+      "SITE_ORIGIN"
+    ],
     "d1": [
       {
         "binding": "DB",
@@ -63,7 +69,13 @@
       }
     },
     "logpush": false,
-    "var_names": ["KINMEET_ENV", "NUXT_PUBLIC_TURNSTILE_SITE_KEY", "SITE_ORIGIN"],
+    "var_names": [
+      "ACCESS_AUD",
+      "ACCESS_TEAM_DOMAIN",
+      "KINMEET_ENV",
+      "NUXT_PUBLIC_TURNSTILE_SITE_KEY",
+      "SITE_ORIGIN"
+    ],
     "d1": [
       {
         "binding": "DB",
