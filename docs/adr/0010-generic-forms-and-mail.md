@@ -226,7 +226,7 @@ We leave out mailflare's:
 - lists, contacts and memberships;
 - double opt-in, with hashed and expiring confirmation tokens;
 - a one-click unsubscribe header (RFC 8058) and an unsubscribe page;
-- campaigns sent through a Queue, within Email Service's daily limits.
+- campaigns sent through a Queue, within Email Service's daily limits;
 - suppression of bounces, complaints and unsubscribes, as above, with no tracking of any kind.
 
 We build the mechanism, but nothing is collected until area 5 decides the newsletter rules (double opt-in, retention, minimum age) and the under-13s question. Until then the code ships with its P3 purpose missing, so a list can't be opened.
