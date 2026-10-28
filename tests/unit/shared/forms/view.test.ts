@@ -10,6 +10,7 @@ import {
   flowSteps,
   shownFieldIds,
   stopReasonOf,
+  toPublicForm,
   toRequestBody,
   type PublicForm,
 } from '../../../../shared/forms/view'
@@ -46,6 +47,12 @@ describe('the steps of a form', () => {
     ])
     expect(allFieldPaths(hello.definition)).toEqual(['callName', 'email', 'message'])
     expect(flowFieldPaths({ kind: 'check' })).toEqual([])
+  })
+
+  it('shows the safety note only for a purpose that takes free text', () => {
+    const base = { ...hello, definition: hello.definition, text: hello.text }
+    expect(toPublicForm({ ...base, purpose: { freeText: true } }).safetyNote).toBe(true)
+    expect(toPublicForm({ ...base, purpose: { freeText: false } }).safetyNote).toBe(false)
   })
 
   it('finds a stored field by its request name', () => {

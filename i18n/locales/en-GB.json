@@ -341,7 +341,7 @@
       "left": "You have {count} character left | You have {count} characters left",
       "over": "You have {count} character too many | You have {count} characters too many"
     },
-    "reveals_more": "Depending on your answer, we may ask one or two more questions."
+    "reveals_more": "Depending on your answer, we may ask more questions."
   },
   "hello": {
     "page_title": "Say hello",

@@ -43,14 +43,10 @@ watch(applyData, (value) => {
   if (value) apply.value = value
 })
 
-// Role and question wording comes from the role config's translations (#19).
-// A slug or question id with no wording (a question since removed, or a role
-// not yet translated) is shown as the id itself, so nothing is hidden.
+// Role wording comes from the role config's translations (#19); a role not
+// yet translated is shown as its slug, so nothing is hidden. Each question is
+// labelled by the version its answer was sent on (Theo, #159).
 const roleLabel = (role: string) => (te(`roles.${role}.title`) ? t(`roles.${role}.title`) : role)
-const questionLabel = (role: string, question: string) =>
-  te(`roles.${role}.questions.${question}.label`)
-    ? t(`roles.${role}.questions.${question}.label`)
-    : question
 
 const announcement = ref('')
 const busy = ref<string | null>(null)
@@ -208,7 +204,7 @@ async function passToSafeguarding(
           </dl>
           <dl class="admin__answers">
             <template v-for="(answer, question) in application.answers" :key="question">
-              <dt>{{ questionLabel(application.role, String(question)) }}</dt>
+              <dt>{{ application.labels[question] ?? question }}</dt>
               <dd class="admin__message">{{ answer }}</dd>
             </template>
           </dl>

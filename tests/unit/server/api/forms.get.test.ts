@@ -46,11 +46,26 @@ describe('an open form', () => {
     expect(form.definition.steps.map((step) => step.id)).toEqual(['checks', 'answers'])
   })
 
+  // Both take free text, so both pages show the safety note (SG6, Ezra #159).
+  it('says when the page must show the safety note, without naming the purpose', async () => {
+    for (const slug of ['hello', 'trustee']) {
+      const { body } = await get(slug)
+      expect((body.form as { safetyNote: unknown }).safetyNote, slug).toBe(true)
+    }
+  })
+
   it('never says who reads the answers, what happens to them or how long they are kept', async () => {
     for (const slug of ['hello', 'trustee']) {
       const { body } = await get(slug)
       const form = body.form as { definition: Record<string, unknown> }
-      expect(Object.keys(form).sort()).toEqual(['definition', 'kind', 'slug', 'text', 'version'])
+      expect(Object.keys(form).sort()).toEqual([
+        'definition',
+        'kind',
+        'safetyNote',
+        'slug',
+        'text',
+        'version',
+      ])
       expect(Object.keys(form.definition).sort()).toEqual(['aboutYou', 'note', 'steps'])
       const json = JSON.stringify(body)
       for (const word of ['readers', 'actions', 'receipt', 'retention', 'purpose', 'secretary'])

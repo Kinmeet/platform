@@ -21,6 +21,12 @@ export interface PublicForm {
   definition: FormShape
   /** The version's en-GB wording, by key (`textKeys` in `publish.ts`). */
   text: Readonly<Record<string, string>>
+  /**
+   * The form takes free text, so its page shows the safety note (SG6). Worked
+   * out from the P3 purpose on the server, so the purpose itself never leaves
+   * it (Ezra, #159).
+   */
+  safetyNote: boolean
 }
 
 export function toPublicForm(form: {
@@ -29,6 +35,7 @@ export function toPublicForm(form: {
   version: number
   definition: FormShape
   text: Readonly<Record<string, string>>
+  purpose: { readonly freeText: boolean }
 }): PublicForm {
   const { steps, aboutYou, note } = form.definition
   return {
@@ -37,6 +44,7 @@ export function toPublicForm(form: {
     version: form.version,
     definition: { steps, aboutYou, note },
     text: form.text,
+    safetyNote: form.purpose.freeText,
   }
 }
 

@@ -1,3 +1,4 @@
+import { FORM_BODY_CAP_MAX } from './forms/definition'
 import { publishedRoles, type PublishedRole } from './forms/roles'
 import { privacyPage } from './pages/privacy'
 import { accessibilityPage } from './pages/accessibility'
@@ -122,11 +123,23 @@ export function crossesFormBoundary(
  * of Nitro (server/entry/body-limit.ts), so a bigger body is refused with 413
  * before anything reads it (issue #54). A form's cap here must be at least
  * its schema's own cap (`bodyCapBytes` in docs/api/forms.md), which the route
- * still checks itself.
+ * still checks itself. Publishing refuses a form version whose cap is over
+ * its route's limit here (`submitPathFor`), so a valid submission never gets
+ * a 413. Apply takes the largest cap any stored form may have; say hello
+ * keeps its own, smaller one (Nadia, #158).
  */
 export const bodyLimits: Readonly<Record<string, number>> = {
   '/api/hello': 22 * 1024,
-  '/api/apply': 64 * 1024,
+  '/api/apply': FORM_BODY_CAP_MAX,
+}
+
+/**
+ * Where a stored form's submissions are sent. A form with no route of its own
+ * gets the small default limit, so publishing refuses it until it has one.
+ */
+export function submitPathFor(slug: string, kind: 'form' | 'application'): string {
+  if (kind === 'application') return '/api/apply'
+  return slug === 'hello' ? '/api/hello' : `/api/forms/${slug}`
 }
 
 /** Any other route: no body on GET and HEAD, and only a small one otherwise. */

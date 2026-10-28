@@ -12,8 +12,8 @@ import {
   needsSecondApproval,
   type PublishCandidate,
 } from '../../../../shared/forms/publish'
-import { bodyCapFor } from '../../../../shared/forms/runtime'
-import { bodyLimitFor } from '../../../../shared/routes'
+import { ROLE_SLUG_MAX, bodyCapFor } from '../../../../shared/forms/runtime'
+import { bodyLimitFor, submitPathFor } from '../../../../shared/routes'
 
 // The publish checks (ADR-0010, #156): every limit has a refused case, so an
 // admin can never publish past what reviewed code allows (Nadia). Made-up
@@ -314,11 +314,8 @@ describe('refused: the purpose, readers, retention and SG6', () => {
 describe('refused: the body cap', () => {
   /** A form whose text fields add up to `total` code points. */
   function withAnswerTotal(total: number) {
+    // An application, since only `/api/apply` takes the largest cap.
     return candidate((c) => {
-      c.kind = 'form'
-      c.purpose = 'say_hello'
-      c.definition.actions = ['reply', 'pass_to_safeguarding']
-      c.definition.readers = ['central_team']
       c.definition.steps = [...Array(4)].map((_, s) => ({
         id: `step_${s}`,
         body: [null, 'checks', 'answers'][s] ?? null,
@@ -351,20 +348,70 @@ describe('refused: the body cap', () => {
     })
   }
 
-  // The fixed parts of every body: the submission id, call name, email and token.
-  const fixed = 36 + 60 + 254 + 2048
+  // The fixed parts of every body: the submission id, role, call name, email and token.
+  const fixed = 36 + ROLE_SLUG_MAX + 60 + 254 + 2048
   const largestAllowed = (FORM_BODY_CAP_MAX - 4096) / 4 - fixed
 
   it('fits the largest allowed version inside the fixed cap and the entry limit', () => {
     const largest = withAnswerTotal(largestAllowed)
     expect(codes(largest)).toEqual([])
     const definition = definitionSchema.parse(largest.definition)
-    expect(bodyCapFor(definition, 'form')).toBe(FORM_BODY_CAP_MAX)
+    expect(bodyCapFor(definition, 'application')).toBe(FORM_BODY_CAP_MAX)
     expect(FORM_BODY_CAP_MAX).toBeLessThanOrEqual(bodyLimitFor('POST', '/api/apply'))
   })
 
   it('refuses a version one character over', () => {
-    expect(codes(withAnswerTotal(largestAllowed + 1))).toEqual(['body_cap_too_large'])
+    expect(codes(withAnswerTotal(largestAllowed + 1))).toEqual([
+      'body_cap_too_large',
+      'body_cap_over_route_limit',
+    ])
+  })
+
+  // A body over the route's entry limit gets a 413 before the route sees it
+  // (ADR-0008), so publishing refuses it (Nadia, #158).
+  it('refuses say hello over its own route limit', () => {
+    const helloLimit = bodyLimitFor('POST', submitPathFor('hello', 'form'))
+    const over = (helloLimit - 4096) / 4 - (36 + 60 + 254 + 2048) + 1
+    const hello = candidate((c) => {
+      c.slug = 'hello'
+      c.kind = 'form'
+      c.purpose = 'say_hello'
+      c.definition.actions = ['reply', 'pass_to_safeguarding']
+      c.definition.readers = ['central_team']
+      const half = Math.ceil(over / 2)
+      c.definition.steps = [
+        {
+          id: 'message',
+          body: null,
+          fields: [
+            { id: 'message', type: 'long_text', required: true, maxLength: half },
+            { id: 'more', type: 'long_text', required: false, maxLength: over - half },
+          ],
+        },
+      ]
+      c.text = {
+        'en-GB': {
+          title: 'Say hello',
+          'fields.message.label': 'Your message',
+          'fields.message.summary': 'Your message',
+          'fields.more.label': 'Anything else to add',
+          'fields.more.summary': 'Anything else',
+        },
+      }
+    })
+    expect(codes(hello)).toContain('body_cap_over_route_limit')
+    expect(codes(hello)).not.toContain('body_cap_too_large')
+  })
+
+  it('refuses a form with no route of its own yet', () => {
+    expect(submitPathFor('sample-form', 'form')).toBe('/api/forms/sample-form')
+    expect(bodyLimitFor('POST', '/api/forms/sample-form')).toBe(1024)
+    const form = withAnswerTotal(100)
+    form.kind = 'form'
+    form.purpose = 'say_hello'
+    form.definition.actions = ['reply', 'pass_to_safeguarding']
+    form.definition.readers = ['central_team']
+    expect(codes(form)).toEqual(['body_cap_over_route_limit'])
   })
 })
 
@@ -417,6 +464,30 @@ describe('refused: the text', () => {
     [
       'a label asking for a code',
       (c) => void (text(c)['fields.message.label'] = 'Type the verification code we sent'),
+      'asks_for_credentials',
+    ],
+    // Nadia, #158: wider credential words, and text that hides a word.
+    ...(
+      [
+        'Your sign-in details',
+        'Your credit card',
+        'Your bank account',
+        'Your IBAN',
+        'Answers to your security questions',
+      ] as const
+    ).map((label): [string, (c: { text: Json }) => void, string] => [
+      `a label asking for "${label}"`,
+      (c) => void (text(c)['fields.message.label'] = label),
+      'asks_for_credentials',
+    ]),
+    [
+      'a banned term split by a zero-width space',
+      (c) => void (text(c).title = 'Join our local chap\u200Bter'),
+      'banned_term',
+    ],
+    [
+      'a credential word in full-width letters',
+      (c) => void (text(c)['fields.message.label'] = 'Your ｐａｓｓｗｏｒｄ'),
       'asks_for_credentials',
     ],
     // Robin, #158: the commonest barriers an admin could make.

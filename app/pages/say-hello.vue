@@ -234,7 +234,8 @@ async function writeAnother() {
         <div class="note">
           <h2 class="hello__note-title">{{ t('hello.kept.heading') }}</h2>
           <p>{{ t('hello.kept.body') }}</p>
-          <p>{{ t('hello.kept.safety') }}</p>
+          <!-- A form that takes free text says where a disclosure goes (SG6). -->
+          <p v-if="form.safetyNote">{{ t('hello.kept.safety') }}</p>
           <i18n-t v-if="privacyLink" keypath="hello.kept.privacy" tag="p" scope="global">
             <template #link>
               <NuxtLink :to="PRIVACY_PATH">{{ t('hello.kept.privacy_link') }}</NuxtLink>

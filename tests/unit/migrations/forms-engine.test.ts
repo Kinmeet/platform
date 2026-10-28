@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import copyMigration from '../../../migrations/db/0006_copy_form_submissions.sql?raw'
 import enGB from '../../../i18n/locales/en-GB.json'
 import { definitionSchema } from '../../../shared/forms/definition'
-import { checkPublish } from '../../../shared/forms/publish'
+import { checkPublish, textProblems } from '../../../shared/forms/publish'
 import { roles, trustee } from '../../../shared/forms/roles'
 import { HELLO_MESSAGE_MAX } from '../../../shared/forms/hello'
 
@@ -180,6 +180,36 @@ describe('the seeded version 1 forms', () => {
       )
       // A new form always needs a second approval; the seeds ship by migration.
       expect(check.problems).toEqual([{ code: 'second_approval_needed', path: 'definition' }])
+    }
+  })
+
+  // Wording that arrives by a reviewed migration gets the same text checks as
+  // the admin screen (Nadia, #159). A version a later one replaced may break a
+  // rule added after it, which is why it was replaced; each is pinned here.
+  it('runs the publish text checks over every stored version', async () => {
+    const { results } = await env.DB.prepare(
+      `SELECT f.slug, v.version, v.definition, v.text, f.current_version
+       FROM form_versions v JOIN forms f ON f.id = v.form_id ORDER BY f.slug, v.version`,
+    ).all<{
+      slug: string
+      version: number
+      definition: string
+      text: string
+      current_version: number
+    }>()
+    const superseded: Record<string, string[]> = {
+      'trustee@1': ['summary_too_short:text.en-GB.fields.why_trustee.summary'],
+    }
+    expect(results.length).toBeGreaterThan(0)
+    for (const row of results) {
+      const definition = definitionSchema.parse(JSON.parse(row.definition))
+      const found = textProblems(definition, JSON.parse(row.text)).map(
+        (problem) => `${problem.code}:${problem.path}`,
+      )
+      const name = `${row.slug}@${row.version}`
+      expect(found, name).toEqual(
+        row.version === row.current_version ? [] : (superseded[name] ?? []),
+      )
     }
   })
 
