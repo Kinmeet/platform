@@ -67,6 +67,7 @@ interface D1 {
 
 interface Level {
   name?: string
+  main?: string
   workers_dev?: boolean
   preview_urls?: boolean
   observability?: unknown
@@ -111,6 +112,9 @@ function bindings(level: Level) {
 function summary(config: Level) {
   return {
     name: config.name ?? null,
+    // Nitro's output, which is our body-limit entry (ADR-0008); the
+    // end-to-end body-limits test checks the entry itself.
+    main: config.main ?? null,
     workers_dev: config.workers_dev ?? null,
     preview_urls: config.preview_urls ?? null,
     compatibility_flags: config.compatibility_flags ?? [],
