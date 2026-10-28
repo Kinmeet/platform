@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { expect, test } from '@playwright/test'
 import { E2E_PERSIST_DIR } from './local-d1'
 
@@ -46,23 +47,27 @@ const application = (id: string, deleteAfter: number) =>
 const emailLog = (id: string, deleteAfter: number) =>
   `INSERT INTO email_log (id, to_hmac, template_id, sent_at, delete_after)
    VALUES ('${id}', '${HMAC}', 'application_receipt', ${RECEIVED}, ${deleteAfter})`
-const auditEntry = (id: string, deleteAfter: number) =>
+const auditEntry = (id: string, target: string, deleteAfter: number) =>
   `INSERT INTO audit_log (id, at, actor, action, target_table, target_id, delete_after)
-   VALUES ('${id}', ${RECEIVED}, 'test-actor', 'mark_replied', 'hello_messages', 'e2e-hello-old', ${deleteAfter})`
+   VALUES ('${id}', ${RECEIVED}, 'test-actor', 'mark_replied', 'hello_messages', '${target}', ${deleteAfter})`
 
 test('the daily job deletes rows past their date and keeps the rest', async ({ request }) => {
   // Each wrangler d1 call starts its own process, so allow for a slow runner.
   test.setTimeout(90_000)
+  // The kept rows stay in the local D1, so each run uses its own ids and only
+  // looks at those. A repeated run (--repeat-each) would otherwise insert the
+  // same ids twice (#148). The prefix is hex, so it's safe in the SQL below.
+  const run = `e2e-${randomUUID().slice(0, 8)}`
   d1(
     [
-      hello('e2e-hello-old', PAST),
-      hello('e2e-hello-new', FUTURE),
-      application('e2e-app-old', PAST),
-      application('e2e-app-new', FUTURE),
-      emailLog('e2e-log-old', PAST),
-      emailLog('e2e-log-new', FUTURE),
-      auditEntry('e2e-audit-old', PAST),
-      auditEntry('e2e-audit-new', FUTURE),
+      hello(`${run}-hello-old`, PAST),
+      hello(`${run}-hello-new`, FUTURE),
+      application(`${run}-app-old`, PAST),
+      application(`${run}-app-new`, FUTURE),
+      emailLog(`${run}-log-old`, PAST),
+      emailLog(`${run}-log-new`, FUTURE),
+      auditEntry(`${run}-audit-old`, `${run}-hello-old`, PAST),
+      auditEntry(`${run}-audit-new`, `${run}-hello-old`, FUTURE),
     ].join(';\n'),
   )
 
@@ -71,14 +76,14 @@ test('the daily job deletes rows past their date and keeps the rest', async ({ r
 
   const remaining = () =>
     d1(
-      `SELECT id FROM hello_messages WHERE id LIKE 'e2e-%'
-       UNION ALL SELECT id FROM applications WHERE id LIKE 'e2e-%'
-       UNION ALL SELECT id FROM email_log WHERE id LIKE 'e2e-%'
-       UNION ALL SELECT id FROM audit_log WHERE id LIKE 'e2e-%'`,
+      `SELECT id FROM hello_messages WHERE id LIKE '${run}-%'
+       UNION ALL SELECT id FROM applications WHERE id LIKE '${run}-%'
+       UNION ALL SELECT id FROM email_log WHERE id LIKE '${run}-%'
+       UNION ALL SELECT id FROM audit_log WHERE id LIKE '${run}-%'`,
     )
       .map((row) => row.id)
       .sort()
   await expect
     .poll(remaining, { timeout: 20_000 })
-    .toEqual(['e2e-app-new', 'e2e-audit-new', 'e2e-hello-new', 'e2e-log-new'])
+    .toEqual([`${run}-app-new`, `${run}-audit-new`, `${run}-hello-new`, `${run}-log-new`])
 })

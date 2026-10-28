@@ -11,6 +11,7 @@ import {
   openApply as open,
 } from './apply-helpers'
 import { allowedOrigins, watchPage } from './helpers'
+import { watchOwnRequests, watchRealTurnstile } from './turnstile'
 
 // The apply flow's step pages (#15). Test answers are made up.
 const trustee = en.roles.trustee
@@ -122,17 +123,21 @@ test.describe('apply flow steps', () => {
       allowedOrigins(route, baseURL!),
       new URL(baseURL!).origin,
     )
+    // The real widget, as in no-third-party.spec.ts (#148).
+    const own = watchOwnRequests(page, new URL(baseURL!).origin)
     await page.goto('/roles/trustee')
     await page.getByRole('link', { name: trustee.page.apply }).first().click()
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(en.apply.steps['1'])
     await finishStep1(page)
     await finishStep2(page)
-    await page.waitForLoadState('networkidle')
+    await own.settled()
     expect(problems.otherOrigins, 'nothing from Cloudflare before step 4').toEqual([])
 
+    const turnstile = watchRealTurnstile(page)
     await finishStep3(page)
-    await expect.poll(() => problems.otherOrigins).toEqual([TURNSTILE_ORIGIN])
-    await page.waitForLoadState('networkidle')
+    await turnstile.loaded()
+    await own.settled()
+    expect(problems.otherOrigins).toEqual([TURNSTILE_ORIGIN])
     expect(problems.cspViolations).toEqual([])
     expect(problems.pageErrors).toEqual([])
     expect(problems.thirdPartyRequests).toEqual([])
