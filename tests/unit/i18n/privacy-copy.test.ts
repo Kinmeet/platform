@@ -39,7 +39,20 @@ describe('privacy notice copy', () => {
   it(`${privacyPage.published ? 'has no' : 'holds the'} proposed P9 edits in draft`, () => {
     const drafts = Object.keys(copy.draft ?? {})
     expect(drafts).toEqual(
-      privacyPage.published ? [] : ['scrambled_ip', 'turnstile_what', 'backups'],
+      privacyPage.published
+        ? []
+        : [
+            'scrambled_ip',
+            'turnstile_what',
+            'backups',
+            'collect_trustee',
+            'safety_what',
+            'safety_why',
+            'keep_hello',
+            'keep_email_log',
+            'keep_safety',
+            'under_18_private',
+          ],
     )
   })
 })

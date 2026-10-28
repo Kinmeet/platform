@@ -563,7 +563,8 @@
     "under_18": {
       "heading": "If you are under 18",
       "rights": "You have the same rights as everyone else. You do not need a parent's permission to write to us.",
-      "private": "Please do not send us anything private about yourself or anyone else in a message."
+      "private": "Please do not send us anything private about yourself or anyone else in a message.",
+      "danger": "If you are worried about someone's safety, call 999 in an emergency."
     },
     "changes": {
       "heading": "Changes",
@@ -572,7 +573,14 @@
     "draft": {
       "scrambled_ip": "To stop spam, our website briefly uses a scrambled version of your internet connection's address (IP address) to limit how many forms can be sent from one place in a minute. It is never saved with what you send and is forgotten within minutes.",
       "turnstile_what": "Turnstile check and sending limits",
-      "backups": "After deletion, a copy may stay in our secure recovery backups for up to 7 days before it is gone for good."
+      "backups": "After deletion, a copy may stay in our secure recovery backups for up to 7 days before it is gone for good.",
+      "collect_trustee": "{label} your community name, your email address and your answers on the form. We only ask for your legal name and other details if we offer you a place.",
+      "safety_what": "A message that tells us someone may be at risk",
+      "safety_why": "To keep people safe",
+      "keep_hello": "Say hello messages: 12 months after our last reply, or 12 months after you sent it if we haven't replied.",
+      "keep_email_log": "A scrambled record that we emailed you a receipt: 30 days.",
+      "keep_safety": "If your message tells us someone may be at risk, we pass it to our safeguarding lead, who keeps it securely and separately under our safeguarding policy. The website does not delete it automatically.",
+      "under_18_private": "You only need to tell us what you want to. If you're worried about your safety or someone else's, you can tell us, and our safeguarding lead will deal with it carefully."
     }
   }
 }

@@ -42,6 +42,40 @@
   border-bottom: var(--border);
 }
 
+/* Below about 30rem the columns don't fit (at 320px "legitimate" can't
+   break and the page scrolls; Robin, #146), so each row becomes a block with
+   its first cell as a heading and the others labelled from their column. */
+@media (max-width: 30rem) {
+  .privacy-table :is(table, thead, tbody, tr, th, td) {
+    display: block;
+  }
+
+  .privacy-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .privacy-table tr {
+    padding: var(--space-2) 0;
+    border-bottom: var(--border);
+  }
+
+  .privacy-table :is(th, td) {
+    padding: var(--space-1) 0;
+    border-bottom: none;
+  }
+
+  .privacy-table td[data-label]::before {
+    display: block;
+    font-weight: 700;
+    content: attr(data-label);
+  }
+}
+
 /* A proposed P9 edit, still to be agreed at the founder's review. The page
    can't be published while any are left (#144). */
 .privacy-draft {

@@ -93,19 +93,54 @@ describe('privacy notice', () => {
   it('shows each proposed P9 edit in its place, marked as a draft', async () => {
     const wrapper = await mount()
     const drafts = wrapper.findAll('.privacy-draft').map((node) => node.text())
-    expect(drafts).toEqual([copy('privacy.draft.scrambled_ip'), copy('privacy.draft.backups')])
+    expect(drafts).toEqual([
+      copy('privacy.draft.collect_trustee', { label: copy('privacy.collect.trustee_label') }),
+      copy('privacy.draft.scrambled_ip'),
+      `${copy('privacy.draft.safety_what')}${copy('privacy.draft.safety_why')}`,
+      copy('privacy.draft.keep_hello'),
+      copy('privacy.draft.keep_email_log'),
+      copy('privacy.draft.keep_safety'),
+      copy('privacy.draft.backups'),
+      copy('privacy.draft.under_18_private'),
+    ])
     const firstColumn = wrapper.findAll('tbody th').map((cell) => cell.text())
     expect(firstColumn).toEqual([
       copy('privacy.why.hello.what'),
       copy('privacy.why.trustee.what'),
       copy('privacy.draft.turnstile_what'),
+      copy('privacy.draft.safety_what'),
     ])
+  })
+
+  it('replaces the P9 text a draft would change, rather than showing both', async () => {
+    const text = (await mount()).text()
+    expect(text).not.toContain(copy('privacy.keep.hello'))
+    expect(text).not.toContain(copy('privacy.under_18.private'))
+    expect(text).not.toContain('your contact details')
+  })
+
+  it('keeps the 999 signpost for young people', async () => {
+    const wrapper = await mount()
+    const section = wrapper.find('h2#if-you-are-under-18').element.parentElement!
+    expect(section.textContent).toContain(copy('privacy.under_18.danger'))
+    expect(section.textContent).toContain('999')
   })
 
   it('gives the table column and row headers', async () => {
     const wrapper = await mount()
     expect(wrapper.findAll('thead th[scope="col"]')).toHaveLength(3)
-    expect(wrapper.findAll('tbody th[scope="row"]')).toHaveLength(3)
+    expect(wrapper.findAll('tbody th[scope="row"]')).toHaveLength(4)
     expect(wrapper.find('table').attributes('aria-labelledby')).toBe('why-we-use-it')
+    // Explicit roles, because the rows stack on a narrow screen.
+    expect(wrapper.findAll('[role="columnheader"]')).toHaveLength(3)
+    expect(wrapper.findAll('[role="rowheader"]')).toHaveLength(4)
+    expect(wrapper.findAll('td[role="cell"]').every((cell) => cell.attributes('data-label'))).toBe(
+      true,
+    )
+  })
+
+  it('names no regions but the table, so landmarks stay few', async () => {
+    const wrapper = await mount()
+    expect(wrapper.findAll('section[aria-labelledby], section[aria-label]')).toHaveLength(0)
   })
 })
