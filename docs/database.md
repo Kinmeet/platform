@@ -23,12 +23,15 @@ The main D1 database, bound to the Worker as `DB`. Its migrations live in `migra
 
 ### Stored forms (ADR-0010)
 
-| Table           | Holds                                                                                                                                                                                                            |
-| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `forms`         | One row per form: id, slug (unique ignoring case, at most 32 of `[a-z0-9-]`), kind (`form` or `application`), status (`draft`, `open`, `closed`) and current version. No personal data                           |
-| `form_versions` | Each published version: its definition (`shared/forms/definition.ts`), its admin-written text per locale, its P3 purpose, and when and by whom (an Access `sub`, or `migration`) it was published. Never changed |
+| Table           | Holds                                                                                                                                                                                                                    |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `forms`         | One row per form: id, slug (unique ignoring case, at most 32 of `[a-z0-9-]`), kind (`form` or `application`), status (`draft`, `open`, `closed`) and current version. No personal data                                   |
+| `form_versions` | Each published version: its definition (`shared/forms/definition.ts`), its admin-written text per locale, its P3 purpose, and when and by whom (an Access `sub`, or `migration`) it was published. Never changed         |
+| `form_drafts`   | At most one unpublished draft per form (`0008`): its P3 purpose, definition and text as JSON objects, size-capped, and when and by whom (an Access `sub`) it was last saved. Deleted when it publishes. No personal data |
 
 A trigger refuses every update and delete on `form_versions`. Say hello (`hello`) and the trustee application (`trustee`) were seeded as version 1 from their config and copy, and the roles that aren't open yet as drafts with no version. `0007` publishes version 2 of `trustee`, changing only the summary of `why_trustee` to "Why you'd like to be a trustee" (wording only, so no second approval), and moves the form's current version to 2.
+
+`0008` also rebuilds `audit_log` (create the new table, copy every entry, drop, rename, then recreate its indexes and append-only triggers) so its CHECKs allow the form builder's actions, `create_form`, `publish_form_version`, `open_form` and `close_form`, each against `forms`. Every existing entry is copied unchanged.
 
 `submission_id` is the form's idempotency key ([forms contract](api/forms.md)). It is unique and lives on the row, so it is deleted with the row.
 

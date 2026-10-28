@@ -41,6 +41,8 @@ export interface PublishCandidate {
 export interface PublishedVersion {
   purpose: string
   definition: FormDefinition
+  /** Parsed JSON: `{ "en-GB": { key: text } }`. */
+  text: unknown
 }
 
 export interface PublishCheck {
@@ -299,7 +301,98 @@ export function textProblems(
   return problems
 }
 
-/** Whether a new version changes what is collected or who sees it (Ezra). */
+/**
+ * Text that tells someone what to put in an answer: a field's label, hint,
+ * summary and choices. Rewording any of these can change what is really
+ * being asked, so it needs a second approval like a new field does (Ezra,
+ * #160). The title, intro, step headings, notes and link text stay
+ * wording-only.
+ */
+const ASKING_TEXT = /^fields\.[^.]+\.(?:label|hint|summary|choices\.[^.]+)$/
+
+/**
+ * Words that suggest special-category, criminal-record or credential data.
+ * Any of them in any text, in any locale, wording-only changes included,
+ * means a person must look before the version publishes (Ezra, #160 and
+ * #163). A false positive only costs a second look; a miss costs a quiet
+ * new kind of data.
+ */
+const SENSITIVE_TERMS = new RegExp(
+  `\\b(?:${[
+    // Health, disability and sex life (UK GDPR Article 9)
+    'health',
+    'medical',
+    'medic(?:ine|ines|ation)',
+    'diagnos(?:is|es|ed)',
+    'disab(?:ility|ilities|led)',
+    'mental',
+    'pregnan\\w*',
+    'genetic',
+    'biometric',
+    'sexuality',
+    'sexual orientation',
+    'sex life',
+    'gender',
+    'trans',
+    // Race, beliefs and membership (Article 9)
+    'race',
+    'racial',
+    'ethnicity',
+    'ethnic',
+    'religion',
+    'religious',
+    'faith',
+    'beliefs?',
+    'political',
+    'trade unions?',
+    // Criminal-record data (Article 10)
+    'convictions?',
+    'convicted',
+    'criminal',
+    'offences?',
+    'cautions?',
+    'arrest\\w*',
+    'police',
+    'dbs',
+    // Identifying details and credentials we never collect
+    'date of birth',
+    'home address',
+    'postcode',
+    'passwords?',
+    'pin',
+    'bank',
+    'sort code',
+    'card number',
+  ]
+    // Words split by more than one space, or a line break, still match.
+    .map((term) => term.replaceAll(' ', '\\s+'))
+    .join('|')})\\b`,
+  'i',
+)
+
+/** Every locale's entries, so a translation can't carry what en-GB doesn't. */
+function localeText(text: unknown): Map<string, unknown> {
+  const all = new Map<string, unknown>()
+  if (typeof text !== 'object' || text === null || Array.isArray(text)) return all
+  for (const [locale, entries] of Object.entries(text)) {
+    if (typeof entries !== 'object' || entries === null || Array.isArray(entries)) continue
+    for (const [key, value] of Object.entries(entries)) all.set(`${locale}\u0000${key}`, value)
+  }
+  return all
+}
+
+/** Whether a version has a sensitive term anywhere in its text. */
+export function hasSensitiveTerm(text: unknown): boolean {
+  return [...localeText(text).values()].some(
+    (value) => typeof value === 'string' && SENSITIVE_TERMS.test(normaliseForChecks(value)),
+  )
+}
+
+/**
+ * Whether a new version needs a second approval (ADR-0010, Ezra): a new
+ * form, a change to its purpose, readers or fields, a change to any text
+ * that tells someone what to answer, or a sensitive term in any of its text.
+ */
 export function needsSecondApproval(
   previous: PublishedVersion | null,
   next: PublishedVersion,
@@ -308,7 +401,15 @@ export function needsSecondApproval(
   if (previous.purpose !== next.purpose) return true
   const readers = (definition: FormDefinition) => [...definition.readers].sort().join(',')
   if (readers(previous.definition) !== readers(next.definition)) return true
-  return JSON.stringify(previous.definition.steps) !== JSON.stringify(next.definition.steps)
+  if (JSON.stringify(previous.definition.steps) !== JSON.stringify(next.definition.steps))
+    return true
+  const before = localeText(previous.text)
+  const after = localeText(next.text)
+  for (const key of new Set([...before.keys(), ...after.keys()])) {
+    const textKey = key.slice(key.indexOf('\u0000') + 1)
+    if (ASKING_TEXT.test(textKey) && before.get(key) !== after.get(key)) return true
+  }
+  return hasSensitiveTerm(next.text)
 }
 
 /**
@@ -386,7 +487,11 @@ export function checkPublish(
 
   problems.push(...textProblems(definition, candidate.text))
 
-  const second = needsSecondApproval(previous, { purpose: candidate.purpose, definition })
+  const second = needsSecondApproval(previous, {
+    purpose: candidate.purpose,
+    definition,
+    text: candidate.text,
+  })
   // Phase 1: nobody can give a second approval yet, so such a version waits.
   if (second) add('second_approval_needed', 'definition')
   return { ok: problems.length === 0, problems, needsSecondApproval: second }
