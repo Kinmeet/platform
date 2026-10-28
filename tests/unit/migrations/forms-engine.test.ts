@@ -302,6 +302,27 @@ describe('copying existing rows (0006)', () => {
     await insert('applications', application)
     expect(await copied()).toEqual(expectedCopies)
   })
+
+  it('deletes the copy when the old code deletes a row, so no plain copy is left (Theo)', async () => {
+    // The old code's hand-over deletes from the old table only.
+    await insert('hello_messages', hello)
+    await insert('applications', application)
+    await env.DB.prepare('DELETE FROM hello_messages WHERE id = ?').bind(hello.id).run()
+    expect(await copied()).toEqual([expectedCopies[1]])
+    await env.DB.prepare('DELETE FROM applications WHERE id = ?').bind(application.id).run()
+    expect(await copied()).toEqual([])
+  })
+
+  it('leaves the other copies alone when an old row is deleted', async () => {
+    await insert('hello_messages', hello)
+    await insert('hello_messages', {
+      ...hello,
+      id: '00000000-0000-4000-8000-000000000103',
+      submission_id: '00000000-0000-4000-8000-0000000001a3',
+    })
+    await env.DB.prepare('DELETE FROM hello_messages WHERE id = ?').bind(hello.id).run()
+    expect((await copied()).map((row) => row.id)).toEqual(['00000000-0000-4000-8000-000000000103'])
+  })
 })
 
 describe('the audit log after the rebuild', () => {

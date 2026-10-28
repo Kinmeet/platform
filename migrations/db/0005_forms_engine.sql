@@ -137,6 +137,24 @@ BEGIN
   ON CONFLICT DO NOTHING;
 END;
 
+-- A delete from an old table deletes its copy too, so the old code's
+-- hand-over during a deploy (migrations run before the new code serves)
+-- never leaves a plain copy behind in `form_submissions`. The new code
+-- deletes `form_submissions` first, so these then find nothing. Updates are
+-- not mirrored: a reply or outcome the old code records in that window
+-- leaves the copy on its earlier date, and whichever of the two dates comes
+-- first, the deletion job removes the copy then (directly, or through these
+-- triggers), so it is never kept longer than the old row.
+CREATE TRIGGER hello_messages_delete_copy AFTER DELETE ON hello_messages
+BEGIN
+  DELETE FROM form_submissions WHERE id = OLD.id;
+END;
+
+CREATE TRIGGER applications_delete_copy AFTER DELETE ON applications
+BEGIN
+  DELETE FROM form_submissions WHERE id = OLD.id;
+END;
+
 -- The audit log's CHECKs move to the generic names (ADR-0010). Actions on a
 -- submission now name `form_submissions`, and a list view names the form it
 -- showed. The old names stay valid, so every existing entry is kept exactly
