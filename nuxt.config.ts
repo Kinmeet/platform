@@ -19,7 +19,7 @@ export default defineNuxtConfig({
   devtools: { enabled: false },
   telemetry: false,
 
-  modules: ['@nuxtjs/i18n', '@nuxt/eslint', '@nuxthub/core'],
+  modules: ['@nuxtjs/i18n', '@nuxt/eslint', '@nuxthub/core', '@nuxtjs/robots'],
 
   // NuxtHub for hub:db only (ADR-0009). Wrangler is the only tool that
   // applies migrations, everywhere: `bun run db:migrate:local` in development,
@@ -33,6 +33,23 @@ export default defineNuxtConfig({
       applyMigrationsDuringDev: false,
       applyMigrationsDuringBuild: false,
     },
+  },
+
+  // No environment is indexed yet (#106). Staging and Previews never will be;
+  // whether live is indexed before launch goes to the founder's M1 review,
+  // and turning it on is this one setting. With it off, every page sends
+  // `X-Robots-Tag: noindex, nofollow` and a robots meta tag, and
+  // /robots.txt disallows everything.
+  site: {
+    indexable: false,
+  },
+
+  robots: {
+    // On by default. Its client code can load a bot detection library and
+    // keep results in localStorage, which we don't want near visitors.
+    botDetection: false,
+    // Keep /robots.txt to the rules alone.
+    credits: false,
   },
 
   css: ['~/assets/css/main.css'],
