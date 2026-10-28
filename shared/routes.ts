@@ -1,4 +1,4 @@
-import { FORM_BODY_CAP_MAX } from './forms/definition'
+import { FORM_BODY_CAP_MAX } from './forms/body-cap'
 import { publishedRoles, type PublishedRole } from './forms/roles'
 import { privacyPage } from './pages/privacy'
 import { accessibilityPage } from './pages/accessibility'

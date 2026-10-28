@@ -346,6 +346,7 @@ function stepLink(target: Step) {
               <div class="note">
                 <p class="apply__note-title">{{ t('apply.where_it_goes.heading') }}</p>
                 <p>{{ t('apply.where_it_goes.body') }}</p>
+                <FormSafetyNote :form="form" />
               </div>
             </template>
 

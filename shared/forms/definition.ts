@@ -55,12 +55,7 @@ export const LIMITS = {
   textJson: 64 * 1024,
 } as const
 
-/**
- * The largest body cap a published version may have. A fixed constant, so
- * the Worker's entry limit for form routes (ADR-0008) never depends on what
- * an admin publishes; publishing refuses any version over it.
- */
-export const FORM_BODY_CAP_MAX = 64 * 1024
+export { FORM_BODY_CAP_MAX } from './body-cap'
 
 /** Field and choice ids: lower case, digits and underscores, starting with a letter. */
 const ID = /^[a-z][a-z0-9_]*$/
