@@ -19,7 +19,7 @@ export default defineConfig({
           cloudflareTest({
             miniflare: {
               compatibilityDate: '2026-10-20',
-              compatibilityFlags: ['nodejs_compat'],
+              compatibilityFlags: ['nodejs_compat', 'no_nodejs_compat_v2'],
               d1Databases: ['DB'],
               bindings: { TEST_DB_MIGRATIONS: dbMigrations },
             },

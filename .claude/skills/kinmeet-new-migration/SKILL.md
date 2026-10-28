@@ -16,8 +16,10 @@ Database changes happen only through versioned migrations in `migrations/<bindin
 ## 2. Create the migration
 
 ```sh
-bunx wrangler d1 migrations create <database-name> <short_snake_case_description> --env staging
+bunx wrangler d1 migrations create DB <short_snake_case_description> --config wrangler.jsonc
 ```
+
+Always pass `--config wrangler.jsonc` to `wrangler d1 migrations`: after a build, Wrangler reads the generated config and ignores `--env` (ADR-0009). Wrangler is the only tool that applies migrations; never run `drizzle-kit push`, `migrate` or `drop` (the hooks refuse them). Phase 2 of ADR-0009 adds `drizzle-kit generate` as a way to write the SQL.
 
 This creates the next numbered file (for example `0003_add_hello_messages.sql`) in the binding's `migrations_dir`. Never rename, reorder or edit a migration that has been merged; write a new one.
 
@@ -35,10 +37,10 @@ This creates the next numbered file (for example `0003_add_hello_messages.sql`) 
 
 - Unit tests apply migrations in setup (`applyD1Migrations` with the Workers pool), so a broken migration fails CI.
 - Add tests for constraints and for the retention job on any personal-data table.
-- Apply locally: `bunx wrangler d1 migrations apply <database-name> --local --env staging`.
+- Apply locally: `bun run db:migrate:local` (`wrangler d1 migrations apply DB --local --config wrangler.jsonc`). `bun run dev` uses that same local database (NuxtHub's `hub:db` with the `d1` driver), and never applies migrations itself.
 
 ## 5. Ship it
 
 - Regenerate binding types with `bunx wrangler types` if bindings changed.
-- Staging migrations run with the staging deploy after merge. Live migrations run only with an approved tagged release; never apply them to live by hand.
+- Staging migrations run with the build of `main` after merge (`scripts/d1-migrate.sh preview`). Live migrations run only with the founder's release to `live`; never apply them to live by hand.
 - If the migration needs a decision record (new database, new storage pattern), add an ADR.

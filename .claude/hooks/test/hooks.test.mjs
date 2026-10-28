@@ -4,7 +4,7 @@
 // Every token below is made up. Real-looking values are assembled at run
 // time so this file never contains one.
 import { execFileSync, spawnSync } from 'node:child_process'
-import { mkdtempSync, symlinkSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, it } from 'node:test'
@@ -221,16 +221,87 @@ describe('Bash guard: pushes and deploys', () => {
     assert.equal(bash('git commit -n -m x').status, 2)
   })
 
+  // A project with no build output, so the generated config can't decide.
+  const unbuilt = () => {
+    const dir = mkdtempSync(join(tmpdir(), 'kinmeet-project-'))
+    return (command) =>
+      run('guard-bash.mjs', { cwd: dir, tool_input: { command } }, { CLAUDE_PROJECT_DIR: dir })
+  }
+
   it('blocks live deploys by hand in any spelling', () => {
+    const inProject = unbuilt()
     for (const command of [
       'wrangler deploy --env live',
       'bunx wrangler deploy --env=live',
       'npx wrangler deploy -e live',
       'bun run wrangler versions deploy --env live',
+      'CLOUDFLARE_ENV=live bunx wrangler deploy',
+      'export CLOUDFLARE_ENV=live && bunx wrangler deploy --env staging',
+    ]) {
+      assert.equal(inProject(command).status, 2, command)
+    }
+    assert.equal(inProject('bunx wrangler deploy --env staging').status, 0)
+  })
+
+  it('blocks a hand deploy after a live build, whatever the command says (ADR-0009)', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'kinmeet-built-'))
+    writeFileSync(
+      join(dir, 'wrangler.jsonc'),
+      `{ "env": { "live": { "d1_databases": [{ "binding": "DB", "database_name": "kinmeet-live", "database_id": "${liveDbId}" }] } } }`,
+    )
+    const generated = join(dir, '.output', 'server')
+    mkdirSync(generated, { recursive: true })
+    const inProject = (command) =>
+      run('guard-bash.mjs', { cwd: dir, tool_input: { command } }, { CLAUDE_PROJECT_DIR: dir })
+
+    writeFileSync(
+      join(generated, 'wrangler.json'),
+      JSON.stringify({ d1_databases: [{ database_id: liveDbId }] }),
+    )
+    for (const command of [
+      'bunx wrangler deploy',
+      'bunx wrangler deploy --env staging',
+      'wrangler versions deploy',
+    ]) {
+      assert.equal(inProject(command).status, 2, command)
+    }
+    assert.equal(inProject('bunx wrangler deploy --dry-run').status, 0)
+
+    // A local build names only placeholder resources, so it is not live.
+    writeFileSync(
+      join(generated, 'wrangler.json'),
+      JSON.stringify({ d1_databases: [{ database_id: '0'.repeat(32) }] }),
+    )
+    assert.equal(inProject('bunx wrangler deploy --env staging').status, 0)
+  })
+})
+
+describe('Bash guard: migrations (ADR-0009)', () => {
+  it('lets drizzle-kit generate SQL but never apply or drop anything', () => {
+    for (const command of [
+      'bunx drizzle-kit push',
+      'bunx drizzle-kit migrate',
+      'bun x drizzle-kit drop',
+      'npx drizzle-kit up --config drizzle.config.ts',
+      'cd x && bunx drizzle-kit push --force',
     ]) {
       assert.equal(bash(command).status, 2, command)
     }
-    assert.equal(bash('bunx wrangler deploy --env staging').status, 0)
+    assert.equal(bash('bunx drizzle-kit generate --name add_meets').status, 0)
+    // Quoted text is checked too, so it fails closed: search for `drizzle-kit`
+    // alone instead.
+    assert.equal(bash('grep -rn "drizzle-kit push" docs/').status, 2)
+    assert.equal(bash('grep -rn drizzle-kit docs/').status, 0)
+  })
+
+  it('needs the hand-kept config for a remote migrations command', () => {
+    assert.equal(sgBash('bunx wrangler d1 migrations list kinmeet-staging --remote').status, 2)
+    assert.equal(
+      sgBash('bunx wrangler d1 migrations list kinmeet-staging --remote --config wrangler.jsonc')
+        .status,
+      0,
+    )
+    assert.equal(sgBash('bunx wrangler d1 migrations apply DB --local').status, 0)
   })
 })
 
@@ -272,7 +343,10 @@ describe('safeguarding store: Bash', () => {
     }
     // `--env staging`: with no environment named, `DB` counts as live (#112).
     assert.equal(
-      sgBash('bunx wrangler d1 execute DB --remote --env staging --file ok.sql', dir).status,
+      sgBash(
+        'bunx wrangler d1 execute DB --remote --env staging --config wrangler.jsonc --file ok.sql',
+        dir,
+      ).status,
       0,
     )
   })
@@ -311,6 +385,9 @@ describe('safeguarding store: Bash', () => {
       'bunx wrangler d1 time-travel restore DB --env live --timestamp 1',
       'bunx wrangler d1 time-travel restore DB -e live --bookmark x',
       'bunx wrangler d1 time-travel restore kinmeet-live --timestamp 1',
+      // `--env` is ignored after a build, so without the hand-kept config this
+      // restores whatever the generated config names (ADR-0009, condition 5).
+      'bunx wrangler d1 time-travel restore DB --env staging --timestamp 1',
       `curl -X POST https://api.cloudflare.com/client/v4/accounts/x/d1/database/${liveDbId}/time_travel/restore`,
     ]) {
       assert.equal(sgBash(command).status, 2, command)
@@ -318,8 +395,9 @@ describe('safeguarding store: Bash', () => {
     // `time-travel info` on live is refused by the live data check (#111), so
     // the allowed case here is staging.
     for (const command of [
-      'bunx wrangler d1 time-travel restore DB --env staging --timestamp 1',
-      'bunx wrangler d1 time-travel info DB --env staging',
+      'bunx wrangler d1 time-travel restore DB --env staging --config wrangler.jsonc --timestamp 1',
+      'bunx wrangler d1 time-travel info DB --env staging --config wrangler.jsonc',
+      'bunx wrangler d1 time-travel info kinmeet-staging',
     ]) {
       assert.equal(sgBash(command).status, 0, command)
     }
@@ -356,7 +434,7 @@ describe('safeguarding store: Bash', () => {
       'grep -rn safeguarding_items server/ migrations/',
       'grep -rn SAFEGUARDING_KEY server/ docs/',
       'bun run test tests/unit/server/safeguarding',
-      'bunx wrangler d1 migrations apply kinmeet-staging --env staging --remote',
+      'bunx wrangler d1 migrations apply kinmeet-staging --env staging --remote --config wrangler.jsonc',
       'bunx wrangler secret list --env staging',
     ]) {
       assert.equal(sgBash(command).status, 0, command)
@@ -378,8 +456,8 @@ describe('safeguarding store: Bash', () => {
     for (const command of [
       'bunx wrangler d1 list',
       'bunx wrangler d1 execute kinmeet-local --local --command "SELECT 1"',
-      'bunx wrangler d1 migrations list kinmeet-live --env live --remote',
-      'bunx wrangler d1 execute DB --env staging --remote --command "SELECT 1"',
+      'bunx wrangler d1 migrations list kinmeet-live --env live --remote --config wrangler.jsonc',
+      'bunx wrangler d1 execute DB --env staging --config wrangler.jsonc --remote --command "SELECT 1"',
       `bunx wrangler d1 execute ${stagingDbId} --remote --command "SELECT 1"`,
       'curl https://api.cloudflare.com/client/v4/accounts/x/d1/database',
     ]) {
@@ -554,13 +632,13 @@ describe('live personal data (#111)', () => {
 
   it('allows live metadata, local work and staging', () => {
     for (const command of [
-      'bunx wrangler d1 migrations list DB --env live --remote',
-      'bunx wrangler d1 migrations list kinmeet-live --remote',
+      'bunx wrangler d1 migrations list DB --env live --remote --config wrangler.jsonc',
+      'bunx wrangler d1 migrations list kinmeet-live --remote --config wrangler.jsonc',
       'bunx wrangler d1 info kinmeet-live',
       `bunx wrangler d1 info ${liveDbId}`,
       'bunx wrangler d1 execute DB --env live --local --command "SELECT 1"',
-      'bunx wrangler d1 export DB --env staging --remote --output staging.sql',
-      'bunx wrangler d1 migrations apply DB --env staging --remote',
+      'bunx wrangler d1 export DB --env staging --config wrangler.jsonc --remote --output staging.sql',
+      'bunx wrangler d1 migrations apply DB --env staging --remote --config wrangler.jsonc',
       'scripts/d1-migrate.sh staging',
       `curl https://api.cloudflare.com/client/v4/accounts/x/d1/database/${liveDbId}`,
       'grep -rn "wrangler d1 export" docs/',
@@ -589,12 +667,16 @@ describe('live personal data (#111)', () => {
       'export CLOUDFLARE_ENV=live && bunx wrangler d1 export DB --remote --output x.sql',
       'bunx wrangler d1 execute DB --remote --command "select 1"',
       'bunx wrangler d1 export DB --remote --output x.sql',
-      'CLOUDFLARE_ENV=live bunx wrangler d1 execute DB --env staging --remote --command "select 1"',
+      'CLOUDFLARE_ENV=live bunx wrangler d1 execute DB --env staging --config wrangler.jsonc --remote --command "select 1"',
+      // After a build `--env` proves nothing without the hand-kept config (ADR-0009).
+      'bunx wrangler d1 execute DB --env staging --remote --command "select 1"',
+      'bunx wrangler d1 export DB -e staging --remote --config .output/server/wrangler.json --output x.sql',
     ]) {
       assert.equal(sgBash(command).status, 2, command)
     }
     for (const command of [
-      'bunx wrangler d1 execute DB --env staging --remote --command "select 1"',
+      'bunx wrangler d1 execute DB --env staging --config wrangler.jsonc --remote --command "select 1"',
+      'bunx wrangler d1 execute DB --env staging --config=./wrangler.jsonc --remote --command "select 1"',
       'bunx wrangler d1 execute kinmeet-staging --remote --command "select 1"',
       `bunx wrangler d1 execute ${stagingDbId} --remote --command "select 1"`,
       'bunx wrangler d1 execute DB --local --command "select 1"',

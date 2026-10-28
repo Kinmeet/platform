@@ -6,6 +6,8 @@
 - **Reviewers:** Nadia Haddad (Security Reviewer), Theo Marsh (Tech Lead)
 - **Related:** issue #54, P5, [docs/api/forms.md](../api/forms.md) ("Body size cap"), ADR-0001
 
+> **Wiring changed by ADR-0009 (NuxtHub phase 1, issue #113).** The decision is unchanged; only how the entry is built moved. NuxtHub turns on Nitro's `deployConfig`, which replaces any `main` with Nitro's own output. So the entry is now [`worker/entry.ts`](../../worker/entry.ts), built by Nitro itself as `nitro.entry` in production (`$production` in `nuxt.config.ts`). It imports Nitro's `cloudflare-module` runtime and exports `withBodyLimits(nitro)`, so the generated `.output/server/index.mjs` _is_ the wrapper. `worker/index.mjs` and Wrangler's second bundling pass are gone. `main` in `wrangler.jsonc` names `.output/server/index.mjs`, so other Wrangler commands still find one; Nitro still logs that it overrides it, which is expected. Development keeps Nitro's dev entry, because a custom entry breaks `nuxt dev`. The references below to `worker/index.mjs` describe the original wiring.
+
 ## Context
 
 Nitro's Cloudflare handler reads every request body fully into memory before any route code runs. So anyone can send up to Cloudflare's own request size limit to any path, and the per-form caps in the form routes run too late to stop the read.

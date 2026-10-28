@@ -16,7 +16,12 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { isAbsolute, join } from 'node:path'
-import { LIVE_DATA_MESSAGE, liveD1ApiReason, liveD1CommandReason } from './lib/live-data.mjs'
+import {
+  LIVE_CLOUDFLARE_ENV,
+  LIVE_DATA_MESSAGE,
+  liveD1ApiReason,
+  liveD1CommandReason,
+} from './lib/live-data.mjs'
 import { block, findSecrets, isSecretFile, runGuard } from './lib/patterns.mjs'
 import {
   SAFEGUARDING_KEY,
@@ -24,6 +29,7 @@ import {
   SAFEGUARDING_TABLE,
   allowedDatabases,
   cloudflareCallReason,
+  liveDatabases,
   restoresLiveDatabase,
   unknownD1Paths,
 } from './lib/safeguarding.mjs'
@@ -136,6 +142,29 @@ function safeguardingReason(command, cwd, projectDir) {
   if (/api\.cloudflare\.com/i.test(command)) return cloudflareCallReason(command)
   return null
 }
+
+// After a build, Wrangler deploys the generated config whatever the command
+// says (ADR-0009). So a hand deploy is live if it sets CLOUDFLARE_ENV=live or
+// names `--env live`, or if the last build was for live: its generated config
+// names a live database. A dry run deploys nothing.
+function deploysLiveByHand(command, projectDir) {
+  for (const segment of command.split(/;|&&|\|\||\n/)) {
+    if (!/\bwrangler\b[^|]*\bdeploy\b/.test(segment)) continue
+    if (/(--env|-e)[=\s]+['"]?live\b/.test(segment) || LIVE_CLOUDFLARE_ENV.test(command))
+      return true
+    if (/--dry-run\b/.test(segment)) continue
+    const generated = join(projectDir, '.output', 'server', 'wrangler.json')
+    if (!existsSync(generated)) continue
+    const text = readFileSync(generated, 'utf8').toLowerCase()
+    if ([...liveDatabases(projectDir).ids].some((id) => text.includes(id))) return true
+  }
+  return false
+}
+
+// Wrangler is the only migration runner (ADR-0009, condition 2). The Drizzle
+// schema leaves out safeguarding_items on purpose, so drizzle-kit would treat
+// that table as something to drop; it may only generate SQL for review.
+const DRIZZLE_KIT_WRITES = /\bdrizzle-kit\b[^;&|\n]*\b(push|migrate|drop|up)\b/
 
 function tokens(command) {
   // Split on whitespace and shell operators, and on `=` so `--file=.env` is seen.
@@ -266,8 +295,31 @@ await runGuard(async (input) => {
     )
   }
 
-  if (/\bwrangler\b[^;&|]*\bdeploy\b[^;&|]*(--env[=\s]+live\b|-e[=\s]+live\b)/.test(command)) {
-    block('live deploys happen only from an approved tagged release in CI, never by hand.')
+  if (deploysLiveByHand(checked, projectDir)) {
+    block(
+      "live deploys happen only from the founder's `live` branch in Workers Builds, never by hand. " +
+        'If the last build was for live, rebuild without CLOUDFLARE_ENV first.',
+    )
+  }
+
+  if (DRIZZLE_KIT_WRITES.test(checked)) {
+    block(
+      'drizzle-kit never applies or drops anything: Wrangler is the only migration runner. Use ' +
+        '`drizzle-kit generate` for SQL to review, then `bun run db:migrate:local` (ADR-0009).',
+    )
+  }
+
+  for (const segment of checked.split(/;|&&|\|\||\n/)) {
+    if (
+      /\bwrangler\b[^|]*\bd1\s+migrations\b/.test(segment) &&
+      /--remote\b/.test(segment) &&
+      !/--config\b/.test(segment)
+    ) {
+      block(
+        'a remote `wrangler d1 migrations` command must pass `--config wrangler.jsonc`: after a build, ' +
+          'Wrangler reads the generated config and ignores --env (ADR-0009).',
+      )
+    }
   }
 
   if (!/\bgit\b/.test(command)) return

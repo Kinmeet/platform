@@ -9,9 +9,12 @@
   // Every D1, KV and R2 resource was created with jurisdiction eu (P3).
   "name": "kinmeet-local",
   "account_id": "0fa695ccf43f64b3eb9fae94520109b4",
-  "main": "./worker/index.mjs",
+  // What Nitro writes; its entry is worker/entry.ts (ADR-0008, ADR-0009).
+  "main": "./.output/server/index.mjs",
   "compatibility_date": "2026-10-20",
-  "compatibility_flags": ["nodejs_compat"],
+  // Nitro adds no_nodejs_compat_v2 to the generated config; it is repeated
+  // here so local runs match what is deployed (ADR-0009).
+  "compatibility_flags": ["nodejs_compat", "no_nodejs_compat_v2"],
   "workers_dev": false,
   "preview_urls": false,
   "assets": {
@@ -43,6 +46,9 @@
       "database_name": "kinmeet-local",
       "database_id": "00000000-0000-0000-0000-000000000000",
       "migrations_dir": "migrations/db",
+      // Pinned on every DB entry, so NuxtHub's `_hub_migrations` default never
+      // applies and Wrangler keeps its record of what has run (ADR-0009).
+      "migrations_table": "d1_migrations",
     },
   ],
   "kv_namespaces": [{ "binding": "KV", "id": "00000000000000000000000000000000" }],
@@ -87,6 +93,7 @@
           "database_name": "kinmeet-staging",
           "database_id": "18c80f5f-3c72-4781-8d38-98ef6cc4a096",
           "migrations_dir": "migrations/db",
+          "migrations_table": "d1_migrations",
         },
       ],
       "kv_namespaces": [{ "binding": "KV", "id": "5a9d7b8c548a4c3a8d596eec650a474b" }],
@@ -115,6 +122,7 @@
             "database_name": "kinmeet-preview",
             "database_id": "74454f75-8b40-44d7-ac02-e6145d9e8ff6",
             "migrations_dir": "migrations/db",
+            "migrations_table": "d1_migrations",
           },
         ],
         "kv_namespaces": [{ "binding": "KV", "id": "87dfe82d807e49cf945334fbd17d7b26" }],
@@ -167,6 +175,7 @@
           "database_name": "kinmeet-live",
           "database_id": "3b253758-831e-4db9-bb90-fb4598f215db",
           "migrations_dir": "migrations/db",
+          "migrations_table": "d1_migrations",
         },
       ],
       "kv_namespaces": [{ "binding": "KV", "id": "90bba5907a604bc49aead31e93c939fc" }],
@@ -209,6 +218,7 @@
             "database_name": "kinmeet-staging",
             "database_id": "18c80f5f-3c72-4781-8d38-98ef6cc4a096",
             "migrations_dir": "migrations/db",
+            "migrations_table": "d1_migrations",
           },
         ],
         "kv_namespaces": [{ "binding": "KV", "id": "5a9d7b8c548a4c3a8d596eec650a474b" }],

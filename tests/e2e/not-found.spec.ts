@@ -7,6 +7,9 @@ import { waitForApp, watchPage } from './helpers'
 
 // The missing page (#18, W10) and a crawl of every internal link on the
 // pre-launch pages, so no page links somewhere that isn't built yet.
+// The crawl reads each route as it first loads. Links that appear only on a
+// later apply step or end state (the stop pages, the sent page's way back to
+// the roles) aren't crawled; the apply specs assert those (Kit, #132).
 const notFound = en.error_page.not_found
 const MISSING = '/a-page-that-does-not-exist'
 
@@ -88,7 +91,8 @@ test('every internal link on the pre-launch pages goes somewhere that exists', a
   for (const [target, from] of links) {
     const [path, hash] = target.split('#') as [string, string | undefined]
     const where = `${target} (linked from ${[...from].join(', ')})`
-    const response = await request.get(path)
+    // No redirects: every link must point straight at a real page.
+    const response = await request.get(path, { maxRedirects: 0 })
     expect.soft(response.status(), where).toBe(200)
     if (hash) {
       await page.goto(path)
