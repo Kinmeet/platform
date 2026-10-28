@@ -1,5 +1,5 @@
 import { bannedTerms } from '../copy/banned-terms'
-import { findPurpose } from '../privacy/purposes'
+import { findPurpose, type Purpose } from '../privacy/purposes'
 import {
   FORM_BODY_CAP_MAX,
   LIMITS,
@@ -187,6 +187,44 @@ export function needsSecondApproval(
   return JSON.stringify(previous.definition.steps) !== JSON.stringify(next.definition.steps)
 }
 
+/**
+ * The checks a definition must pass against its P3 purpose: field types,
+ * readers, retention, the safeguarding hand-over for free text, the actions,
+ * the receipt and the body cap. Publishing runs them, and so does every read
+ * of a stored version, so a row changed outside publishing is never used.
+ */
+export function purposeProblems(
+  definition: FormDefinition,
+  purpose: Purpose,
+  kind: FormKind,
+): PublishProblem[] {
+  const problems: PublishProblem[] = []
+  const add = (code: string, path: string) => problems.push({ code, path })
+  if (purpose.kind !== kind) add('purpose_kind', 'purpose')
+  for (const { field } of fieldsOf(definition)) {
+    if (!(purpose.fieldTypes as readonly string[]).includes(field.type))
+      add('field_type_not_allowed', `definition.fields.${field.id}`)
+  }
+  for (const reader of definition.readers) {
+    if (!(purpose.readers as readonly string[]).includes(reader))
+      add('reader_not_allowed', 'definition.readers')
+  }
+  if ((definition.retentionMonths ?? 0) > purpose.retention.months)
+    add('retention_too_long', 'definition.retentionMonths')
+  if (purpose.freeText && !definition.actions.includes('pass_to_safeguarding'))
+    add('safeguarding_action_missing', 'definition.actions')
+  if (definition.actions.includes('reply') && purpose.retention.base !== 'replied')
+    add('action_not_allowed', 'definition.actions')
+  if (definition.actions.includes('outcome_told') && purpose.retention.base !== 'outcome_told')
+    add('action_not_allowed', 'definition.actions')
+  const hasFreeText = fieldsOf(definition).some(({ field }) => freeTextTypes.includes(field.type))
+  if (hasFreeText && !purpose.freeText) add('free_text_not_allowed', 'definition')
+  if (definition.receipt === 'application_receipt' && kind !== 'application')
+    add('receipt_not_allowed', 'definition.receipt')
+  if (bodyCapFor(definition, kind) > FORM_BODY_CAP_MAX) add('body_cap_too_large', 'definition')
+  return problems
+}
+
 export function checkPublish(
   candidate: PublishCandidate,
   previous: PublishedVersion | null,
@@ -199,7 +237,6 @@ export function checkPublish(
 
   const purpose = findPurpose(candidate.purpose)
   if (!purpose) add('purpose_unknown', 'purpose')
-  else if (purpose.kind !== candidate.kind) add('purpose_kind', 'purpose')
 
   if (JSON.stringify(candidate.definition ?? null).length > LIMITS.definitionJson) {
     add('definition_too_large', 'definition')
@@ -217,30 +254,7 @@ export function checkPublish(
   }
   const definition = parsed.data
 
-  if (purpose) {
-    for (const { field } of fieldsOf(definition)) {
-      if (!(purpose.fieldTypes as readonly string[]).includes(field.type))
-        add('field_type_not_allowed', `definition.fields.${field.id}`)
-    }
-    for (const reader of definition.readers) {
-      if (!(purpose.readers as readonly string[]).includes(reader))
-        add('reader_not_allowed', 'definition.readers')
-    }
-    if ((definition.retentionMonths ?? 0) > purpose.retention.months)
-      add('retention_too_long', 'definition.retentionMonths')
-    if (purpose.freeText && !definition.actions.includes('pass_to_safeguarding'))
-      add('safeguarding_action_missing', 'definition.actions')
-    if (definition.actions.includes('reply') && purpose.retention.base !== 'replied')
-      add('action_not_allowed', 'definition.actions')
-    if (definition.actions.includes('outcome_told') && purpose.retention.base !== 'outcome_told')
-      add('action_not_allowed', 'definition.actions')
-    const hasFreeText = fieldsOf(definition).some(({ field }) => freeTextTypes.includes(field.type))
-    if (hasFreeText && !purpose.freeText) add('free_text_not_allowed', 'definition')
-  }
-  if (definition.receipt === 'application_receipt' && candidate.kind !== 'application')
-    add('receipt_not_allowed', 'definition.receipt')
-  if (bodyCapFor(definition, candidate.kind) > FORM_BODY_CAP_MAX)
-    add('body_cap_too_large', 'definition')
+  if (purpose) problems.push(...purposeProblems(definition, purpose, candidate.kind))
 
   checkText(definition, candidate.text, problems)
 

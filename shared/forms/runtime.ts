@@ -90,7 +90,10 @@ function schemaInObject(field: FieldDefinition): z.ZodType {
 
 function answerAt(body: Record<string, unknown>, key: BodyKey | null, fieldId: string): unknown {
   const holder = key === null ? body : (body[key] as Record<string, unknown> | undefined)
-  return holder?.[fieldId]
+  // Own keys only, so an id such as `constructor` never finds Object.prototype.
+  if (holder === null || typeof holder !== 'object' || !Object.hasOwn(holder, fieldId))
+    return undefined
+  return holder[fieldId]
 }
 
 /**

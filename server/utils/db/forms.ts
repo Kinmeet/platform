@@ -1,5 +1,6 @@
 import type { D1Database } from '@cloudflare/workers-types'
 import { definitionSchema, type FormDefinition } from '../../../shared/forms/definition'
+import { purposeProblems } from '../../../shared/forms/publish'
 import { storedAnswers, type FormKind } from '../../../shared/forms/runtime'
 import { findPurpose, type Purpose } from '../../../shared/privacy/purposes'
 import type { StoreResult } from '../forms/process'
@@ -59,7 +60,14 @@ export function toVersion(
   if (cached) return cached
   const purpose = findPurpose(row.purpose)
   const definition = definitionSchema.safeParse(JSON.parse(row.definition))
-  if (!purpose || purpose.kind !== row.kind || !definition.success) {
+  // The same purpose checks as publishing (field types, readers, retention,
+  // the safeguarding hand-over, the body cap), so a row changed outside
+  // publishing is never used.
+  if (
+    !purpose ||
+    !definition.success ||
+    purposeProblems(definition.data, purpose, row.kind).length > 0
+  ) {
     throw new Error('form_version_invalid')
   }
   const version = {

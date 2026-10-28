@@ -75,7 +75,14 @@ export const reservedFieldIds = [
   ...bodyKeys,
 ] as const
 
-const plainId = z.string().min(1).max(LIMITS.idLength).regex(ID)
+// An id is used as an object key, so it can't be a name every object already
+// has, such as `constructor`: a missing answer would find Object.prototype's.
+const plainId = z
+  .string()
+  .min(1)
+  .max(LIMITS.idLength)
+  .regex(ID)
+  .refine((value) => !Object.hasOwn(Object.prototype, value), 'reserved_id')
 
 const id = plainId.refine(
   (value) => !(reservedFieldIds as readonly string[]).includes(value),

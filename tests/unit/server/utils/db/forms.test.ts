@@ -145,6 +145,39 @@ describe('storing a submission', () => {
     ])
     await expect(findForm(env.DB, 'sample-form')).rejects.toThrow('form_version_invalid')
   })
+
+  it('never uses a stored version that breaks its purpose (Nadia)', async () => {
+    const seeded = (await env.DB.prepare(
+      `SELECT v.definition FROM form_versions AS v JOIN forms AS f ON f.id = v.form_id
+       WHERE f.slug = 'hello' AND v.version = 1`,
+    ).first<{ definition: string }>())!
+    const base = JSON.parse(seeded.definition) as Record<string, unknown>
+    const breaks = [
+      // A reader P4 doesn't allow for say hello.
+      { ...base, readers: ['central_team', 'treasurer'] },
+      // Free text with no way to pass a disclosure to safeguarding (SG6).
+      { ...base, actions: ['reply'] },
+      // Kept longer than P3 allows.
+      { ...base, retentionMonths: 24 },
+    ]
+    for (const [index, definition] of breaks.entries()) {
+      const id = crypto.randomUUID()
+      const slug = `sample-form-${index}`
+      await env.DB.batch([
+        env.DB.prepare(
+          `INSERT INTO forms (id, slug, kind, status, created_at) VALUES (?, ?, 'form', 'draft', 1)`,
+        ).bind(id, slug),
+        env.DB.prepare(
+          `INSERT INTO form_versions (form_id, version, purpose, definition, text, published_at, published_by)
+           VALUES (?, 1, 'say_hello', ?, '{}', 1, 'test-actor')`,
+        ).bind(id, JSON.stringify(definition)),
+        env.DB.prepare(`UPDATE forms SET status = 'open', current_version = 1 WHERE id = ?`).bind(
+          id,
+        ),
+      ])
+      await expect(findForm(env.DB, slug)).rejects.toThrow('form_version_invalid')
+    }
+  })
 })
 
 describe('retention for each seeded purpose (P3)', () => {

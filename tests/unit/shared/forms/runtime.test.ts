@@ -231,6 +231,49 @@ describe('the run-time schema for any version', () => {
     expect(fixtureSchema.safeParse(fine).success).toBe(true)
   })
 
+  it('refuses an id that every object already has, such as constructor (Nadia)', () => {
+    // A missing answer would find Object.prototype's value instead.
+    const withField = {
+      ...fixture,
+      steps: [
+        fixture.steps[0],
+        {
+          ...fixture.steps[1],
+          fields: [{ id: 'constructor', type: 'short_text', required: false, maxLength: 80 }],
+        },
+      ],
+    }
+    const withChoice = {
+      ...fixture,
+      steps: [
+        {
+          ...fixture.steps[0],
+          fields: [
+            { ...fixture.steps[0]!.fields[0]!, choices: ['yes', 'constructor'], outcomes: {} },
+            fixture.steps[0]!.fields[1],
+          ],
+        },
+        fixture.steps[1],
+      ],
+    }
+    for (const candidate of [withField, withChoice]) {
+      const result = definitionSchema.safeParse(candidate)
+      expect(result.success).toBe(false)
+      expect(result.error!.issues.map((issue) => issue.message)).toContain('reserved_id')
+    }
+  })
+
+  it('reads only answers the body itself holds', () => {
+    // Belt and braces with the id rule above: the body check never looks
+    // past the body's own keys.
+    const definition = {
+      ...fixture,
+      steps: [fixture.steps[0]!, { ...fixture.steps[1]!, fields: [] }],
+    } as FormDefinition
+    const inherited = Object.create({ has_group: 'yes' }) as Record<string, unknown>
+    expect(storedAnswers(definition, { checks: inherited })).toEqual({})
+  })
+
   it('treats a blank optional email or name as not answered, and checks one that is given', () => {
     const blank = { ...fixtureValid, answers: { ...fixtureValid.answers, contact_email: ' ' } }
     expect(fixtureSchema.safeParse(blank).success).toBe(true)
