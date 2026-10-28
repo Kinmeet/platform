@@ -1,5 +1,7 @@
 import { readdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { deployEnvironmentProblem } from './shared/deploy-env'
 import { buildSecurityHeaders } from './server/utils/security-headers'
 
 // Static files are served by Workers static assets without running the
@@ -17,7 +19,21 @@ export default defineNuxtConfig({
   devtools: { enabled: false },
   telemetry: false,
 
-  modules: ['@nuxtjs/i18n', '@nuxt/eslint'],
+  modules: ['@nuxtjs/i18n', '@nuxt/eslint', '@nuxthub/core'],
+
+  // NuxtHub for hub:db only (ADR-0009). Wrangler is the only tool that
+  // applies migrations, everywhere: `bun run db:migrate:local` in development,
+  // scripts/d1-migrate.sh on deploy. hub:kv, hub:blob and hub:cache stay off.
+  hub: {
+    db: {
+      dialect: 'sqlite',
+      // The local D1 that Wrangler migrates, never libSQL.
+      driver: 'd1',
+      migrationsDirs: [fileURLToPath(new URL('./migrations/db', import.meta.url))],
+      applyMigrationsDuringDev: false,
+      applyMigrationsDuringBuild: false,
+    },
+  },
 
   css: ['~/assets/css/main.css'],
 
@@ -57,13 +73,29 @@ export default defineNuxtConfig({
       '17 3 * * *': ['retention:delete-expired'],
     },
     cloudflare: {
-      // wrangler.jsonc is kept by hand so environments and bindings are reviewed.
-      deployConfig: false,
+      // NuxtHub turns deployConfig on: the build writes .output/server/wrangler.json
+      // from the hand-kept wrangler.jsonc, flattening the CLOUDFLARE_ENV
+      // environment into it (ADR-0009). Bindings are still written only in
+      // wrangler.jsonc; scripts/check-generated-config.ts checks the result.
       nodeCompat: true,
     },
   },
 
+  // The deployed entry refuses oversized bodies before Nitro (ADR-0008).
+  // Production only: a custom entry breaks `nuxt dev`.
+  $production: {
+    nitro: {
+      entry: fileURLToPath(new URL('./worker/entry.ts', import.meta.url)),
+    },
+  },
+
   hooks: {
+    // Without CLOUDFLARE_ENV, Workers Builds would ship the local config, and
+    // `--env` can't save it, so the build stops first (ADR-0009).
+    'build:before': () => {
+      const problem = deployEnvironmentProblem(process.env)
+      if (problem) throw new Error(problem)
+    },
     'nitro:build:public-assets': async (nitro) => {
       const publicDir = nitro.options.output.publicDir
       // Pages must be rendered by the Worker so they get a nonce and, on form

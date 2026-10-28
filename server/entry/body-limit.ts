@@ -2,7 +2,7 @@ import { bodyLimitFor } from '../../shared/routes'
 import { buildSecurityHeaders } from '../utils/security-headers'
 
 /**
- * Runs in front of Nitro (worker/index.mjs). Nitro's Cloudflare handler reads
+ * Runs in front of Nitro (worker/entry.ts). Nitro's Cloudflare handler reads
  * every body into memory before any route code runs, so the per-route caps
  * are enforced here instead (issue #54).
  *

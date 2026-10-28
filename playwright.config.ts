@@ -8,7 +8,7 @@ const port = Number(process.env.E2E_PORT ?? 8787)
 const baseURL = `http://127.0.0.1:${port}`
 
 // Specs that drive the Worker itself rather than a page run once, not per browser.
-const workerSpecs = /deletion-job\.spec\.ts/
+const workerSpecs = /(deletion-job|body-limits)\.spec\.ts/
 
 export default defineConfig({
   testDir: './tests/e2e',

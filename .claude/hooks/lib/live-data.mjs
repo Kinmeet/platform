@@ -21,7 +21,10 @@ const STAGING_ENV = /(?:--env|-e)(?:=|\s+)['"]?staging\b/i
 // Wrangler also picks the environment from CLOUDFLARE_ENV, and after a build
 // it reads the generated config, which ignores `--env` (ADR-0009). With one
 // Worker every build is `live` (ADR-0001).
-const LIVE_CLOUDFLARE_ENV = /\bCLOUDFLARE_ENV=['"]?live\b/i
+export const LIVE_CLOUDFLARE_ENV = /\bCLOUDFLARE_ENV=['"]?live\b/i
+// `--env` is honoured only when the hand-kept file is named, because the
+// generated config ignores it (ADR-0009, condition 5).
+export const HAND_KEPT_CONFIG = /--config(?:=|\s+)['"]?(?:\.\/)?wrangler\.jsonc['"]?(?=\s|$)/
 
 // `wrangler d1` subcommands that name no existing database.
 const NO_DATABASE = new Set(['list', 'create'])
@@ -47,9 +50,10 @@ export function liveD1CommandReason(command, projectDir) {
     const subcommand = TWO_WORD.has(first) ? `${first} ${words[at + 2] ?? ''}` : first
     const targets = words.slice(at + 1).map((w) => w.toLowerCase())
     // Fails closed (Security Reviewer, #112): a database command counts as
-    // live unless it names staging explicitly, by `--env staging` or by a
-    // staging database's name or id.
-    const explicitStaging = STAGING_ENV.test(segment) || targets.some(isStaging)
+    // live unless it names staging explicitly, by a staging database's name
+    // or id, or by `--env staging` with `--config wrangler.jsonc`.
+    const explicitStaging =
+      (STAGING_ENV.test(segment) && HAND_KEPT_CONFIG.test(segment)) || targets.some(isStaging)
     const live =
       liveByEnvironment ||
       LIVE_ENV.test(segment) ||

@@ -26,7 +26,7 @@ The main D1 database, bound to the Worker as `DB`. Its migrations live in `migra
 
 A run that cannot delete (no `DB` binding, or a D1 error) logs `deletion_db_missing` or `deletion_failed` and then throws, so the cron run shows as an exception in Workers Logs and the Worker's cron history rather than as a success.
 
-The job uses Nitro's scheduled tasks, which are still experimental (`experimental: { tasks: true }` in `nuxt.config.ts`). If an upgrade breaks them, the fallback is a plain `scheduled` handler in the Worker entry (`worker/index.mjs`, ADR-0008) that calls `deleteExpiredRows` with the `DB` binding.
+The job uses Nitro's scheduled tasks, which are still experimental (`experimental: { tasks: true }` in `nuxt.config.ts`). If an upgrade breaks them, the fallback is a plain `scheduled` handler in the Worker entry (`worker/entry.ts`, ADR-0008) that calls `deleteExpiredRows` with the `DB` binding.
 
 To run it locally: `bun run build`, then `bunx wrangler dev --test-scheduled` and open `/__scheduled?cron=17+3+*+*+*`. CI does the same on every pull request: `tests/e2e/deletion-job.spec.ts` seeds rows past and before their date in each table, runs the job through `/__scheduled` and checks only the expired rows are gone. The end-to-end server keeps its local data in `.wrangler/e2e-state`, emptied and migrated before each run.
 
