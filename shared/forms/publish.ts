@@ -41,6 +41,8 @@ export interface PublishCandidate {
 export interface PublishedVersion {
   purpose: string
   definition: FormDefinition
+  /** Parsed JSON: `{ "en-GB": { key: text } }`. */
+  text: unknown
 }
 
 export interface PublishCheck {
@@ -299,7 +301,42 @@ export function textProblems(
   return problems
 }
 
-/** Whether a new version changes what is collected or who sees it (Ezra). */
+/**
+ * Text that tells someone what to put in an answer: a field's label, hint,
+ * summary and choices. Rewording any of these can change what is really
+ * being asked, so it needs a second approval like a new field does (Ezra,
+ * #160). The title, intro, step headings, notes and link text stay
+ * wording-only.
+ */
+const ASKING_TEXT = /^fields\.[^.]+\.(?:label|hint|summary|choices\.[^.]+)$/
+
+/**
+ * Words that suggest special-category, criminal-record or credential data.
+ * Any of them in any text, wording-only changes included, means a person
+ * must look before the version publishes (Ezra, #160).
+ */
+const SENSITIVE_TERMS =
+  /\b(?:health|medical|medic(?:ine|ines|ation)|diagnos(?:is|es|ed)|disab(?:ility|ilities|led)|convictions?|convicted|criminal|dbs|sexuality|sexual orientation|religion|religious|ethnicity|ethnic|passwords?|bank)\b/i
+
+function englishText(text: unknown): Record<string, unknown> {
+  const entries = (text as Record<string, unknown> | null)?.['en-GB']
+  return typeof entries === 'object' && entries !== null && !Array.isArray(entries)
+    ? (entries as Record<string, unknown>)
+    : {}
+}
+
+/** Whether a version has a sensitive term anywhere in its text. */
+export function hasSensitiveTerm(text: unknown): boolean {
+  return Object.values(englishText(text)).some(
+    (value) => typeof value === 'string' && SENSITIVE_TERMS.test(normaliseForChecks(value)),
+  )
+}
+
+/**
+ * Whether a new version needs a second approval (ADR-0010, Ezra): a new
+ * form, a change to its purpose, readers or fields, a change to any text
+ * that tells someone what to answer, or a sensitive term in any of its text.
+ */
 export function needsSecondApproval(
   previous: PublishedVersion | null,
   next: PublishedVersion,
@@ -308,7 +345,14 @@ export function needsSecondApproval(
   if (previous.purpose !== next.purpose) return true
   const readers = (definition: FormDefinition) => [...definition.readers].sort().join(',')
   if (readers(previous.definition) !== readers(next.definition)) return true
-  return JSON.stringify(previous.definition.steps) !== JSON.stringify(next.definition.steps)
+  if (JSON.stringify(previous.definition.steps) !== JSON.stringify(next.definition.steps))
+    return true
+  const before = englishText(previous.text)
+  const after = englishText(next.text)
+  for (const key of new Set([...Object.keys(before), ...Object.keys(after)])) {
+    if (ASKING_TEXT.test(key) && before[key] !== after[key]) return true
+  }
+  return hasSensitiveTerm(next.text)
 }
 
 /**
@@ -386,7 +430,11 @@ export function checkPublish(
 
   problems.push(...textProblems(definition, candidate.text))
 
-  const second = needsSecondApproval(previous, { purpose: candidate.purpose, definition })
+  const second = needsSecondApproval(previous, {
+    purpose: candidate.purpose,
+    definition,
+    text: candidate.text,
+  })
   // Phase 1: nobody can give a second approval yet, so such a version waits.
   if (second) add('second_approval_needed', 'definition')
   return { ok: problems.length === 0, problems, needsSecondApproval: second }

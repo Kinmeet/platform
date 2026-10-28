@@ -1,5 +1,6 @@
 import type { D1Database } from '@cloudflare/workers-types'
-import type { AdminApplication, AdminHelloMessage } from '../../../shared/admin'
+import type { AdminApplication, AdminHelloMessage, AdminSubmission } from '../../../shared/admin'
+import { fieldsOf } from '../../../shared/forms/definition'
 import type { FormKind } from '../../../shared/forms/runtime'
 import { auditLogDeleteAfter, deleteAfterEvent, nowSeconds, retentionRule } from '../retention'
 import { toVersion, type StoredVersion } from './forms'
@@ -107,6 +108,95 @@ export async function listApplications(db: D1Database): Promise<AdminApplication
   })
 }
 
+/**
+ * Every submission to one form, newest first, each read through the version
+ * it was sent on (#160). Answers come in the order that version asks them,
+ * labelled with its words; a choice shows its wording, not its id.
+ */
+export async function listFormSubmissions(
+  db: D1Database,
+  formId: string,
+): Promise<AdminSubmission[]> {
+  const { results } = await db
+    .prepare(`${SELECT_SUBMISSIONS} WHERE s.form_id = ? ORDER BY s.received_at DESC, s.id`)
+    .bind(formId)
+    .all<SubmissionRow>()
+  return results.map((row) => {
+    const version = versionOf(row)
+    const stored = JSON.parse(row.answers) as Record<string, string>
+    const answers = fieldsOf(version.definition)
+      .filter(({ field }) => Object.hasOwn(stored, field.id))
+      .map(({ field }) => {
+        const value = stored[field.id]!
+        const key = `fields.${field.id}`
+        return {
+          id: field.id,
+          label: version.text[`${key}.label`] ?? field.id,
+          text:
+            field.type === 'single_choice'
+              ? (version.text[`${key}.choices.${value}`] ?? value)
+              : value,
+        }
+      })
+    return {
+      id: row.id,
+      version: row.version,
+      callName: row.call_name,
+      email: row.email,
+      answers,
+      receivedAt: row.received_at,
+      repliedAt: row.replied_at,
+      outcomeToldAt: row.outcome_told_at,
+      deleteAfter: row.delete_after,
+      actions: [...version.definition.actions],
+    }
+  })
+}
+
+/**
+ * Records that someone opened one form's submissions list, naming the form
+ * but no rows (Nadia, Ezra, #51). Returns `false` if there is no such form,
+ * so nothing is listed.
+ */
+export async function recordFormView(
+  db: D1Database,
+  formId: string,
+  actor: string,
+  now = nowSeconds(),
+): Promise<boolean> {
+  const result = await db
+    .prepare(
+      `INSERT INTO audit_log (id, at, actor, action, target_table, target_id, delete_after)
+       SELECT ?, ?, ?, 'view_form_submissions', 'forms', ?, ?
+       WHERE EXISTS (SELECT 1 FROM forms WHERE id = ?)`,
+    )
+    .bind(crypto.randomUUID(), now, actor, formId, auditLogDeleteAfter(now), formId)
+    .run()
+  return (result.meta.changes ?? 0) === 1
+}
+
+/**
+ * Which hand-over a submission takes (#36): say hello's or an
+ * application's, the two shapes the interim safeguarding store opens (#93).
+ * `null` for no such submission, or one from a form the store can't take
+ * yet, so nothing moves.
+ */
+export async function handoverSourceOf(
+  db: D1Database,
+  id: string,
+): Promise<'hello' | 'apply' | null> {
+  const row = await db
+    .prepare(
+      `SELECT f.slug, f.kind FROM form_submissions AS s JOIN forms AS f ON f.id = s.form_id
+       WHERE s.id = ?`,
+    )
+    .bind(id)
+    .first<{ slug: string; kind: FormKind }>()
+  if (row === null) return null
+  if (row.kind === 'application') return 'apply'
+  return row.slug === 'hello' ? 'hello' : null
+}
+
 export type AdminList = 'hello_messages' | 'applications'
 
 /**
@@ -141,17 +231,23 @@ export async function recordListView(
   )
 }
 
-/** One submission on the list it belongs to, or `null`. */
+/**
+ * One submission on the list it belongs to, or `null`. `any` is the generic
+ * submissions list (#160), where the version's own actions decide what may
+ * be done.
+ */
 async function findSubmission(
   db: D1Database,
-  list: AdminList,
+  list: AdminList | 'any',
   id: string,
 ): Promise<SubmissionRow | null> {
   return db
     .prepare(
-      list === 'hello_messages'
-        ? `${SELECT_SUBMISSIONS} WHERE s.id = ? AND f.slug = 'hello'`
-        : `${SELECT_SUBMISSIONS} WHERE s.id = ? AND f.kind = 'application'`,
+      list === 'any'
+        ? `${SELECT_SUBMISSIONS} WHERE s.id = ?`
+        : list === 'hello_messages'
+          ? `${SELECT_SUBMISSIONS} WHERE s.id = ? AND f.slug = 'hello'`
+          : `${SELECT_SUBMISSIONS} WHERE s.id = ? AND f.kind = 'application'`,
     )
     .bind(id)
     .first<SubmissionRow>()
@@ -168,8 +264,9 @@ export async function markReplied(
   id: string,
   actor: string,
   now = nowSeconds(),
+  list: AdminList | 'any' = 'hello_messages',
 ): Promise<boolean> {
-  const row = await findSubmission(db, 'hello_messages', id)
+  const row = await findSubmission(db, list, id)
   if (row === null) return false
   const version = versionOf(row)
   if (!version.definition.actions.includes('reply') || version.purpose.retention.base !== 'replied')
@@ -209,8 +306,9 @@ export async function markOutcomeTold(
   id: string,
   actor: string,
   now = nowSeconds(),
+  list: AdminList | 'any' = 'applications',
 ): Promise<boolean> {
-  const row = await findSubmission(db, 'applications', id)
+  const row = await findSubmission(db, list, id)
   if (row === null || row.outcome_told_at !== null) return false
   const version = versionOf(row)
   if (

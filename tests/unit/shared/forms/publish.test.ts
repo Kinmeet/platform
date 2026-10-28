@@ -106,9 +106,10 @@ describe('a version within every limit', () => {
     const previous = {
       purpose: 'trustee_application',
       definition: definitionSchema.parse(baseDefinition()),
+      text: baseText(),
     }
     const reworded = candidate((c) => {
-      text(c)['fields.message.label'] = 'What would you like to say?'
+      text(c).title = 'Tell us about a sample group'
     })
     expect(checkPublish(reworded, previous)).toEqual({
       ok: true,
@@ -573,48 +574,102 @@ describe('refused: the text', () => {
 
 describe('second approval (Ezra)', () => {
   const definition = (): FormDefinition => definitionSchema.parse(baseDefinition())
+  const version = (change: (v: { definition: FormDefinition; text: Json }) => void = () => {}) => {
+    const v = { purpose: 'trustee_application', definition: definition(), text: baseText() }
+    change(v)
+    return v
+  }
+  const previous = version()
 
   it('is needed for a new form', () => {
-    expect(
-      needsSecondApproval(null, { purpose: 'trustee_application', definition: definition() }),
-    ).toBe(true)
+    expect(needsSecondApproval(null, version())).toBe(true)
   })
 
   it('is needed for a new or changed field, purpose or readers', () => {
-    const previous = { purpose: 'trustee_application', definition: definition() }
-    const changed = definition()
-    changed.steps[0]!.fields.push({
-      id: 'extra',
-      type: 'short_text',
-      required: false,
-      maxLength: 5,
-    })
     expect(
-      needsSecondApproval(previous, { purpose: 'trustee_application', definition: changed }),
+      needsSecondApproval(
+        previous,
+        version(({ definition }) =>
+          definition.steps[0]!.fields.push({
+            id: 'extra',
+            type: 'short_text',
+            required: false,
+            maxLength: 5,
+          }),
+        ),
+      ),
     ).toBe(true)
-
-    const longer = definition()
-    ;(longer.steps[0]!.fields[2] as { maxLength: number }).maxLength = 2000
     expect(
-      needsSecondApproval(previous, { purpose: 'trustee_application', definition: longer }),
+      needsSecondApproval(
+        previous,
+        version(({ definition }) => {
+          ;(definition.steps[0]!.fields[2] as { maxLength: number }).maxLength = 2000
+        }),
+      ),
     ).toBe(true)
-
-    expect(needsSecondApproval(previous, { purpose: 'say_hello', definition: definition() })).toBe(
-      true,
-    )
-
-    const readers = definition()
-    readers.readers = ['chair']
+    expect(needsSecondApproval(previous, { ...version(), purpose: 'say_hello' })).toBe(true)
     expect(
-      needsSecondApproval(previous, { purpose: 'trustee_application', definition: readers }),
+      needsSecondApproval(
+        previous,
+        version(({ definition }) => void (definition.readers = ['chair'])),
+      ),
     ).toBe(true)
   })
 
-  it('is not needed for wording alone, and blocks publishing in Phase 1 when it is', () => {
-    const previous = { purpose: 'trustee_application', definition: definition() }
+  // Ezra, #160: anything that tells someone what to put in an answer.
+  it.each([
+    ['a label', 'fields.message.label', 'What would you like to say?'],
+    ['a hint', 'fields.message.hint', 'A few made-up sentences is plenty.'],
+    ['a summary', 'fields.message.summary', 'Your made-up message'],
+    ['a choice', 'fields.has_group.choices.yes', 'Yes, a sample group'],
+  ])('is needed when %s is reworded', (_, key, words) => {
     expect(
-      needsSecondApproval(previous, { purpose: 'trustee_application', definition: definition() }),
+      needsSecondApproval(
+        previous,
+        version(({ text }) => void ((text['en-GB'] as Record<string, string>)[key] = words)),
+      ),
+    ).toBe(true)
+  })
+
+  it('is needed when a hint is added or removed', () => {
+    const withHint = version(
+      ({ text }) =>
+        void ((text['en-GB'] as Record<string, string>)['fields.message.hint'] = 'Made up.'),
+    )
+    expect(needsSecondApproval(previous, withHint)).toBe(true)
+    expect(needsSecondApproval(withHint, previous)).toBe(true)
+  })
+
+  it.each([
+    ['the title', 'title', 'A made-up form title'],
+    ['the intro', 'intro', 'A made-up introduction to a sample group.'],
+    ['a note', 'fields.has_group.notes.no', 'A made-up note about a sample group.'],
+  ])('is not needed when only %s is reworded', (_, key, words) => {
+    expect(
+      needsSecondApproval(
+        previous,
+        version(({ text }) => void ((text['en-GB'] as Record<string, string>)[key] = words)),
+      ),
     ).toBe(false)
+  })
+
+  it.each([
+    'Tell us about your health',
+    'Any criminal record',
+    'A DBS check',
+    'Your religion',
+    'Your bank',
+    'Any ｃｏｎｖｉｃｔｉｏｎｓ',
+  ])('is needed when any text has a sensitive term: "%s"', (words) => {
+    expect(
+      needsSecondApproval(
+        previous,
+        version(({ text }) => void ((text['en-GB'] as Json).title = words)),
+      ),
+    ).toBe(true)
+  })
+
+  it('blocks publishing in Phase 1 when it is needed', () => {
     const check = checkPublish(
       candidate((c) => void (c.definition.readers = ['chair'])),
       previous,
