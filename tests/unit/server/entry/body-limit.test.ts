@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { limitRequestBody } from '../../../../server/entry/body-limit'
-import { bodyLimitFor } from '../../../../shared/routes'
+import { FORM_DRAFT_BODY_LIMIT, bodyLimitFor } from '../../../../shared/routes'
 
 const ORIGIN = 'https://kinmeet-staging.kinmeet.workers.dev'
 
@@ -111,5 +111,17 @@ describe('bodyLimitFor', () => {
 
   it('allows a small body on other methods for other routes', () => {
     expect(bodyLimitFor('POST', '/anything')).toBe(1024)
+  })
+
+  // The form builder's draft save (#160): only PUT, and only a form id.
+  it('takes a draft only on its own route and method', () => {
+    const id = '2568c14e-88bd-44c0-b3e2-ca7655c72fc4'
+    expect(bodyLimitFor('PUT', `/api/admin/forms/${id}/draft`)).toBe(FORM_DRAFT_BODY_LIMIT)
+    expect(bodyLimitFor('put', `/api/admin/forms/${id}/draft/`)).toBe(FORM_DRAFT_BODY_LIMIT)
+    expect(bodyLimitFor('POST', `/api/admin/forms/${id}/draft`)).toBe(1024)
+    expect(bodyLimitFor('GET', `/api/admin/forms/${id}/draft`)).toBe(0)
+    expect(bodyLimitFor('PUT', `/api/admin/forms/${id}/publish`)).toBe(1024)
+    expect(bodyLimitFor('PUT', '/api/admin/forms/not-an-id/draft')).toBe(1024)
+    expect(bodyLimitFor('PUT', `/api/admin/forms/${id}/draft/more`)).toBe(1024)
   })
 })

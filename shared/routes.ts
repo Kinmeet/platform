@@ -142,6 +142,22 @@ export function submitPathFor(slug: string, kind: 'form' | 'application'): strin
   return slug === 'hello' ? '/api/hello' : `/api/forms/${slug}`
 }
 
+/**
+ * The form builder's draft save (#160): a definition and its text, at most
+ * 32 KB and 64 KB of JSON characters, which may take up to three bytes each.
+ * Behind Access, and the route checks the stored sizes itself.
+ */
+export const FORM_DRAFT_BODY_LIMIT = 256 * 1024
+
+/** Routes with an id in the path, which `bodyLimits` can't name one by one. */
+export const bodyLimitPatterns: readonly { method: string; pattern: RegExp; limit: number }[] = [
+  {
+    method: 'PUT',
+    pattern: /^\/api\/admin\/forms\/[0-9a-f-]{36}\/draft$/,
+    limit: FORM_DRAFT_BODY_LIMIT,
+  },
+]
+
 /** Any other route: no body on GET and HEAD, and only a small one otherwise. */
 export const DEFAULT_BODY_LIMIT = 1024
 
@@ -153,5 +169,9 @@ export function bodyLimitFor(
   const clean = path.split('?')[0]?.replace(/\/+$/, '') || '/'
   const limit = limits[clean]
   if (limit !== undefined) return limit
+  const matched = bodyLimitPatterns.find(
+    (entry) => entry.method === method.toUpperCase() && entry.pattern.test(clean),
+  )
+  if (matched) return matched.limit
   return method === 'GET' || method === 'HEAD' ? 0 : DEFAULT_BODY_LIMIT
 }

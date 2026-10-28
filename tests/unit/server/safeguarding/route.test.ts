@@ -4,6 +4,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import adminAccess from '../../../../server/middleware/10.admin-access'
 import helloHandOver from '../../../../server/api/admin/hello/[id]/safeguarding.post'
 import applyHandOver from '../../../../server/api/admin/applications/[id]/safeguarding.post'
+import submissionHandOver from '../../../../server/api/admin/submissions/[id]/safeguarding.post'
 import { clearAccessKeyCache } from '../../../../server/utils/admin/access'
 import { AUD, TEAM, makeKey, signToken } from '../utils/admin/access-token'
 import { makeTestKey } from './test-key'
@@ -14,6 +15,7 @@ const ORIGIN = 'https://kinmeet-staging.kinmeet.workers.dev'
 let key: Awaited<ReturnType<typeof makeKey>>
 let helloId: string
 let applicationId: string
+let submissionId: string
 let errorLog: ReturnType<typeof vi.spyOn>
 
 beforeAll(async () => {
@@ -60,6 +62,13 @@ function app() {
     defineEventHandler((event) => {
       event.context.params = { id: applicationId }
       return applyHandOver(event)
+    }),
+  )
+  instance.use(
+    '/api/admin/submissions',
+    defineEventHandler((event) => {
+      event.context.params = { id: submissionId }
+      return submissionHandOver(event)
     }),
   )
   return toWebHandler(instance)
@@ -152,5 +161,91 @@ describe('pass to safeguarding routes', () => {
     expect(errorLog.mock.calls).toEqual([
       [JSON.stringify({ code: 'safeguarding_store_unavailable' })],
     ])
+  })
+})
+
+describe('the generic pass to safeguarding route (#160)', () => {
+  const path = () => `/api/admin/submissions/${submissionId}/safeguarding`
+
+  /** A form of its own on the say hello version, so its slug isn't `hello`. */
+  async function otherForm(): Promise<string> {
+    const id = crypto.randomUUID()
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO forms (id, slug, kind, status, created_at) VALUES (?, ?, 'form', 'draft', 1)`,
+      ).bind(id, `sample-${id.slice(0, 8)}`),
+      env.DB.prepare(
+        `INSERT INTO form_versions (form_id, version, purpose, definition, text, published_at, published_by)
+         SELECT ?, 1, v.purpose, v.definition, v.text, 1, 'migration'
+         FROM form_versions AS v JOIN forms AS f ON f.id = v.form_id AND v.version = f.current_version
+         WHERE f.slug = 'hello'`,
+      ).bind(id),
+      env.DB.prepare(`UPDATE forms SET status = 'open', current_version = 1 WHERE id = ?`).bind(id),
+    ])
+    return id
+  }
+
+  async function submitTo(formId: string, answers: Record<string, string>) {
+    submissionId = crypto.randomUUID()
+    await env.DB.prepare(
+      `INSERT INTO form_submissions (id, submission_id, form_id, version, call_name, email, answers,
+                                     received_at, delete_after)
+       SELECT ?, ?, f.id, f.current_version, 'Test Fox', 'test.fox@example.com', ?, 1, 2
+       FROM forms AS f WHERE f.id = ?`,
+    )
+      .bind(submissionId, crypto.randomUUID(), JSON.stringify(answers), formId)
+      .run()
+  }
+
+  async function formIdOf(slug: string) {
+    return (await env.DB.prepare('SELECT id FROM forms WHERE slug = ?').bind(slug).first<{
+      id: string
+    }>())!.id
+  }
+
+  async function listed() {
+    return (
+      (await env.DB.prepare('SELECT 1 FROM form_submissions WHERE id = ?')
+        .bind(submissionId)
+        .first()) !== null
+    )
+  }
+
+  it('refuses anyone without a valid Access token, and moves nothing', async () => {
+    await submitTo(await formIdOf('hello'), { message: 'Made-up disclosure.' })
+    expect((await pass(path())).status).toBe(403)
+    expect(await listed()).toBe(true)
+    expect(await copied(submissionId)).toBe(false)
+  })
+
+  it.each(['hello', 'trustee'])('moves a submission from the %s form', async (slug) => {
+    await submitTo(
+      await formIdOf(slug),
+      slug === 'hello' ? { message: 'Made-up disclosure.' } : { why_trustee: 'Made-up answer.' },
+    )
+    const response = await pass(path(), { token: await fresh() })
+    expect(response.status).toBe(200)
+    expect(response.headers.get('Cache-Control')).toBe('no-store')
+    expect(await response.text()).toBe(JSON.stringify({ ok: true }))
+    expect(await listed()).toBe(false)
+    expect(await copied(submissionId)).toBe(true)
+  })
+
+  it('answers not found for a form the store does not take yet, and moves nothing', async () => {
+    await submitTo(await otherForm(), { message: 'Made-up disclosure.' })
+    const response = await pass(path(), { token: await fresh() })
+    expect(response.status).toBe(404)
+    expect(await response.json()).toEqual({ ok: false, error: 'not_found' })
+    expect(await listed()).toBe(true)
+    expect(await copied(submissionId)).toBe(false)
+  })
+
+  it('answers not found the second time, and for an id that does not exist', async () => {
+    await submitTo(await formIdOf('hello'), { message: 'Made-up disclosure.' })
+    const token = await fresh()
+    expect((await pass(path(), { token })).status).toBe(200)
+    expect((await pass(path(), { token })).status).toBe(404)
+    submissionId = crypto.randomUUID()
+    expect((await pass(path(), { token })).status).toBe(404)
   })
 })
