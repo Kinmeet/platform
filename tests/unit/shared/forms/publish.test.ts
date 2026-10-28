@@ -660,6 +660,30 @@ describe('second approval (Ezra)', () => {
     'Your religion',
     'Your bank',
     'Any ｃｏｎｖｉｃｔｉｏｎｓ',
+    // Widened on #163 (Ezra): UK GDPR Articles 9 and 10, and what we never store.
+    'Your race',
+    'Racial background',
+    'Political views',
+    'Your beliefs',
+    'Your faith',
+    'Trade union membership',
+    'Genetic details',
+    'Biometric details',
+    'Your sex life',
+    'Your gender',
+    'Are you trans?',
+    'Are you pregnant?',
+    'Mental wellbeing',
+    'Any offences',
+    'Any cautions',
+    'Ever arrested?',
+    'Police contact',
+    'Your date of birth',
+    'Your home address',
+    'Your postcode',
+    'Your sort\ncode',
+    'Your card  number',
+    'Your PIN',
   ])('is needed when any text has a sensitive term: "%s"', (words) => {
     expect(
       needsSecondApproval(
@@ -667,6 +691,30 @@ describe('second approval (Ezra)', () => {
         version(({ text }) => void ((text['en-GB'] as Json).title = words)),
       ),
     ).toBe(true)
+  })
+
+  it.each(['Transport to a sample meet', 'A spinning top', 'A made-up embrace'])(
+    'is not needed for a word that only contains a term: "%s"',
+    (words) => {
+      expect(
+        needsSecondApproval(
+          previous,
+          version(({ text }) => void ((text['en-GB'] as Json).title = words)),
+        ),
+      ).toBe(false)
+    },
+  )
+
+  // Ezra, #163: a translation is checked as closely as en-GB.
+  it('is needed when another locale rewords a label or has a sensitive term', () => {
+    const welsh = (words: Record<string, string>) =>
+      version(({ text }) => void ((text as Json).cy = { ...(text['en-GB'] as Json), ...words }))
+    const translated = welsh({})
+    expect(needsSecondApproval(translated, welsh({ title: 'Teitl ffug' }))).toBe(false)
+    expect(needsSecondApproval(translated, welsh({ 'fields.message.label': 'Neges ffug' }))).toBe(
+      true,
+    )
+    expect(needsSecondApproval(translated, welsh({ title: 'Your health' }))).toBe(true)
   })
 
   it('blocks publishing in Phase 1 when it is needed', () => {

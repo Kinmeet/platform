@@ -123,7 +123,7 @@ Forms don't ask anyone's age unless a purpose needs it. A purpose designed for c
   Ezra's ruling on #160 says where wording ends:
   - any text that tells the person what to put in an answer needs a second approval: a label, hint, summary or choice, including one added or removed;
   - the title, intro, step headings and notes stay wording only;
-  - as a backstop, a version whose text names a sensitive term (health, medical, diagnosis, disability, conviction, criminal, DBS, sexuality, religion, ethnicity, password, bank) needs a second approval whatever changed. The check folds look-alike letters and strips hidden characters first (`shared/forms/publish.ts`);
+  - as a backstop, a version whose text names a sensitive term needs a second approval whatever changed. Ezra widened the list on #163 to cover UK GDPR Articles 9 and 10 and what we never store (date of birth, home address, postcode, credentials, bank and card details). The check folds look-alike letters and strips hidden characters first, and reads every locale, not only `en-GB` (`SENSITIVE_TERMS` in `shared/forms/publish.ts`);
   - a reviewed migration, such as `0007`, is fine as it is.
 
 - While the founder holds every role, there is no second person. In Phase 1, a version that needs a second approval can't publish, unless the founder decides that the second check may be done outside the platform and recorded in the audit log. That question goes to the founder through Rowan.

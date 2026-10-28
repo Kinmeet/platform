@@ -312,22 +312,78 @@ const ASKING_TEXT = /^fields\.[^.]+\.(?:label|hint|summary|choices\.[^.]+)$/
 
 /**
  * Words that suggest special-category, criminal-record or credential data.
- * Any of them in any text, wording-only changes included, means a person
- * must look before the version publishes (Ezra, #160).
+ * Any of them in any text, in any locale, wording-only changes included,
+ * means a person must look before the version publishes (Ezra, #160 and
+ * #163). A false positive only costs a second look; a miss costs a quiet
+ * new kind of data.
  */
-const SENSITIVE_TERMS =
-  /\b(?:health|medical|medic(?:ine|ines|ation)|diagnos(?:is|es|ed)|disab(?:ility|ilities|led)|convictions?|convicted|criminal|dbs|sexuality|sexual orientation|religion|religious|ethnicity|ethnic|passwords?|bank)\b/i
+const SENSITIVE_TERMS = new RegExp(
+  `\\b(?:${[
+    // Health, disability and sex life (UK GDPR Article 9)
+    'health',
+    'medical',
+    'medic(?:ine|ines|ation)',
+    'diagnos(?:is|es|ed)',
+    'disab(?:ility|ilities|led)',
+    'mental',
+    'pregnan\\w*',
+    'genetic',
+    'biometric',
+    'sexuality',
+    'sexual orientation',
+    'sex life',
+    'gender',
+    'trans',
+    // Race, beliefs and membership (Article 9)
+    'race',
+    'racial',
+    'ethnicity',
+    'ethnic',
+    'religion',
+    'religious',
+    'faith',
+    'beliefs?',
+    'political',
+    'trade unions?',
+    // Criminal-record data (Article 10)
+    'convictions?',
+    'convicted',
+    'criminal',
+    'offences?',
+    'cautions?',
+    'arrest\\w*',
+    'police',
+    'dbs',
+    // Identifying details and credentials we never collect
+    'date of birth',
+    'home address',
+    'postcode',
+    'passwords?',
+    'pin',
+    'bank',
+    'sort code',
+    'card number',
+  ]
+    // Words split by more than one space, or a line break, still match.
+    .map((term) => term.replaceAll(' ', '\\s+'))
+    .join('|')})\\b`,
+  'i',
+)
 
-function englishText(text: unknown): Record<string, unknown> {
-  const entries = (text as Record<string, unknown> | null)?.['en-GB']
-  return typeof entries === 'object' && entries !== null && !Array.isArray(entries)
-    ? (entries as Record<string, unknown>)
-    : {}
+/** Every locale's entries, so a translation can't carry what en-GB doesn't. */
+function localeText(text: unknown): Map<string, unknown> {
+  const all = new Map<string, unknown>()
+  if (typeof text !== 'object' || text === null || Array.isArray(text)) return all
+  for (const [locale, entries] of Object.entries(text)) {
+    if (typeof entries !== 'object' || entries === null || Array.isArray(entries)) continue
+    for (const [key, value] of Object.entries(entries)) all.set(`${locale}\u0000${key}`, value)
+  }
+  return all
 }
 
 /** Whether a version has a sensitive term anywhere in its text. */
 export function hasSensitiveTerm(text: unknown): boolean {
-  return Object.values(englishText(text)).some(
+  return [...localeText(text).values()].some(
     (value) => typeof value === 'string' && SENSITIVE_TERMS.test(normaliseForChecks(value)),
   )
 }
@@ -347,10 +403,11 @@ export function needsSecondApproval(
   if (readers(previous.definition) !== readers(next.definition)) return true
   if (JSON.stringify(previous.definition.steps) !== JSON.stringify(next.definition.steps))
     return true
-  const before = englishText(previous.text)
-  const after = englishText(next.text)
-  for (const key of new Set([...Object.keys(before), ...Object.keys(after)])) {
-    if (ASKING_TEXT.test(key) && before[key] !== after[key]) return true
+  const before = localeText(previous.text)
+  const after = localeText(next.text)
+  for (const key of new Set([...before.keys(), ...after.keys()])) {
+    const textKey = key.slice(key.indexOf('\u0000') + 1)
+    if (ASKING_TEXT.test(textKey) && before.get(key) !== after.get(key)) return true
   }
   return hasSensitiveTerm(next.text)
 }

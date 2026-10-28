@@ -25,8 +25,8 @@ Every reply is JSON with `ok`. A refusal carries `error`, one of the codes below
 A second approval is needed (Ezra, #160) for:
 
 - a new form, or a change of purpose, readers or steps;
-- any change to text that tells the person what to put in an answer: a label, hint, summary or choice, including one added or removed;
-- any version whose text names a sensitive term (health, medical, diagnosis, disability, conviction, criminal, DBS, sexuality, religion, ethnicity, password, bank), whatever changed.
+- any change to text that tells the person what to put in an answer: a label, hint, summary or choice, including one added or removed, in any locale;
+- any version whose text, in any locale, names a sensitive term, whatever changed: health, disability, sex life, gender, race, beliefs, political views, trade union membership, genetic or biometric data, offences and police contact, DBS, and details we never collect such as date of birth, home address, postcode, passwords, PINs and bank or card details. The full list is `SENSITIVE_TERMS` in `shared/forms/publish.ts`.
 
 The title, intro, step headings and notes are wording only. In Phase 1 there is no second person, so `second_approval_needed` is a problem and the version can't publish.
 
