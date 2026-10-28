@@ -28,4 +28,6 @@ if [[ "$env" == preview ]]; then
   exit 0
 fi
 
-bunx wrangler d1 migrations apply "kinmeet-$env" --env "$env" --remote
+# --config: after a build, Wrangler reads the generated config and ignores
+# --env, so name the hand-kept file to make --env choose the database (ADR-0009).
+bunx wrangler d1 migrations apply "kinmeet-$env" --env "$env" --remote --config wrangler.jsonc

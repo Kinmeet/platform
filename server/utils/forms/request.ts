@@ -28,7 +28,7 @@ export function isSameOriginJsonPost(
  * Reads the body as UTF-8 text, counting bytes from the stream and stopping
  * as soon as `maxBytes` is passed. `Content-Length` is never trusted. This
  * is the second of two layers: the Worker entry in front of Nitro
- * (`worker/index.mjs`, ADR-0008) has already refused anything over the
+ * (`worker/entry.ts`, ADR-0008) has already refused anything over the
  * route's `bodyLimits` entry before Nitro read it into memory, and this
  * check holds each form to its schema's cap (docs/api/forms.md).
  */

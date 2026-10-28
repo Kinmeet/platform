@@ -10,7 +10,16 @@ How code reaches Cloudflare. The reasoning is in [ADR-0001](adr/0001-deploys-wit
 | Staging         | `platform` (Preview of `main`) | https://main-platform.kinmeet.workers.dev                            | `main`                     | `kinmeet-staging`, made-up |
 | Live            | `platform` (production)        | https://platform.kinmeet.workers.dev                                 | `live`                     | `kinmeet-live`, real       |
 
-Every Preview, including staging, shares the same made-up-data resources. Migrations are applied to them only by builds of `main`, so a branch that adds a migration runs on `main`'s schema until it merges. Cloudflare does not run scheduled jobs (Cron Triggers) for Previews ([Previews limitations](https://developers.cloudflare.com/workers/previews/resources/#limitations)), so the daily deletion job runs on live only; CI tests it end to end. On the Free plan a Worker can have up to 100 Previews ([Previews limits](https://developers.cloudflare.com/workers/previews/#limits)); delete a Preview when its branch is gone with `bunx wrangler preview delete --name <branch> --env live` ([Wrangler commands](https://developers.cloudflare.com/workers/wrangler/commands/workers/#preview-delete)).
+Every Preview, including staging, shares the same made-up-data resources. Migrations are applied to them only by builds of `main`, so a branch that adds a migration runs on `main`'s schema until it merges. Cloudflare does not run scheduled jobs (Cron Triggers) for Previews ([Previews limitations](https://developers.cloudflare.com/workers/previews/resources/#limitations)), so the daily deletion job runs on live only; CI tests it end to end. On the Free plan a Worker can have up to 100 Previews ([Previews limits](https://developers.cloudflare.com/workers/previews/#limits)); delete a Preview when its branch is gone with `bunx wrangler preview delete --name <branch> --env live --config wrangler.jsonc` ([Wrangler commands](https://developers.cloudflare.com/workers/wrangler/commands/workers/#preview-delete)).
+
+## How a build picks its environment (ADR-0009)
+
+NuxtHub turns on Nitro's `deployConfig`. So `bun run build` writes `.output/server/wrangler.json` from the hand-kept `wrangler.jsonc`, flattening one environment into its top level, and every Wrangler command after the build reads that generated file. The environment comes **only** from the `CLOUDFLARE_ENV` build variable: after a build, Wrangler ignores `--env`. That is why the deploy and Preview commands below have no `--env`.
+
+- Workers Builds sets `CLOUDFLARE_ENV=live` on `platform`, for production and Previews alike (Previews use the `previews` block inside `env.live`). The old `platform-staging` Worker uses `staging` until it is retired.
+- A build check stops any Workers Builds build (`WORKERS_CI=1`) whose `CLOUDFLARE_ENV` is not `live` or `staging`, so the local config can never ship.
+- CI builds for live and compares the generated bindings with `scripts/generated-config.live.json` (`bun run check:generated-config`). It also checks that nothing in its `previews` block names a live resource. After a reviewed binding change, refresh the snapshot with `bun run check:generated-config --update` after a live build, and commit it in the same pull request.
+- **Any Wrangler command run by hand that names an environment** passes `--config wrangler.jsonc`, so `--env` is honoured. That covers `d1`, `secret` and `preview` commands. The Bash hook refuses a remote `wrangler d1 migrations` command without it, and treats a remote D1 command on `DB` as live unless it names a staging database, or passes both `--env staging` and `--config wrangler.jsonc`.
 
 ## Releasing to live
 
@@ -35,10 +44,10 @@ Do these after the team's config pull request for #115 has merged, so the first 
 3. Set:
    - **Project name:** `platform`
    - **Build command:** `bun install --frozen-lockfile && bun run build`
-   - **Deploy command:** `scripts/d1-migrate.sh live && bunx wrangler deploy --env live`
+   - **Deploy command:** `scripts/d1-migrate.sh live && bunx wrangler deploy`
    - **Root directory:** `/`
    - **Production branch:** `live`
-   - Under **Advanced settings**, **Build variables**, add `SKIP_DEPENDENCY_INSTALL` = `1`. If the NuxtHub change (ADR-0009) has merged by then, also add `CLOUDFLARE_ENV` = `live`.
+   - Under **Advanced settings**, **Build variables**, add `SKIP_DEPENDENCY_INSTALL` = `1` and `CLOUDFLARE_ENV` = `live`. (On the existing `platform` Worker the team has set both.)
    - Leave the API token as the one Cloudflare creates.
 4. Select **Create and deploy**. The first live build is expected to **fail**, because the live secrets aren't set yet (step 4). Nothing is deployed when it fails.
 
@@ -48,7 +57,7 @@ First tell Rowan the Worker exists and wait for the team to confirm that the Acc
 
 1. Open `platform`, then **Settings**, then **Build**, then **Branch control**.
 2. Tick **Enable Preview Builds**.
-3. Set the **Preview command** to `scripts/d1-migrate.sh preview && bunx wrangler preview --env live` ([Preview command](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/#preview-command)).
+3. Set the **Preview command** to `scripts/d1-migrate.sh preview && bunx wrangler preview` ([Preview command](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/#preview-command)).
 4. If a **Set up Worker Previews** banner appears under **Settings**, **Builds**, select **Set up**, check the Preview command above, and select **Switch to Worker Previews**. This cannot be undone, and it is what we want.
 
 ### 3. Tell the team
@@ -64,7 +73,7 @@ Tell Rowan Previews are on. The team then, without needing anything from you:
 
 1. Set the live secrets on `platform` (production), each with a fresh value. Never reuse a value from the old Workers or from Previews:
    - `TURNSTILE_SECRET_KEY`: the secret of the live Turnstile widget (**Turnstile**, the live widget, **Settings**).
-   - `RATE_LIMIT_HMAC_KEY` and `EMAIL_LOG_HMAC_KEY`: on your own machine, `openssl rand -base64 32 | bunx wrangler secret put RATE_LIMIT_HMAC_KEY --env live`, and the same for `EMAIL_LOG_HMAC_KEY`.
+   - `RATE_LIMIT_HMAC_KEY` and `EMAIL_LOG_HMAC_KEY`: on your own machine, `openssl rand -base64 32 | bunx wrangler secret put RATE_LIMIT_HMAC_KEY --env live --config wrangler.jsonc`, and the same for `EMAIL_LOG_HMAC_KEY`.
    - `SAFEGUARDING_KEY`: only after go-live condition 6 is done and verified, as #95 step 8 says.
 2. In **Zero Trust**, **Access**, **Applications**, add your policies to the production `admin` and `safeguarding` applications, as for the old live Worker.
 

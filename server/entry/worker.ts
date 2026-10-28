@@ -7,7 +7,7 @@ export interface WorkerModule {
 }
 
 /**
- * Wraps Nitro's Worker module (worker/index.mjs). Only `fetch` changes: it
+ * Wraps Nitro's Worker module, as worker/entry.ts does. Only `fetch` changes: it
  * refuses oversized bodies first (issue #54). Every other handler Nitro
  * exports, such as `scheduled` for the deletion job, is passed through as it
  * is.
