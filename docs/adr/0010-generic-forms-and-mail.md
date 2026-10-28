@@ -112,7 +112,16 @@ Forms don't ask anyone's age unless a purpose needs it. A purpose designed for c
 
 - Publishing needs the `forms.publish` permission, which P4 gives to trustees (the founder until then).
 - Publishing is a sensitive action. It asks for the passkey again and writes an audit entry (Nadia).
-  - **Pending (28 October 2026).** We have no passkeys yet, because Cloudflare Access is our only sign-in (found by Ade in B2, #160). The Head of Delivery decided that B2 (the admin API) merges as it is, and that the B3 publish screen does not go live until a re-check exists. Nadia is choosing the interim re-check: either a recent Access sign-in, or a separate Access application with a short session and its own MFA on the publish path. This section will be updated once she has chosen.
+  - **Interim re-check until passkeys exist (28 October 2026).** We have no passkeys yet, because Cloudflare Access is our only sign-in (found by Ade in B2, #160). The Head of Delivery decided that B2 (the admin API) merges as it is, and that the B3 publish screen does not go live until a re-check exists. Nadia ruled on [#160](https://github.com/Kinmeet/platform/issues/160#issuecomment-6483652603):
+    - **A recent Access sign-in alone (a fresh `iat`) is not enough.** Access issues a new application token from the global session without a new sign-in.
+    - **A separate Access application on the publish path is accepted**, on these conditions:
+      - It covers the publish page and the publish API, with a session of 5 minutes or less and independent MFA set to "Require every login". Security keys and biometrics are allowed; TOTP is not.
+      - The Worker checks that application's own AUD (`ACCESS_PUBLISH_AUD`) and a fresh `iat`. It refuses a token from the main admin application, and fails closed if the variable is missing.
+      - Publishing happens on a page the browser navigates to, not through a background `fetch`, so the Access sign-in can run.
+      - The audit entry stays as it is.
+    - **A staging test must show the MFA prompt firing when the publish session is refreshed**, and B3 can't merge until it does. If the prompt doesn't appear, publishing stays off until passkeys exist.
+    - Once passkeys exist, they replace this check inside the app, as P5 says.
+  - **Before anyone besides the founder joins the admin Access policy**, admin routes need P4 role checks (Nadia's B2 condition, [#165](https://github.com/Kinmeet/platform/issues/165)).
 - **A second person with the privacy role must approve** any change to what is collected or who sees it (Ezra):
   - a new form;
   - a new or changed field;
