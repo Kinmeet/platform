@@ -32,7 +32,12 @@ jobs:
       - run: bun run check:copy
       - run: bun run test
       - run: bun run test:hooks
+      # Builds for live, then checks the generated Wrangler config against its
+      # snapshot (ADR-0009). Outside Workers Builds this deploys nothing.
       - run: bun run build
+        env:
+          CLOUDFLARE_ENV: live
+      - run: bun run check:generated-config
 
   e2e:
     name: End-to-end, no-third-party and accessibility tests

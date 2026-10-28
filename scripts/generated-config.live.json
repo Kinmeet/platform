@@ -1,0 +1,99 @@
+{
+  "name": "platform",
+  "main": "index.mjs",
+  "workers_dev": true,
+  "preview_urls": true,
+  "compatibility_flags": ["nodejs_compat", "no_nodejs_compat_v2"],
+  "crons": ["17 3 * * *"],
+  "required_secrets": ["TURNSTILE_SECRET_KEY", "RATE_LIMIT_HMAC_KEY", "EMAIL_LOG_HMAC_KEY"],
+  "bindings": {
+    "observability": {
+      "enabled": true,
+      "logs": {
+        "enabled": true,
+        "invocation_logs": false
+      },
+      "traces": {
+        "enabled": false
+      }
+    },
+    "logpush": false,
+    "var_names": ["KINMEET_ENV", "NUXT_PUBLIC_TURNSTILE_SITE_KEY", "SITE_ORIGIN"],
+    "d1": [
+      {
+        "binding": "DB",
+        "database_name": "kinmeet-live",
+        "database_id": "3b253758-831e-4db9-bb90-fb4598f215db",
+        "migrations_table": "d1_migrations"
+      }
+    ],
+    "kv": [
+      {
+        "binding": "KV",
+        "id": "90bba5907a604bc49aead31e93c939fc"
+      }
+    ],
+    "r2": [
+      {
+        "binding": "R2",
+        "bucket_name": "kinmeet-live",
+        "jurisdiction": "eu"
+      }
+    ],
+    "ratelimits": [
+      {
+        "name": "FORM_RATE_LIMITER",
+        "namespace_id": "1301"
+      },
+      {
+        "name": "FORM_GLOBAL_RATE_LIMITER",
+        "namespace_id": "1302"
+      }
+    ]
+  },
+  "previews": {
+    "observability": {
+      "enabled": true,
+      "logs": {
+        "enabled": true,
+        "invocation_logs": false
+      },
+      "traces": {
+        "enabled": false
+      }
+    },
+    "logpush": false,
+    "var_names": ["KINMEET_ENV", "NUXT_PUBLIC_TURNSTILE_SITE_KEY", "SITE_ORIGIN"],
+    "d1": [
+      {
+        "binding": "DB",
+        "database_name": "kinmeet-staging",
+        "database_id": "18c80f5f-3c72-4781-8d38-98ef6cc4a096",
+        "migrations_table": "d1_migrations"
+      }
+    ],
+    "kv": [
+      {
+        "binding": "KV",
+        "id": "5a9d7b8c548a4c3a8d596eec650a474b"
+      }
+    ],
+    "r2": [
+      {
+        "binding": "R2",
+        "bucket_name": "kinmeet-staging",
+        "jurisdiction": "eu"
+      }
+    ],
+    "ratelimits": [
+      {
+        "name": "FORM_RATE_LIMITER",
+        "namespace_id": "1401"
+      },
+      {
+        "name": "FORM_GLOBAL_RATE_LIMITER",
+        "namespace_id": "1402"
+      }
+    ]
+  }
+}
