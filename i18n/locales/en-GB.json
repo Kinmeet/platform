@@ -160,7 +160,7 @@
         "why_trustee": {
           "label": "Why would you like to be a trustee?",
           "hint": "A few sentences is plenty. There's no right answer.",
-          "summary": "Why"
+          "summary": "Why you'd like to be a trustee"
         },
         "experience": {
           "label": "Anything you've done that feels relevant? (optional)",
@@ -219,9 +219,9 @@
   },
   "apply": {
     "applying_for": "Applying for: {role}",
-    "page_title": "Step {step} of 4: {title}, {action}",
-    "page_title_error": "Error: Step {step} of 4: {title}, {action}",
-    "progress": "Step {step} of 4: {title}",
+    "page_title": "Step {step} of {count}: {title}, {action}",
+    "page_title_error": "Error: Step {step} of {count}: {title}, {action}",
+    "progress": "Step {step} of {count}: {title}",
     "steps_label": "Application steps",
     "steps": {
       "1": "Check it fits",
@@ -329,7 +329,19 @@
       "interactive": "One more step: tick the spam check box below to send.",
       "unavailable": "The spam check couldn't load, so this form can't be sent at the moment. Your answers are still here. Check your connection, then reload the page.",
       "failed": "The spam check didn't work that time. Your answers are still here. Please try sending again."
-    }
+    },
+    "errors": {
+      "text_required": "Write something here to send it.",
+      "text_too_long": "That's a bit long. Keep it to {max} characters or fewer.",
+      "choice_required": "Choose an answer to send this.",
+      "confirm_required": "Tick the box to send this."
+    },
+    "count": {
+      "limit": "You can use up to {max} characters.",
+      "left": "You have {count} character left | You have {count} characters left",
+      "over": "You have {count} character too many | You have {count} characters too many"
+    },
+    "reveals_more": "Depending on your answer, we may ask one or two more questions."
   },
   "hello": {
     "page_title": "Say hello",
@@ -366,10 +378,6 @@
         "required": "Enter your email address, so we can reply.",
         "too_long": "That email address is too long. Check it's typed correctly.",
         "invalid_email": "That email address looks incomplete. Check it has a full domain, like name{'@'}example.com."
-      },
-      "message": {
-        "required": "Write a message to send.",
-        "too_long": "Your message is a bit long. Keep it to {max} characters or fewer."
       }
     },
     "kept": {

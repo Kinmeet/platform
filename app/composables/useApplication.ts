@@ -1,4 +1,5 @@
 import { findRole, publishedRoles, type PublishedRole } from '#shared/forms/roles'
+import type { PublicForm } from '#shared/forms/view'
 
 /** The published role for a slug from the URL, or a 404 (Q3, #21). */
 export function requirePublishedRole(slug: unknown): PublishedRole {
@@ -23,7 +24,8 @@ export function useApplicationSent() {
 }
 
 /**
- * One visit's application for a role (#21). The draft is held in memory only:
+ * One visit's application for a role (#21), on its stored form (ADR-0010).
+ * The draft is held in memory only:
  * never in localStorage, sessionStorage or a cookie. Reloading the page
  * starts again. Leave empties it (`useLeaveApplication`), whichever way the
  * navigation happens, and so does a successful send.
@@ -31,21 +33,21 @@ export function useApplicationSent() {
  * The step is in the URL (`?step=2`) so Back and Forward work, but a step is
  * only shown once the steps before it are done.
  */
-export function useApplication(role: PublishedRole) {
+export function useApplication(form: PublicForm) {
   const route = useRoute()
   const router = useRouter()
 
   // Made in the browser only, so the submission id is never in the server's HTML.
-  const draft = useState<ApplicationDraft | null>(`apply:${role.slug}`, () =>
-    import.meta.client ? createDraft(role) : null,
+  const draft = useState<ApplicationDraft | null>(`apply:${form.slug}`, () =>
+    import.meta.client ? createDraft(form) : null,
   )
-  if (import.meta.client && !draft.value) draft.value = createDraft(role)
+  if (import.meta.client && !draft.value) draft.value = createDraft(form)
 
   /** Why the guard last moved the visitor, for one announced line. Cleared by `goTo`. */
   const redirected = ref<RedirectReason>()
 
   const sentState = useApplicationSent()
-  const sent = computed(() => (sentState.value?.role === role.slug ? sentState.value : null))
+  const sent = computed(() => (sentState.value?.role === form.slug ? sentState.value : null))
   // The sent page lasts until the visitor goes somewhere else. Not a route
   // guard: one would hold up Leave long enough for the step guard below to
   // cancel it once Leave empties the draft.
@@ -54,9 +56,9 @@ export function useApplication(role: PublishedRole) {
   })
 
   const step = computed<Step>(() =>
-    draft.value ? allowedStep(route.query.step, draft.value, role) : 1,
+    draft.value ? allowedStep(route.query.step, draft.value, form) : 1,
   )
-  const stopped = computed(() => (draft.value ? stopReason(draft.value, role) : undefined))
+  const stopped = computed(() => (draft.value ? stopReason(draft.value, form) : undefined))
 
   // Sends anyone who asked for a step they can't have yet back to the right one.
   watch(
@@ -64,7 +66,7 @@ export function useApplication(role: PublishedRole) {
     ([asked, allowed]) => {
       if (!import.meta.client || !draft.value || String(asked ?? '1') === String(allowed)) return
       // Once sent, the emptied draft moves the URL back to step 1 with nothing to explain.
-      if (!sent.value) redirected.value = redirectReason(asked, draft.value, role)
+      if (!sent.value) redirected.value = redirectReason(asked, draft.value, form)
       router.replace({ query: { ...route.query, step: allowed === 1 ? undefined : allowed } })
     },
     { immediate: true },
@@ -87,7 +89,7 @@ export function useApplication(role: PublishedRole) {
   /** After a successful send: show the sent page, then empty the answers. */
   function finish(receipt: Receipt) {
     if (!draft.value) return
-    sentState.value = { role: role.slug, callName: draft.value.callName.trim(), receipt }
+    sentState.value = { role: form.slug, callName: draft.value.callName.trim(), receipt }
     clear()
   }
 

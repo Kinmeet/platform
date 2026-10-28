@@ -43,7 +43,7 @@ interface HandoverEnv {
  * row. It names the item, not the form it came from, so the log does not say
  * in clear which form a concern was raised through (Ezra, #95).
  */
-const READ = `SELECT f.slug, s.answers, s.call_name, s.email, s.received_at, v.definition,
+const READ = `SELECT f.slug, s.answers, s.call_name, s.email, s.received_at, v.definition, v.text,
                      f.id AS form_id, f.kind, s.version, v.purpose
               FROM form_submissions AS s
               JOIN forms AS f ON f.id = s.form_id
@@ -75,6 +75,7 @@ interface SubmissionRow {
   email: string
   received_at: number
   definition: string
+  text: string
   form_id: string
   kind: FormKind
   version: number

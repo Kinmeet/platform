@@ -99,7 +99,7 @@ const US_SPELLINGS: readonly { pattern: RegExp; use: string }[] = [
 ]
 
 /** Every text key a version needs, and those it may have, with each one's limit. */
-export function textKeys(definition: FormDefinition): {
+export function textKeys(definition: Pick<FormDefinition, 'steps' | 'note'>): {
   required: Map<string, number>
   optional: Map<string, number>
 } {
@@ -109,7 +109,14 @@ export function textKeys(definition: FormDefinition): {
     required.set('note.heading', TEXT_LIMITS.heading)
     required.set('note.body', TEXT_LIMITS.noteBody)
   }
-  for (const step of definition.steps) optional.set(`steps.${step.id}.heading`, TEXT_LIMITS.heading)
+  // Every step page needs one heading (Robin, #74). A checks or answers step
+  // has a fixed one, and a one-step form uses its title, so only a top-level
+  // step in a form with more than one needs its own.
+  for (const step of definition.steps) {
+    const key = `steps.${step.id}.heading`
+    if (step.body === null && definition.steps.length > 1) required.set(key, TEXT_LIMITS.heading)
+    else optional.set(key, TEXT_LIMITS.heading)
+  }
   for (const { field } of fieldsOf(definition)) {
     const key = `fields.${field.id}`
     required.set(`${key}.label`, TEXT_LIMITS.label)
@@ -139,11 +146,22 @@ export function copyProblems(value: string): string[] {
   return codes
 }
 
-function checkText(definition: FormDefinition, text: unknown, problems: PublishProblem[]) {
+/**
+ * The text's shape: one allowed locale, every key the version needs, no
+ * others, each a non-empty string within its limit. Checked on publish and
+ * again on every read, like the purpose checks. The copy rules below are
+ * checked on publish only, so a rule added later never takes down a form
+ * that was published before it.
+ */
+export function textShapeProblems(
+  definition: Pick<FormDefinition, 'steps' | 'note'>,
+  text: unknown,
+): PublishProblem[] {
+  const problems: PublishProblem[] = []
   const add = (code: string, path: string) => problems.push({ code, path })
   if (typeof text !== 'object' || text === null || Array.isArray(text)) {
     add('text_shape', 'text')
-    return
+    return problems
   }
   if (JSON.stringify(text).length > LIMITS.textJson) add('text_too_large', 'text')
   for (const locale of Object.keys(text)) {
@@ -153,7 +171,7 @@ function checkText(definition: FormDefinition, text: unknown, problems: PublishP
   const entries = (text as Record<string, unknown>)['en-GB']
   if (typeof entries !== 'object' || entries === null || Array.isArray(entries)) {
     add('locale_missing', 'text.en-GB')
-    return
+    return problems
   }
   const { required, optional } = textKeys(definition)
   for (const key of required.keys()) {
@@ -171,8 +189,94 @@ function checkText(definition: FormDefinition, text: unknown, problems: PublishP
       continue
     }
     if ([...value].length > limit) add('text_too_long', path)
-    for (const code of copyProblems(value)) add(code, path)
   }
+  return problems
+}
+
+/** Link text that says nothing about where it goes (WCAG 2.4.4). */
+const VAGUE_LINK =
+  /^(?:here|click here|read more|more|link|this link|find out more)$|^(?:https?:\/\/|www\.)/i
+
+/** The same words, ignoring letter case, spacing and closing punctuation. */
+function sameWords(a: string, b: string): boolean {
+  const plain = (value: string) =>
+    value
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, ' ')
+      .replace(/[.?!:]+$/, '')
+  return plain(a) === plain(b)
+}
+
+/**
+ * The copy rules, checked on publish (ADR-0010): banned terms, US spellings
+ * and credential requests in every piece of text, then the accessibility
+ * checks that stop the commonest barriers an admin can make (Robin, #158).
+ * Each field's summary names its question on its own, in the error list and
+ * on Check and send, so it needs at least two words and must differ from
+ * every other summary in the form.
+ */
+function copyRules(
+  definition: Pick<FormDefinition, 'steps'>,
+  entries: Record<string, unknown>,
+  problems: PublishProblem[],
+) {
+  const add = (code: string, path: string) => problems.push({ code, path })
+  const text = (key: string) => {
+    const value = entries[key]
+    return typeof value === 'string' ? value : undefined
+  }
+  for (const [key, value] of Object.entries(entries)) {
+    if (typeof value !== 'string') continue
+    for (const code of copyProblems(value)) add(code, `text.en-GB.${key}`)
+  }
+  const summaries: { value: string; key: string }[] = []
+  for (const current of definition.steps) {
+    const labels: { value: string; key: string }[] = []
+    for (const field of current.fields) {
+      const key = `fields.${field.id}`
+      const label = text(`${key}.label`)
+      const hint = text(`${key}.hint`)
+      const summary = text(`${key}.summary`)
+      if (label !== undefined) {
+        if (labels.some((other) => sameWords(other.value, label)))
+          add('duplicate_label', `text.en-GB.${key}.label`)
+        labels.push({ value: label, key })
+        if (hint !== undefined && sameWords(hint, label))
+          add('hint_repeats_label', `text.en-GB.${key}.hint`)
+      }
+      if (summary !== undefined) {
+        if (summary.trim().split(/\s+/).length < 2)
+          add('summary_too_short', `text.en-GB.${key}.summary`)
+        if (summaries.some((other) => sameWords(other.value, summary)))
+          add('duplicate_summary', `text.en-GB.${key}.summary`)
+        summaries.push({ value: summary, key })
+      }
+      if (field.type === 'single_choice') {
+        const seen: string[] = []
+        for (const choice of field.choices) {
+          const words = text(`${key}.choices.${choice}`)
+          if (words === undefined) continue
+          if (seen.some((other) => sameWords(other, words)))
+            add('duplicate_choice_text', `text.en-GB.${key}.choices.${choice}`)
+          seen.push(words)
+        }
+      }
+      if (field.type === 'confirm' && field.link) {
+        const words = text(`${key}.link`)
+        if (words !== undefined && VAGUE_LINK.test(words.trim()))
+          add('vague_link_text', `text.en-GB.${key}.link`)
+      }
+    }
+  }
+}
+
+function checkText(definition: FormDefinition, text: unknown, problems: PublishProblem[]) {
+  const shape = textShapeProblems(definition, text)
+  problems.push(...shape)
+  const entries = (text as Record<string, Record<string, unknown>> | null)?.['en-GB']
+  if (typeof entries === 'object' && entries !== null && !Array.isArray(entries))
+    copyRules(definition, entries, problems)
 }
 
 /** Whether a new version changes what is collected or who sees it (Ezra). */

@@ -28,7 +28,7 @@ The main D1 database, bound to the Worker as `DB`. Its migrations live in `migra
 | `forms`         | One row per form: id, slug (unique ignoring case, at most 32 of `[a-z0-9-]`), kind (`form` or `application`), status (`draft`, `open`, `closed`) and current version. No personal data                           |
 | `form_versions` | Each published version: its definition (`shared/forms/definition.ts`), its admin-written text per locale, its P3 purpose, and when and by whom (an Access `sub`, or `migration`) it was published. Never changed |
 
-A trigger refuses every update and delete on `form_versions`. Say hello (`hello`) and the trustee application (`trustee`) were seeded as version 1 from their config and copy, and the roles that aren't open yet as drafts with no version.
+A trigger refuses every update and delete on `form_versions`. Say hello (`hello`) and the trustee application (`trustee`) were seeded as version 1 from their config and copy, and the roles that aren't open yet as drafts with no version. `0007` publishes version 2 of `trustee`, changing only the summary of `why_trustee` to "Why you'd like to be a trustee" (wording only, so no second approval), and moves the form's current version to 2.
 
 `submission_id` is the form's idempotency key ([forms contract](api/forms.md)). It is unique and lives on the row, so it is deleted with the row.
 

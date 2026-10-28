@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 import {
   createHelloDraft,
   helloErrorMessage,
@@ -8,6 +8,14 @@ import {
   toHelloRequest,
 } from '../../../../app/utils/hello-form'
 import en from '../../../../i18n/locales/en-GB.json'
+import type { PublicForm } from '../../../../shared/forms/view'
+import { loadPublicForm } from '../../helpers/stored-forms'
+
+// Say hello on its stored version (ADR-0010, A2). Made-up test data only.
+let hello: PublicForm
+beforeAll(async () => {
+  hello = await loadPublicForm('hello')
+})
 
 const ID = '00000000-0000-4000-8000-000000000000'
 
@@ -15,7 +23,7 @@ function filled() {
   const draft = createHelloDraft(ID)
   draft.callName = ' Test Organiser '
   draft.email = 'test.organiser@example.com'
-  draft.message = '  A made-up message for testing.  '
+  draft.values.message = '  A made-up message for testing.  '
   return draft
 }
 
@@ -27,11 +35,11 @@ function lookup(key: string): unknown {
 
 describe('helloErrors', () => {
   it('accepts a filled-in form', () => {
-    expect(helloErrors(filled())).toEqual([])
+    expect(helloErrors(filled(), hello)).toEqual([])
   })
 
   it('lists every missing field, in order', () => {
-    expect(helloErrors(createHelloDraft(ID))).toEqual([
+    expect(helloErrors(createHelloDraft(ID), hello)).toEqual([
       { field: 'callName', code: 'required' },
       { field: 'email', code: 'required' },
       { field: 'message', code: 'required' },
@@ -41,8 +49,8 @@ describe('helloErrors', () => {
   it('uses the API rules for email and length', () => {
     const draft = filled()
     draft.email = 'test@example'
-    draft.message = 'x'.repeat(2001)
-    expect(helloErrors(draft)).toEqual([
+    draft.values.message = 'x'.repeat(2001)
+    expect(helloErrors(draft, hello)).toEqual([
       { field: 'email', code: 'invalid_email' },
       { field: 'message', code: 'too_long' },
     ])
@@ -51,7 +59,7 @@ describe('helloErrors', () => {
 
 describe('toHelloRequest', () => {
   it('sends trimmed text with the id and token', () => {
-    expect(toHelloRequest(filled(), 'token')).toEqual({
+    expect(toHelloRequest(filled(), hello, 'token')).toEqual({
       submissionId: ID,
       callName: 'Test Organiser',
       email: 'test.organiser@example.com',
@@ -63,18 +71,28 @@ describe('toHelloRequest', () => {
 
 describe('readHelloResponse', () => {
   it('reads every reply in the contract', () => {
-    expect(readHelloResponse(201, { ok: true, receipt: 'not_requested' })).toEqual({ kind: 'sent' })
-    expect(readHelloResponse(200, { ok: true })).toEqual({ kind: 'sent' })
+    expect(readHelloResponse(201, { ok: true, receipt: 'not_requested' }, hello)).toEqual({
+      kind: 'sent',
+    })
+    expect(readHelloResponse(200, { ok: true }, hello)).toEqual({ kind: 'sent' })
     expect(
-      readHelloResponse(422, { ok: false, errors: [{ field: 'email', code: 'invalid_email' }] }),
+      readHelloResponse(
+        422,
+        { ok: false, errors: [{ field: 'email', code: 'invalid_email' }] },
+        hello,
+      ),
     ).toEqual({ kind: 'invalid', errors: [{ field: 'email', code: 'invalid_email' }] })
     expect(
-      readHelloResponse(403, {
-        ok: false,
-        errors: [{ field: 'turnstileToken', code: 'turnstile_failed' }],
-      }),
+      readHelloResponse(
+        403,
+        {
+          ok: false,
+          errors: [{ field: 'turnstileToken', code: 'turnstile_failed' }],
+        },
+        hello,
+      ),
     ).toEqual({ kind: 'turnstile_failed' })
-    expect(readHelloResponse(429, { ok: false, error: 'rate_limited' })).toEqual({
+    expect(readHelloResponse(429, { ok: false, error: 'rate_limited' }, hello)).toEqual({
       kind: 'rate_limited',
     })
   })
@@ -87,7 +105,7 @@ describe('readHelloResponse', () => {
     [422, { ok: false, errors: [{ field: 'nickname', code: 'unknown_field' }] }],
     [422, { ok: false, errors: [] }],
   ])('treats %i as a failed send', (status, body) => {
-    expect(readHelloResponse(status, body)).toEqual({ kind: 'failed' })
+    expect(readHelloResponse(status, body, hello)).toEqual({ kind: 'failed' })
   })
 })
 
@@ -99,22 +117,26 @@ describe('helloErrorMessage', () => {
       message: ['required', 'too_long'],
     })) {
       for (const code of codes) {
-        const message = helloErrorMessage({ field, code })
+        const message = helloErrorMessage({ field, code }, hello)
         expect(typeof lookup(message.key), message.key).toBe('string')
-        expect(typeof lookup(message.questionKey), message.questionKey).toBe('string')
+        const name =
+          'text' in message.question ? message.question.text : lookup(message.question.key)
+        expect(typeof name, JSON.stringify(message.question)).toBe('string')
       }
     }
   })
 
   it('gives the limit for text that is too long', () => {
-    expect(helloErrorMessage({ field: 'message', code: 'too_long' }).params).toEqual({ max: 2000 })
+    expect(helloErrorMessage({ field: 'message', code: 'too_long' }, hello).params).toEqual({
+      max: 2000,
+    })
   })
 })
 
 describe('helloText', () => {
   it('copies the name, email and message, and names no Kinmeet address', () => {
     const t = (key: string) => String(lookup(key))
-    const text = helloText(filled(), t)
+    const text = helloText(filled(), hello, t)
     expect(text.split('\n')).toEqual([
       `${en.hello.fields.callName}: Test Organiser`,
       `${en.hello.fields.email}: test.organiser@example.com`,

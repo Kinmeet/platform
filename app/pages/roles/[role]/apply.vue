@@ -1,20 +1,27 @@
 <script setup lang="ts">
-import { roleKey, type StopReason } from '#shared/forms/roles'
+import { roleKey } from '#shared/forms/roles'
+import type { StopReason } from '#shared/forms/definition'
+import { fieldPath as fieldPathOf, shownFieldIds } from '#shared/forms/view'
 
-// The apply flow's four steps (W6b, #15). State and routing live in
-// useApplication (#21); this page draws each step, checks it on Continue,
-// and shows errors the same way on every step. Steps 1 and 3 are drawn
-// from the role config. A step 1 answer that stops the flow shows its stop
-// page on Continue (#16). Send gets a spam check token, posts the answers
-// and shows what came back: the sent page, errors on the step they belong
-// to, a stop page, or "That didn't send" with Copy my answers (#17).
+// The apply flow (W6b, #15), drawn from the role's stored form (ADR-0010,
+// A2): its steps, "About you" where the version puts it, then Check and send.
+// State and routing live in useApplication (#21); this page draws each step,
+// checks it on Continue, and shows errors the same way on every step. An
+// answer that stops the flow shows its stop page on Continue (#16). Send gets
+// a spam check token, posts the answers and shows what came back: the sent
+// page, errors on the step they belong to, a stop page, or "That didn't
+// send" with Copy my answers (#17).
 definePageMeta({ layout: 'focused' })
 
 const { t } = useI18n()
 const route = useRoute()
 const role = requirePublishedRole(route.params.role)
 const key = roleKey(role.slug)
-const { draft, step, stopped, redirected, sent, goTo, clear, finish } = useApplication(role)
+const form = await useStoredForm(role.slug)
+const steps = stepsOf(form)
+const lastStep = steps.length
+const titles = steps.map((flow) => stepTitle(form, flow, t))
+const { draft, step, stopped, redirected, sent, goTo, clear, finish } = useApplication(form)
 
 const errors = ref<FieldError[]>([])
 const summary = ref<{ focus: () => void } | null>(null)
@@ -32,9 +39,13 @@ const sending = ref(false)
 const problem = ref<SendProblem>()
 const failedView = ref<{ focus: () => void } | null>(null)
 const sentView = ref<{ focus: () => void } | null>(null)
-const copyText = computed(() => (draft.value ? answersText(draft.value, role, t) : ''))
+const copyText = computed(() => (draft.value ? answersText(draft.value, form, t) : ''))
 
-const stepTitle = computed(() => t(`apply.steps.${step.value}`))
+const current = computed(() => flowStepAt(form, step.value))
+const shown = computed(() =>
+  draft.value ? shownFieldIds(form.definition, draft.value.values) : new Set(),
+)
+const stepTitleText = computed(() => titles[step.value - 1] ?? '')
 useHead({
   title: () => {
     const action = t(`${key}.page.apply`)
@@ -44,31 +55,36 @@ useHead({
     }
     return t(errors.value.length ? 'apply.page_title_error' : 'apply.page_title', {
       step: step.value,
-      title: stepTitle.value,
+      count: lastStep,
+      title: stepTitleText.value,
       action,
     })
   },
 })
 
+function wordsFor(error: FieldError) {
+  const message = errorMessage(error, form)
+  return { message: t(message.key, message.params), question: questionText(message.question, t) }
+}
+
 function messageFor(field: string): string | undefined {
   const error = errors.value.find((item) => item.field === field)
-  if (!error) return undefined
-  const message = errorMessage(error, role)
-  return t(message.key, message.params)
+  return error ? wordsFor(error).message : undefined
 }
 
 const summaryItems = computed<ErrorSummaryItem[]>(() =>
-  errors.value.map((error) => {
-    const message = errorMessage(error, role)
-    return {
-      target: fieldId(error.field),
-      text: t('apply.errors.summary_item', {
-        question: t(message.questionKey),
-        message: t(message.key, message.params),
-      }),
-    }
-  }),
+  errors.value.map((error) => ({
+    target: fieldId(error.field),
+    text: t('apply.errors.summary_item', wordsFor(error)),
+  })),
 )
+
+/** Whether a choice can reveal another question on its own step (Robin, #158). */
+function revealsMore(id: string): boolean {
+  return form.definition.steps.some((each) =>
+    each.fields.some((other) => other.showIf?.field === id && each.fields.some((f) => f.id === id)),
+  )
+}
 
 async function showErrors(found: FieldError[]) {
   errors.value = found
@@ -91,11 +107,11 @@ watch(step, async () => {
 })
 
 function onContinue() {
-  if (!draft.value || step.value === 4) return
-  const found = stepErrors(draft.value, role, step.value)
+  if (!draft.value || step.value === lastStep) return
+  const found = stepErrors(draft.value, form, step.value)
   if (found.length) return showErrors(found)
-  if (step.value === 1 && stopped.value) return openStop()
-  goTo((step.value + 1) as Step)
+  if (stopped.value && furthestStep(draft.value, form) === step.value) return openStop()
+  goTo(step.value + 1)
 }
 
 async function openStop() {
@@ -114,10 +130,10 @@ async function closeStop() {
 
 async function onSend() {
   if (!draft.value || sending.value) return
-  // The guard keeps step 4 closed until steps 1 to 3 are done, so this only
-  // matters if an answer changed some other way: go back to that step.
-  const furthest = furthestStep(draft.value, role)
-  if (furthest < 4) return goTo(furthest)
+  // The guard keeps the last step closed until the others are done, so this
+  // only matters if an answer changed some other way: go back to that step.
+  const furthest = furthestStep(draft.value, form)
+  if (furthest < lastStep) return goTo(furthest)
 
   sending.value = true
   try {
@@ -131,7 +147,7 @@ async function onSend() {
       }
       return showProblem('spam_check')
     }
-    const outcome = await post(toRequest(draft.value, role, token))
+    const outcome = await post(toRequest(draft.value, form, token))
     // Every token is single use, whatever came back (#20).
     turnstile.value?.reset()
     await show(outcome)
@@ -148,7 +164,7 @@ async function post(body: ReturnType<typeof toRequest>): Promise<SendOutcome> {
       body: JSON.stringify(body),
     })
     const reply: unknown = await response.json().catch(() => null)
-    return readSendResponse(response.status, reply)
+    return readSendResponse(response.status, reply, form)
   } catch {
     return { kind: 'failed' }
   }
@@ -189,8 +205,7 @@ async function showProblem(reason: SendProblem) {
 
 /** The words for one answer on "Check and send". */
 function checkAnswer(id: string): string {
-  const answer = draft.value?.checks[id]
-  return answer ? t(`${key}.questions.${id}.choices.${answer}`) : t('apply.no_answer')
+  return answerText(form, id, draft.value?.values[id]) ?? t('apply.no_answer')
 }
 function textAnswer(value: string | undefined): string {
   return value?.trim() || t('apply.no_answer')
@@ -211,11 +226,11 @@ function stepLink(target: Step) {
       <ApplySent v-if="sent" ref="sentView" class="apply__sent" :role="role" :sent="sent" />
       <div v-else-if="draft" class="apply__layout">
         <div class="apply__side">
-          <p class="eyebrow">{{ t('apply.applying_for', { role: t(`${key}.title`) }) }}</p>
+          <p class="eyebrow">{{ t('apply.applying_for', { role: form.text.title }) }}</p>
           <!-- The application has ended on a stop page, so no progress (Robin, #82). -->
           <template v-if="!stopShown">
-            <ApplyProgress class="apply__progress" :step="step" />
-            <ApplySteps class="apply__steps" :step="step" />
+            <ApplyProgress class="apply__progress" :step="step" :titles="titles" />
+            <ApplySteps class="apply__steps" :step="step" :titles="titles" />
             <p class="apply__time muted small">{{ t('apply.time_note') }}</p>
           </template>
         </div>
@@ -243,30 +258,32 @@ function stepLink(target: Step) {
           <form
             class="apply__form"
             novalidate
-            @submit.prevent="step === 4 ? onSend() : onContinue()"
+            @submit.prevent="step === lastStep ? onSend() : onContinue()"
           >
             <div class="apply__heading">
-              <h1 ref="heading" tabindex="-1">{{ stepTitle }}</h1>
+              <h1 ref="heading" tabindex="-1">{{ stepTitleText }}</h1>
               <p v-if="step === 1">{{ t('apply.intro') }}</p>
             </div>
 
-            <template v-if="step === 1">
-              <ApplyQuestion
-                v-for="check in role.apply.checks"
-                :key="check.id"
-                v-model="draft.checks[check.id]"
-                :role-key="key"
-                :question="check"
-                :field="`checks.${check.id}`"
-                :error="messageFor(`checks.${check.id}`)"
-              />
-              <div v-if="role.apply.note" class="note">
-                <p class="apply__note-title">{{ t(`${key}.apply.note.heading`) }}</p>
-                <p>{{ t(`${key}.apply.note.body`) }}</p>
+            <template v-if="current.kind === 'fields'">
+              <template v-for="field in current.step.fields" :key="field.id">
+                <FormField
+                  v-if="shown.has(field.id)"
+                  v-model="draft.values[field.id]"
+                  :field="field"
+                  :text="form.text"
+                  :path="fieldPathOf(current.step, field)"
+                  :error="messageFor(fieldPathOf(current.step, field))"
+                  :reveals-more="revealsMore(field.id)"
+                />
+              </template>
+              <div v-if="form.definition.note && step === 1" class="note">
+                <p class="apply__note-title">{{ form.text['note.heading'] }}</p>
+                <p>{{ form.text['note.body'] }}</p>
               </div>
             </template>
 
-            <template v-else-if="step === 2">
+            <template v-else-if="current.kind === 'about_you'">
               <FormTextField
                 :id="fieldId('callName')"
                 v-model="draft.callName"
@@ -286,72 +303,45 @@ function stepLink(target: Step) {
               />
             </template>
 
-            <template v-else-if="step === 3">
-              <ApplyQuestion
-                v-for="question in role.apply.questions"
-                :key="question.id"
-                v-model="draft.answers[question.id]"
-                :role-key="key"
-                :question="question"
-                :field="`answers.${question.id}`"
-                :error="messageFor(`answers.${question.id}`)"
-              />
-            </template>
-
             <template v-else>
-              <section class="patch patch--flat apply-check" aria-labelledby="check-1">
-                <div class="apply-check__head">
-                  <h2 id="check-1">{{ t('apply.steps.1') }}</h2>
-                  <NuxtLink
-                    :to="stepLink(1)"
-                    :aria-label="t('apply.change_label', { section: t('apply.steps.1') })"
-                  >
-                    {{ t('apply.change') }}
-                  </NuxtLink>
-                </div>
-                <dl class="answers">
-                  <template v-for="check in role.apply.checks" :key="check.id">
-                    <dt>{{ t(`${key}.questions.${check.id}.summary`) }}</dt>
-                    <dd>{{ checkAnswer(check.id) }}</dd>
-                  </template>
-                </dl>
-              </section>
-
-              <section class="patch patch--flat apply-check" aria-labelledby="check-2">
-                <div class="apply-check__head">
-                  <h2 id="check-2">{{ t('apply.steps.2') }}</h2>
-                  <NuxtLink
-                    :to="stepLink(2)"
-                    :aria-label="t('apply.change_label', { section: t('apply.steps.2') })"
-                  >
-                    {{ t('apply.change') }}
-                  </NuxtLink>
-                </div>
-                <dl class="answers">
-                  <dt>{{ t('apply.fields.callName') }}</dt>
-                  <dd>{{ textAnswer(draft.callName) }}</dd>
-                  <dt>{{ t('apply.fields.email') }}</dt>
-                  <dd>{{ textAnswer(draft.email) }}</dd>
-                </dl>
-              </section>
-
-              <section class="patch patch--flat apply-check" aria-labelledby="check-3">
-                <div class="apply-check__head">
-                  <h2 id="check-3">{{ t('apply.steps.3') }}</h2>
-                  <NuxtLink
-                    :to="stepLink(3)"
-                    :aria-label="t('apply.change_label', { section: t('apply.steps.3') })"
-                  >
-                    {{ t('apply.change') }}
-                  </NuxtLink>
-                </div>
-                <dl class="answers">
-                  <template v-for="question in role.apply.questions" :key="question.id">
-                    <dt>{{ t(`${key}.questions.${question.id}.summary`) }}</dt>
-                    <dd class="apply-check__text">{{ textAnswer(draft.answers[question.id]) }}</dd>
-                  </template>
-                </dl>
-              </section>
+              <template v-for="(flow, index) in steps" :key="index">
+                <section
+                  v-if="flow.kind !== 'check'"
+                  class="patch patch--flat apply-check"
+                  :aria-labelledby="`check-${index + 1}`"
+                >
+                  <div class="apply-check__head">
+                    <h2 :id="`check-${index + 1}`">{{ titles[index] }}</h2>
+                    <NuxtLink
+                      :to="stepLink(index + 1)"
+                      :aria-label="t('apply.change_label', { section: titles[index] })"
+                    >
+                      {{ t('apply.change') }}
+                    </NuxtLink>
+                  </div>
+                  <dl v-if="flow.kind === 'about_you'" class="answers">
+                    <dt>{{ t('apply.fields.callName') }}</dt>
+                    <dd>{{ textAnswer(draft.callName) }}</dd>
+                    <dt>{{ t('apply.fields.email') }}</dt>
+                    <dd>{{ textAnswer(draft.email) }}</dd>
+                  </dl>
+                  <dl v-else class="answers">
+                    <template v-for="field in flow.step.fields" :key="field.id">
+                      <template v-if="shown.has(field.id)">
+                        <dt>{{ form.text[`fields.${field.id}.summary`] }}</dt>
+                        <dd
+                          :class="{
+                            'apply-check__text':
+                              field.type === 'long_text' || field.type === 'short_text',
+                          }"
+                        >
+                          {{ checkAnswer(field.id) }}
+                        </dd>
+                      </template>
+                    </template>
+                  </dl>
+                </section>
+              </template>
 
               <div class="note">
                 <p class="apply__note-title">{{ t('apply.where_it_goes.heading') }}</p>
@@ -361,18 +351,24 @@ function stepLink(target: Step) {
 
             <div class="apply__actions">
               <button
-                :id="step === 4 ? fieldId(TURNSTILE_FIELD) : undefined"
+                :id="step === lastStep ? fieldId(TURNSTILE_FIELD) : undefined"
                 type="submit"
                 class="button button--primary"
               >
                 {{
-                  t(step === 4 ? (problem ? 'apply.send_again' : 'apply.send') : 'apply.continue')
+                  t(
+                    step === lastStep
+                      ? problem
+                        ? 'apply.send_again'
+                        : 'apply.send'
+                      : 'apply.continue',
+                  )
                 }}
               </button>
-              <p v-if="step === 4" class="apply__sending muted small" role="status">
+              <p v-if="step === lastStep" class="apply__sending muted small" role="status">
                 {{ sending ? t('apply.sending') : '' }}
               </p>
-              <TurnstileCheck v-if="step === 4" ref="turnstile" action="apply" />
+              <TurnstileCheck v-if="step === lastStep" ref="turnstile" action="apply" />
               <NuxtLink
                 v-if="step === 1"
                 :to="`/roles/${role.slug}`"
@@ -381,12 +377,7 @@ function stepLink(target: Step) {
               >
                 {{ t('apply.back') }}
               </NuxtLink>
-              <button
-                v-else
-                type="button"
-                class="button button--ghost"
-                @click="goTo((step - 1) as Step)"
-              >
+              <button v-else type="button" class="button button--ghost" @click="goTo(step - 1)">
                 {{ t('apply.back') }}
               </button>
             </div>

@@ -96,7 +96,7 @@ test.describe('say hello', () => {
     await expect(summary.getByRole('link')).toHaveText([
       `${hello.fields.callName}: ${hello.errors.callName.required}`,
       `${hello.fields.email}: ${hello.errors.email.invalid_email.replace("{'@'}", '@')}`,
-      `${hello.fields.message}: ${hello.errors.message.required}`,
+      `${hello.fields.message}: ${en.forms.errors.text_required}`,
     ])
     await summary.getByRole('link').nth(2).click()
     await expect(page.getByLabel(hello.message.label, { exact: true })).toBeFocused()
@@ -159,7 +159,7 @@ test.describe('say hello', () => {
     await fillIn(page)
     await send(page)
     await expect(page.locator('.error-summary').getByRole('link')).toHaveText([
-      `${hello.fields.message}: ${hello.errors.message.too_long.replace('{max}', '2000')}`,
+      `${hello.fields.message}: ${en.forms.errors.text_too_long.replace('{max}', '2000')}`,
     ])
   })
 

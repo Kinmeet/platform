@@ -1,46 +1,42 @@
-import { toFieldErrors } from '#shared/forms/errors'
 import { CALL_NAME_MAX, EMAIL_MAX } from '#shared/forms/fields'
-import { HELLO_MESSAGE_MAX, helloSchema } from '#shared/forms/hello'
-import { TURNSTILE_FIELD, type ErrorMessage, type FieldError } from './apply-flow'
+import {
+  allFieldPaths,
+  createFormDraft,
+  draftErrors,
+  fieldAt,
+  shownFieldIds,
+  toRequestBody,
+  type FormDraft,
+  type PublicForm,
+} from '#shared/forms/view'
+import {
+  TURNSTILE_FIELD,
+  answerText,
+  isFieldError,
+  type ErrorMessage,
+  type FieldError,
+} from './apply-flow'
 
 /**
- * The logic half of say hello (#14): checking what was typed with the API's
- * own schema, what to send and how to read the reply (docs/api/forms.md,
+ * The logic half of a one-page form, such as say hello (#14, ADR-0010):
+ * checking what was typed with the API's own run-time schema for the stored
+ * version, what to send and how to read the reply (docs/api/forms.md,
  * section 1). Held in memory only, like the apply flow.
  */
-export interface HelloDraft {
-  /** Made once when the form loads and kept across retries, so a retry is never stored twice. */
-  submissionId: string
-  callName: string
-  email: string
-  message: string
-}
+export type HelloDraft = FormDraft
 
 export function createHelloDraft(id: string = crypto.randomUUID()): HelloDraft {
-  return { submissionId: id, callName: '', email: '', message: '' }
+  return createFormDraft(id)
 }
-
-// The typed fields of the API's schema, so the page and the server agree (#44).
-const typed = helloSchema.pick({ callName: true, email: true, message: true })
 
 /** Problems with what was typed, in the order the fields appear. */
-export function helloErrors(draft: HelloDraft): FieldError[] {
-  const value = { callName: draft.callName, email: draft.email, message: draft.message }
-  const result = typed.safeParse(value)
-  if (result.success) return []
-  const mapped = toFieldErrors(result.error.issues, value)
-  return mapped.ok ? mapped.errors : []
+export function helloErrors(draft: HelloDraft, form: PublicForm): FieldError[] {
+  return draftErrors(form, draft)
 }
 
-/** The body for `POST /api/hello`. The server trims text too. */
-export function toHelloRequest(draft: HelloDraft, turnstileToken: string) {
-  return {
-    submissionId: draft.submissionId,
-    callName: draft.callName.trim(),
-    email: draft.email.trim(),
-    message: draft.message.trim(),
-    turnstileToken,
-  }
+/** The body for `POST /api/<form>`. The server trims text too. */
+export function toHelloRequest(draft: HelloDraft, form: PublicForm, turnstileToken: string) {
+  return toRequestBody(form, draft, turnstileToken)
 }
 
 /** What the page should do with the API's reply. */
@@ -51,57 +47,87 @@ export type HelloOutcome =
   | { kind: 'rate_limited' }
   | { kind: 'failed' }
 
-const FIELDS = new Set(['callName', 'email', 'message'])
 // Codes a visitor can fix by changing what they typed. Anything else means
 // the page and the server disagree, so it's shown as a failed send.
-const FIXABLE = new Set(['required', 'too_long', 'invalid_email'])
+const FIXABLE = new Set(['required', 'too_long', 'invalid_email', 'invalid_choice'])
 
-export function readHelloResponse(status: number, body: unknown): HelloOutcome {
+export function readHelloResponse(status: number, body: unknown, form: PublicForm): HelloOutcome {
   if (status === 200 || status === 201) return { kind: 'sent' }
   const reply = (typeof body === 'object' && body !== null ? body : {}) as Record<string, unknown>
-  const errors = Array.isArray(reply.errors)
-    ? reply.errors.filter(
-        (error): error is FieldError =>
-          typeof error?.field === 'string' && typeof error?.code === 'string',
-      )
-    : []
+  const errors = Array.isArray(reply.errors) ? reply.errors.filter(isFieldError) : []
   if (status === 403 && errors.some((error) => error.code === 'turnstile_failed')) {
     return { kind: 'turnstile_failed' }
   }
   if (status === 429) return { kind: 'rate_limited' }
+  const known = allFieldPaths(form.definition)
   if (
     status === 422 &&
     errors.length > 0 &&
-    errors.every((error) => FIELDS.has(error.field) && FIXABLE.has(error.code))
+    errors.every((error) => known.includes(error.field) && FIXABLE.has(error.code))
   ) {
     return { kind: 'invalid', errors }
   }
   return { kind: 'failed' }
 }
 
-/** The wording for a field error, and the field's short name for the error summary. */
-export function helloErrorMessage(error: FieldError): ErrorMessage {
+/**
+ * The wording for a field error, and the field's short name for the error
+ * summary. "About you" keeps say hello's own messages; a stored field gets
+ * the fixed message for its type, and admins never write error text.
+ */
+export function helloErrorMessage(error: FieldError, form: PublicForm): ErrorMessage {
   if (error.field === TURNSTILE_FIELD) {
-    return { key: 'forms.turnstile.failed', params: {}, questionKey: 'hello.fields.spam_check' }
+    return {
+      key: 'forms.turnstile.failed',
+      params: {},
+      question: { key: 'hello.fields.spam_check' },
+    }
   }
-  const max = { callName: CALL_NAME_MAX, email: EMAIL_MAX, message: HELLO_MESSAGE_MAX }[
-    error.field as 'callName' | 'email' | 'message'
-  ]
-  return {
-    key: `hello.errors.${error.field}.${error.code}`,
-    params: error.code === 'too_long' ? { max } : {},
-    questionKey: `hello.fields.${error.field}`,
+  const field = fieldAt(form.definition, error.field)
+  const max = (name: 'callName' | 'email') => (name === 'email' ? EMAIL_MAX : CALL_NAME_MAX)
+  if (!field) {
+    const name = error.field as 'callName' | 'email'
+    return {
+      key: `hello.errors.${name}.${error.code}`,
+      params: error.code === 'too_long' ? { max: max(name) } : {},
+      question: { key: `hello.fields.${name}` },
+    }
+  }
+  const question = { text: form.text[`fields.${field.id}.summary`] ?? '' }
+  switch (field.type) {
+    case 'confirm':
+      return { key: 'forms.errors.confirm_required', params: {}, question }
+    case 'single_choice':
+      return { key: 'forms.errors.choice_required', params: {}, question }
+    case 'email':
+    case 'call_name': {
+      const name = field.type === 'email' ? 'email' : 'callName'
+      return {
+        key: `hello.errors.${name}.${error.code}`,
+        params: error.code === 'too_long' ? { max: max(name) } : {},
+        question,
+      }
+    }
+    default:
+      return error.code === 'too_long'
+        ? { key: 'forms.errors.text_too_long', params: { max: field.maxLength }, question }
+        : { key: 'forms.errors.text_required', params: {}, question }
   }
 }
 
 type Translate = (key: string, params?: Record<string, unknown>) => string
 
 /** What was typed, as plain text, for "Copy my message" when a send fails. */
-export function helloText(draft: HelloDraft, t: Translate): string {
+export function helloText(draft: HelloDraft, form: PublicForm, t: Translate): string {
+  const shown = shownFieldIds(form.definition, draft.values)
+  const answers = form.definition.steps
+    .flatMap((step) => step.fields)
+    .filter((field) => shown.has(field.id))
+    .map((field) => answerText(form, field.id, draft.values[field.id]) ?? '')
   return [
     `${t('hello.fields.callName')}: ${draft.callName.trim()}`,
     `${t('hello.fields.email')}: ${draft.email.trim()}`,
     '',
-    draft.message.trim(),
+    ...answers,
   ].join('\n')
 }

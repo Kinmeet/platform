@@ -1,24 +1,25 @@
 <script setup lang="ts">
 // The phone progress line and bar (#15). The bar repeats the words, so it is
 // hidden from screen readers. Desktop shows ApplySteps instead.
-defineProps<{ step: Step }>()
+const props = defineProps<{ step: Step; titles: readonly string[] }>()
 const { t } = useI18n()
+const title = computed(() => props.titles[props.step - 1] ?? '')
 </script>
 
 <template>
   <div class="apply-progress">
     <p class="apply-progress__label">
-      {{ t('apply.progress', { step, title: t(`apply.steps.${step}`) }) }}
+      {{ t('apply.progress', { step, count: titles.length, title }) }}
     </p>
     <div class="apply-progress__bar" aria-hidden="true">
       <span
-        v-for="n in STEPS"
-        :key="n"
+        v-for="(_, index) in titles"
+        :key="index"
         :class="[
           'apply-progress__segment',
           {
-            'apply-progress__segment--done': n < step,
-            'apply-progress__segment--current': n === step,
+            'apply-progress__segment--done': index + 1 < step,
+            'apply-progress__segment--current': index + 1 === step,
           },
         ]"
       />

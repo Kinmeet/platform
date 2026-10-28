@@ -131,7 +131,7 @@ describe('POST /api/apply', () => {
     )
     expect(row).toMatchObject({
       form_slug: 'trustee',
-      version: 1,
+      version: 2, // the trustee form is on version 2 since 0007
       call_name: 'Sample Applicant',
       email: 'sample.applicant@example.org',
       replied_at: null,

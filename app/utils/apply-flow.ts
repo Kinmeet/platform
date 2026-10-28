@@ -1,33 +1,33 @@
-import { z } from 'zod'
-import { toFieldErrors } from '#shared/forms/errors'
+import { CALL_NAME_MAX, EMAIL_MAX } from '#shared/forms/fields'
+import type { StopReason } from '#shared/forms/definition'
 import {
-  CALL_NAME_MAX,
-  EMAIL_MAX,
-  callName,
-  codePointLength,
-  email,
-  text,
-} from '#shared/forms/fields'
-import { roleKey, type PublishedRole, type StopReason } from '#shared/forms/roles'
+  allFieldPaths,
+  clearFormDraft,
+  createFormDraft,
+  draftErrors,
+  fieldAt,
+  flowFieldPaths,
+  flowSteps,
+  shownFieldIds,
+  stopReasonOf,
+  toRequestBody,
+  type FlowStep,
+  type FormDraft,
+  type PublicForm,
+} from '#shared/forms/view'
 
 /**
- * The logic half of the apply flow (#21): what has been answered, which step
- * may be shown, what to send and how to read the reply. The step pages (#15)
- * keep a draft in memory only and call these. Nothing here touches storage.
+ * The logic half of a multi-step form, such as a role application (#21,
+ * ADR-0010): what has been answered, which step may be shown, what to send
+ * and how to read the reply. Every step comes from the stored version
+ * (`GET /api/forms/<slug>`). The step pages keep a draft in memory only and
+ * call these. Nothing here touches storage.
  */
 
-export const STEPS = [1, 2, 3, 4] as const
-export type Step = (typeof STEPS)[number]
+/** A step number, from 1. */
+export type Step = number
 
-export interface ApplicationDraft {
-  role: string
-  /** Made once when the flow starts and sent with every attempt (contract). */
-  submissionId: string
-  checks: Record<string, string>
-  callName: string
-  email: string
-  answers: Record<string, string>
-}
+export type ApplicationDraft = FormDraft
 
 /** A problem with one field, named as the API names it. */
 export interface FieldError {
@@ -36,104 +36,70 @@ export interface FieldError {
 }
 
 export function createDraft(
-  role: PublishedRole,
+  _form: PublicForm,
   submissionId: string = crypto.randomUUID(),
 ): ApplicationDraft {
-  return { role: role.slug, submissionId, checks: {}, callName: '', email: '', answers: {} }
+  return createFormDraft(submissionId)
 }
 
 /**
  * Empties a draft, for Leave and after a successful send. It gets a new
  * submission id, because the contract keeps one id until a send succeeds.
  */
-export function clearDraft(
-  draft: ApplicationDraft,
-  submissionId: string = crypto.randomUUID(),
-): void {
-  draft.submissionId = submissionId
-  draft.checks = {}
-  draft.callName = ''
-  draft.email = ''
-  draft.answers = {}
+export const clearDraft = clearFormDraft
+
+/** The form's pages, in order: its steps, "About you", then "Check and send". */
+export function stepsOf(form: PublicForm): FlowStep[] {
+  return flowSteps(form.definition)
 }
 
-/** The reason the flow must stop at step 1, if a check answer stops it. */
-export function stopReason(draft: ApplicationDraft, role: PublishedRole): StopReason | undefined {
-  for (const check of role.apply.checks) {
-    if (check.type !== 'single_choice' || !check.outcomes) continue
-    const answer = draft.checks[check.id]
-    const outcome = answer ? check.outcomes[answer] : undefined
-    if (outcome && 'stop' in outcome) return outcome.stop
-  }
-  return undefined
+/** The page a step number shows. */
+export function flowStepAt(form: PublicForm, step: Step): FlowStep {
+  const steps = stepsOf(form)
+  return steps[Math.min(Math.max(step, 1), steps.length) - 1]!
 }
 
-// Step 2's fields, checked with the same schemas as the API (#44).
-const aboutYou = z.object({ callName, email })
-
-/** An optional answer: empty is fine, otherwise the same rule as a required one. */
-function optionalText(max: number) {
-  return z
-    .string()
-    .trim()
-    .refine((value) => codePointLength(value) <= max, { params: { code: 'too_long' } })
+/** The reason the flow must stop, if a shown answer stops it. */
+export function stopReason(draft: ApplicationDraft, form: PublicForm): StopReason | undefined {
+  return stopReasonOf(form.definition, draft.values)
 }
 
-/** The schema's problems as field errors, in field order. */
-function schemaErrors(schema: z.ZodType, value: unknown): FieldError[] {
-  const result = schema.safeParse(value)
-  if (result.success) return []
-  const mapped = toFieldErrors(result.error.issues, value)
-  return mapped.ok ? mapped.errors : []
+/** The step that holds the answer that stops the flow. */
+function stopStep(draft: ApplicationDraft, form: PublicForm): Step | undefined {
+  if (!stopReason(draft, form)) return undefined
+  const steps = stepsOf(form)
+  const index = steps.findIndex(
+    (flow) =>
+      flow.kind === 'fields' &&
+      flow.step.fields.some((field) => {
+        if (field.type !== 'single_choice') return false
+        const answer = draft.values[field.id]
+        const outcome = answer ? field.outcomes?.[answer] : undefined
+        return outcome !== undefined && 'stop' in outcome
+      }),
+  )
+  return index + 1
 }
 
 /** Problems with one step's answers, in the order the fields appear. */
-export function stepErrors(draft: ApplicationDraft, role: PublishedRole, step: Step): FieldError[] {
-  const errors: FieldError[] = []
-  if (step === 1) {
-    for (const check of role.apply.checks) {
-      const answer = draft.checks[check.id]
-      const field = `checks.${check.id}`
-      if (!answer) errors.push({ field, code: 'required' })
-      else if (!(check.choices as readonly string[]).includes(answer)) {
-        errors.push({ field, code: 'invalid_choice' })
-      }
-    }
-  }
-  if (step === 2) errors.push(...schemaErrors(aboutYou, draft))
-  if (step === 3) {
-    // The server's own rules (#44), so the page and the API never disagree.
-    const answers = z.object(
-      Object.fromEntries(
-        role.apply.questions.map((question) => [
-          question.id,
-          question.required ? text(question.maxLength) : optionalText(question.maxLength),
-        ]),
-      ),
-    )
-    const values = Object.fromEntries(
-      role.apply.questions.map((question) => [question.id, draft.answers[question.id] ?? '']),
-    )
-    errors.push(
-      ...schemaErrors(answers, values).map((error) => ({
-        ...error,
-        field: `answers.${error.field}`,
-      })),
-    )
-  }
-  return errors
+export function stepErrors(draft: ApplicationDraft, form: PublicForm, step: Step): FieldError[] {
+  const paths = flowFieldPaths(flowStepAt(form, step))
+  return paths.length ? draftErrors(form, draft, paths) : []
 }
 
 /**
  * The furthest step that may be shown: the first one not yet complete, or
- * step 4 once all are. A stopped flow never gets past step 1.
+ * "Check and send" once all are. A stopped flow never gets past the step
+ * with the answer that stops it.
  */
-export function furthestStep(draft: ApplicationDraft, role: PublishedRole): Step {
-  if (stopReason(draft, role)) return 1
-  for (const step of [1, 2, 3] as const) {
-    if (stepErrors(draft, role, step).length > 0) return step
+export function furthestStep(draft: ApplicationDraft, form: PublicForm): Step {
+  const stopped = stopStep(draft, form)
+  if (stopped) return stopped
+  const count = stepsOf(form).length
+  for (let step = 1; step < count; step++) {
+    if (stepErrors(draft, form, step).length > 0) return step
   }
-  return 4
+  return count
 }
 
 /**
@@ -141,15 +107,12 @@ export function furthestStep(draft: ApplicationDraft, role: PublishedRole): Step
  * the earlier ones are done, for example by typing `?step=4`. A reload starts
  * again at step 1, because the draft lives only in memory.
  */
-export function allowedStep(
-  requested: unknown,
-  draft: ApplicationDraft,
-  role: PublishedRole,
-): Step {
+export function allowedStep(requested: unknown, draft: ApplicationDraft, form: PublicForm): Step {
   // Only a plain string counts: `?step=2&step=2` arrives as an array.
   const asked = typeof requested === 'string' && requested !== '' ? Number(requested) : 1
-  const step: Step = (STEPS as readonly number[]).includes(asked) ? (asked as Step) : 1
-  return Math.min(step, furthestStep(draft, role)) as Step
+  const count = stepsOf(form).length
+  const step = Number.isInteger(asked) && asked >= 1 && asked <= count ? asked : 1
+  return Math.min(step, furthestStep(draft, form))
 }
 
 /**
@@ -163,45 +126,26 @@ export type RedirectReason = 'restarted' | 'earlier_step'
 export function redirectReason(
   requested: unknown,
   draft: ApplicationDraft,
-  role: PublishedRole,
+  form: PublicForm,
 ): RedirectReason | undefined {
-  const allowed = allowedStep(requested, draft, role)
+  const allowed = allowedStep(requested, draft, form)
   if (requested === undefined || String(requested) === String(allowed)) return undefined
-  if (stopReason(draft, role)) return undefined
-  return furthestStep(draft, role) === 1 && Object.keys(draft.checks).length === 0
-    ? 'restarted'
-    : 'earlier_step'
+  if (stopReason(draft, form)) return undefined
+  const nothing =
+    !draft.callName && !draft.email && Object.values(draft.values).every((value) => !value)
+  return furthestStep(draft, form) === 1 && nothing ? 'restarted' : 'earlier_step'
 }
 
 /** The step that holds a field, so a server error can send the visitor back to it. */
-export function stepForField(field: string): Step {
-  if (field.startsWith('checks.')) return 1
-  if (field === 'callName' || field === 'email') return 2
-  if (field.startsWith('answers.')) return 3
-  return 4
+export function stepForField(field: string, form: PublicForm): Step {
+  const steps = stepsOf(form)
+  const index = steps.findIndex((flow) => flowFieldPaths(flow).includes(field))
+  return index === -1 ? steps.length : index + 1
 }
 
-/** The body for `POST /api/apply`. Text is trimmed; empty optional answers are left out. */
-export function toRequest(draft: ApplicationDraft, role: PublishedRole, turnstileToken: string) {
-  const checks: Record<string, string> = {}
-  for (const check of role.apply.checks) {
-    const answer = draft.checks[check.id]
-    if (answer) checks[check.id] = answer
-  }
-  const answers: Record<string, string> = {}
-  for (const question of role.apply.questions) {
-    const answer = (draft.answers[question.id] ?? '').trim()
-    if (answer) answers[question.id] = answer
-  }
-  return {
-    submissionId: draft.submissionId,
-    role: draft.role,
-    checks,
-    callName: draft.callName.trim(),
-    email: draft.email.trim(),
-    answers,
-    turnstileToken,
-  }
+/** The body for `POST /api/apply`. Text is trimmed; empty and hidden answers are left out. */
+export function toRequest(draft: ApplicationDraft, form: PublicForm, turnstileToken: string) {
+  return toRequestBody(form, draft, turnstileToken)
 }
 
 /** The request field for the spam check token, which the server names in its 403. */
@@ -213,10 +157,10 @@ export const TURNSTILE_FIELD = 'turnstileToken'
  */
 export type SendProblem = 'unavailable' | 'rate_limited' | 'spam_check'
 
-/** What the page should do with the API's reply (docs/api/forms.md, "Responses"). */
 /** Whether Services queued the receipt email (docs/api/forms.md). */
 export type Receipt = 'queued' | 'not_requested'
 
+/** What the page should do with the API's reply (docs/api/forms.md, "Responses"). */
 export type SendOutcome =
   | { kind: 'sent'; receipt: Receipt }
   /** Show the error summary on the earliest step with a problem, with that step's errors only; keep every answer. */
@@ -235,13 +179,13 @@ export type SendOutcome =
 const FIXABLE = new Set(['required', 'too_long', 'invalid_email', 'invalid_choice'])
 const STOPS = new Set<string>(['under_18', 'not_independent'])
 
-function isFieldError(value: unknown): value is FieldError {
+export function isFieldError(value: unknown): value is FieldError {
   if (typeof value !== 'object' || value === null) return false
   const { field, code } = value as Record<string, unknown>
   return typeof field === 'string' && typeof code === 'string'
 }
 
-export function readSendResponse(status: number, body: unknown): SendOutcome {
+export function readSendResponse(status: number, body: unknown, form: PublicForm): SendOutcome {
   const reply = (typeof body === 'object' && body !== null ? body : {}) as Record<string, unknown>
   // Only claim a receipt was emailed when the server says so.
   if (status === 200 || status === 201) {
@@ -260,103 +204,145 @@ export function readSendResponse(status: number, body: unknown): SendOutcome {
   if (status === 422 && errors.length > 0) {
     const stop = errors.find((error) => STOPS.has(error.code))
     if (stop) return { kind: 'stopped', reason: stop.code as StopReason }
-    if (errors.every((error) => FIXABLE.has(error.code))) {
+    const known = allFieldPaths(form.definition)
+    if (errors.every((error) => FIXABLE.has(error.code) && known.includes(error.field))) {
       // Only the errors on that step: each summary item must link to a field
       // on the page being shown. Later ones are caught again further on.
-      const step = Math.min(...errors.map((error) => stepForField(error.field))) as Step
+      const step = Math.min(...errors.map((error) => stepForField(error.field, form)))
       return {
         kind: 'invalid',
         step,
-        errors: errors.filter((error) => stepForField(error.field) === step),
+        errors: errors.filter((error) => stepForField(error.field, form) === step),
       }
     }
   }
   return { kind: 'failed' }
 }
 
+/** A question's short name for the error summary: fixed copy, or the version's own words. */
+export type QuestionName = { key: string } | { text: string }
+
 /** How to word one field error: the message and, for the error summary, its question. */
 export interface ErrorMessage {
-  /** The message under the field, under `apply.errors`. */
+  /** The message under the field, from the fixed copy. Admins never write error text. */
   key: string
   params: Record<string, number>
-  /** The question's short label, for `apply.errors.summary_item`. */
-  questionKey: string
+  /** The question's short name, for `apply.errors.summary_item`. */
+  question: QuestionName
 }
 
 /**
- * The wording for a field error. Step 1 and step 3 messages are shared by
- * type, so the error summary names the question in each item (Robin, #78):
- * `t('apply.errors.summary_item', { question: t(questionKey), message: t(key, params) })`.
+ * The wording for a field error on an application. Messages are fixed and
+ * shared by field type, so the error summary names the question in each
+ * item (Robin, #78), with the field's own summary from the version:
+ * `t('apply.errors.summary_item', { question, message: t(key, params) })`.
  */
-export function errorMessage(error: FieldError, role: PublishedRole): ErrorMessage {
-  const id = error.field.slice(error.field.indexOf('.') + 1)
-  const questionKey = `${roleKey(role.slug)}.questions.${id}.summary`
-  if (error.field.startsWith('checks.')) {
-    const check = role.apply.checks.find((item) => item.id === id)
-    return {
-      key:
-        check?.type === 'confirm'
-          ? 'apply.errors.confirm_required'
-          : 'apply.errors.choice_required',
-      params: {},
-      questionKey,
-    }
-  }
-  if (error.field.startsWith('answers.')) {
-    const question = role.apply.questions.find((item) => item.id === id)
-    return error.code === 'too_long'
-      ? {
-          key: 'apply.errors.answer_too_long',
-          params: { max: question?.maxLength ?? 0 },
-          questionKey,
-        }
-      : { key: 'apply.errors.answer_required', params: {}, questionKey }
-  }
+export function errorMessage(error: FieldError, form: PublicForm): ErrorMessage {
   // The spam check isn't a question; its summary item links to Send (#17).
   if (error.field === TURNSTILE_FIELD) {
-    return { key: 'forms.turnstile.failed', params: {}, questionKey: 'apply.fields.spam_check' }
+    return {
+      key: 'forms.turnstile.failed',
+      params: {},
+      question: { key: 'apply.fields.spam_check' },
+    }
   }
-  const params: Record<string, number> =
-    error.code === 'too_long' ? { max: error.field === 'email' ? EMAIL_MAX : CALL_NAME_MAX } : {}
-  return {
-    key: `apply.errors.${error.field}.${error.code}`,
-    params,
-    questionKey: `apply.fields.${error.field}`,
+  const field = fieldAt(form.definition, error.field)
+  if (!field) {
+    const params: Record<string, number> =
+      error.code === 'too_long' ? { max: error.field === 'email' ? EMAIL_MAX : CALL_NAME_MAX } : {}
+    return {
+      key: `apply.errors.${error.field}.${error.code}`,
+      params,
+      question: { key: `apply.fields.${error.field}` },
+    }
+  }
+  const question = { text: form.text[`fields.${field.id}.summary`] ?? '' }
+  switch (field.type) {
+    case 'confirm':
+      return { key: 'apply.errors.confirm_required', params: {}, question }
+    case 'single_choice':
+      return { key: 'apply.errors.choice_required', params: {}, question }
+    case 'email':
+    case 'call_name': {
+      const name = field.type === 'email' ? 'email' : 'callName'
+      return {
+        key: `apply.errors.${name}.${error.code}`,
+        params:
+          error.code === 'too_long'
+            ? { max: field.type === 'email' ? EMAIL_MAX : CALL_NAME_MAX }
+            : {},
+        question,
+      }
+    }
+    default:
+      return error.code === 'too_long'
+        ? { key: 'apply.errors.answer_too_long', params: { max: field.maxLength }, question }
+        : { key: 'apply.errors.answer_required', params: {}, question }
   }
 }
 
 type Translate = (key: string, params?: Record<string, unknown>) => string
+
+/** The words for a fixed key or a version's own words. */
+export function questionText(question: QuestionName, t: Translate): string {
+  return 'text' in question ? question.text : t(question.key)
+}
+
+/** A step's heading (Robin, #158): fixed for checks, "About you", answers and "Check and send". */
+export function stepTitle(form: PublicForm, flow: FlowStep, t: Translate): string {
+  if (flow.kind === 'about_you') return t('apply.steps.2')
+  if (flow.kind === 'check') return t('apply.steps.4')
+  if (flow.step.body === 'checks') return t('apply.steps.1')
+  if (flow.step.body === 'answers') return t('apply.steps.3')
+  return form.text[`steps.${flow.step.id}.heading`] ?? form.text.title ?? ''
+}
+
+/** The words for one answer, as Check and send shows it, or undefined if there's none. */
+export function answerText(form: PublicForm, id: string, answer: string | undefined) {
+  const value = answer?.trim()
+  if (!value) return undefined
+  const field = findField(form, id)
+  if (field?.type === 'single_choice' || field?.type === 'confirm') {
+    return form.text[`fields.${id}.choices.${value}`] ?? value
+  }
+  return value
+}
+
+function findField(form: PublicForm, id: string) {
+  for (const step of form.definition.steps) {
+    const field = step.fields.find((item) => item.id === id)
+    if (field) return field
+  }
+  return undefined
+}
 
 /**
  * Every answer as plain text, for "Copy my answers" when a send fails (#17).
  * Laid out like Check and send, so it reads well pasted into a note or an
  * email. It names no Kinmeet address: there's no domain yet.
  */
-export function answersText(draft: ApplicationDraft, role: PublishedRole, t: Translate): string {
-  const key = roleKey(role.slug)
+export function answersText(draft: ApplicationDraft, form: PublicForm, t: Translate): string {
   const none = t('apply.no_answer')
   const line = (label: string, value: string | undefined) => `${label}: ${value?.trim() || none}`
-  const checks = role.apply.checks.map((check) => {
-    const answer = draft.checks[check.id]
-    return line(
-      t(`${key}.questions.${check.id}.summary`),
-      answer ? t(`${key}.questions.${check.id}.choices.${answer}`) : undefined,
-    )
-  })
-  const answers = role.apply.questions.map((question) =>
-    line(t(`${key}.questions.${question.id}.summary`), draft.answers[question.id]),
-  )
-  return [
-    t('apply.applying_for', { role: t(`${key}.title`) }),
-    '',
-    t('apply.steps.1'),
-    ...checks,
-    '',
-    t('apply.steps.2'),
-    line(t('apply.fields.callName'), draft.callName),
-    line(t('apply.fields.email'), draft.email),
-    '',
-    t('apply.steps.3'),
-    ...answers,
-  ].join('\n')
+  const shown = shownFieldIds(form.definition, draft.values)
+  const lines = [t('apply.applying_for', { role: form.text.title ?? '' })]
+  for (const flow of stepsOf(form)) {
+    if (flow.kind === 'check') continue
+    lines.push('', stepTitle(form, flow, t))
+    if (flow.kind === 'about_you') {
+      lines.push(line(t('apply.fields.callName'), draft.callName))
+      lines.push(line(t('apply.fields.email'), draft.email))
+      continue
+    }
+    for (const field of flow.step.fields) {
+      if (!shown.has(field.id)) continue
+      lines.push(
+        line(
+          form.text[`fields.${field.id}.summary`] ?? field.id,
+          answerText(form, field.id, draft.values[field.id]),
+        ),
+      )
+    }
+  }
+  return lines.join('\n')
 }
