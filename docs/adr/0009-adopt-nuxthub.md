@@ -1,6 +1,6 @@
 # ADR-0009: Adopt NuxtHub, keeping our Worker entry, environments and migrations
 
-- **Status:** Proposed
+- **Status:** Accepted (27 October 2026, on the founder's decision to adopt NuxtHub; merged in #114)
 - **Date:** 27 October 2026
 - **Author:** Priya Nandakumar (Engineering Manager)
 - **Reviewers:** Theo Marsh (Tech Lead), Jun Okafor (DevOps Engineer), Nadia Haddad (Security Reviewer), Ines Duarte (Research Scout)

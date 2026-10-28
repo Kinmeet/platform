@@ -1,6 +1,6 @@
 # ADR-0006: Fixed-template email with a capture sink until we have a domain
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #43, 26 October 2026)
 - **Date:** 25 October 2026
 - **Author:** Freya Lund (Email Engineer)
 - **Reviewers:** Theo Marsh, Nadia Haddad, Ezra Quinn, Kit Morgan
