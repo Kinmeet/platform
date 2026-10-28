@@ -58,11 +58,11 @@ Whichever renderer is chosen, the axe scan in `tests/e2e/` covers every route. T
 7. with reduced motion on, nothing animates or smooth-scrolls;
 8. the Turnstile failed and unavailable paths reach the summary (#17).
 
-The field-type allow-list in the sketch below differs from the fixed type library in the ADR-0010 input. ADR-0010 should settle one list. A date field needs day, month and year inputs in a `fieldset`, not a native picker.
+ADR-0010 settled the list: exactly six types (`short_text`, `long_text`, `email`, `call_name`, `single_choice`, `confirm`). The sketch's multiple choice, yes or no, date and consent are not in it. Any new type needs its own decision. If a date field is ever added, it needs day, month and year inputs in a `fieldset`, not a native picker.
 
 ## A shape for ADR-0010 to consider
 
-This is a sketch written before the decision, kept for the record. **Build from [ADR-0010](https://github.com/Kinmeet/platform/pull/154), not from this sketch.** In particular, a form does not set its own retention: it names a reviewed P3 purpose from code, and any purpose that allows free text forces the SG6 hand-over.
+This is a sketch written before the decision, kept for the record. **Build from [ADR-0010](../adr/0010-generic-forms-and-mail.md), not from this sketch.** In particular, a form does not set its own retention: it names a reviewed P3 purpose from code, and any purpose that allows free text forces the SG6 hand-over.
 
 - **`form_definitions`**: id, slug, status (draft, published, closed), version, and `definition` (JSON). A published version never changes; editing creates a new version, and each submission records the version it answered.
 - **The definition** is validated on save by a Zod "meta-schema". It holds:
