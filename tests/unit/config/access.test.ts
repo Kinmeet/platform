@@ -23,13 +23,14 @@ const levels: [string, Level | undefined][] = Object.entries(config.env).flatMap
 
 describe('Access settings for the admin guard', () => {
   it('cover the deployed environments we expect', () => {
+    // Remove `staging` and `staging Previews` here when the old staging
+    // Worker is retired (docs/deploys.md, step 6).
     expect(levels.map(([name]) => name)).toEqual(
       expect.arrayContaining(['live', 'live Previews', 'staging', 'staging Previews']),
     )
   })
 
   it.each(levels)('are set in %s', (_name, level) => {
-    expect(level?.vars?.ACCESS_TEAM_DOMAIN).toMatch(/^[a-z0-9-]+\.cloudflareaccess\.com$/)
     expect(level?.vars?.ACCESS_TEAM_DOMAIN).toBe('kinmeet.cloudflareaccess.com')
     expect(level?.vars?.ACCESS_AUD).toMatch(/^[0-9a-f]{64}$/)
   })
