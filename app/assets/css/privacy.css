@@ -73,6 +73,10 @@
     display: block;
     font-weight: 700;
     content: attr(data-label);
+    /* Empty alternative text, so a screen reader doesn't read the label as
+       well as the column header (Robin, #146). The line above is the
+       fallback where the syntax isn't supported. */
+    content: attr(data-label) / '';
   }
 }
 
