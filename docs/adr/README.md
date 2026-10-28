@@ -24,11 +24,12 @@ Do not write one for choices already made in the F, SG, S and P documents. Link 
 
 | Number                                         | Title                                                                | Status   |
 | ---------------------------------------------- | -------------------------------------------------------------------- | -------- |
-| [0001](0001-deploys-with-workers-builds.md)    | Deploys with Workers Builds and Worker Previews                      | Proposed |
+| [0001](0001-deploys-with-workers-builds.md)    | Deploys with Workers Builds and Worker Previews                      | Accepted |
 | [0002](0002-project-structure.md)              | Project structure                                                    | Accepted |
 | [0003](0003-bun-for-installs-and-scripts.md)   | Bun for installs and scripts                                         | Accepted |
 | [0004](0004-nonce-based-csp.md)                | Nonce-based CSP for Nuxt's inline scripts                            | Proposed |
-| [0006](0006-email-sending.md)                  | Fixed-template email with a capture sink until we have a domain      | Proposed |
+| [0005](0005-form-validation-with-zod.md)       | Form validation with Zod                                             | Accepted |
+| [0006](0006-email-sending.md)                  | Fixed-template email with a capture sink until we have a domain      | Accepted |
 | [0007](0007-self-hosted-fonts.md)              | Self-hosted fonts from Fontsource                                    | Accepted |
-| [0008](0008-worker-entry-in-front-of-nitro.md) | A Worker entry in front of Nitro for request body limits             | Proposed |
-| [0009](0009-adopt-nuxthub.md)                  | Adopt NuxtHub, keeping our Worker entry, environments and migrations | Proposed |
+| [0008](0008-worker-entry-in-front-of-nitro.md) | A Worker entry in front of Nitro for request body limits             | Accepted |
+| [0009](0009-adopt-nuxthub.md)                  | Adopt NuxtHub, keeping our Worker entry, environments and migrations | Accepted |

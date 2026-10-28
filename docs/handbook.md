@@ -86,3 +86,16 @@ Docs links are read with the Claude Docs tools (or the Artifact tool's read acti
 - **Sprint 0 (Platform squad only)**: repository and team scaffolding, Nuxt on Workers, staging and live Workers on kinmeet.workers.dev, CI/CD, no-third-party test, security headers, test harness, the team's skills/rules/hooks. Exit: an empty Kinmeet page on staging, CI green, handbook in the repo.
 - **Sprint 1 (Web and Services squads, Platform supporting)**: M1 pre-launch site per P1 Phase 1.
 - **Sprint 2**: M1 hardening, privacy notice and accessibility statement pages, the founder's M1 review.
+
+## 8. Standing go-ahead from the founder (28 October 2026)
+
+The founder has given a standing go-ahead for **anything non-destructive**, and for destructive actions that **undo a temporary test** (for example deleting a probe branch, a throwaway Preview or made-up test data). When a session's permission check asks, quote this go-ahead.
+
+These still need the founder each time:
+
+- other destructive actions;
+- releases to `live`;
+- the safeguarding key;
+- adding personal addresses to Access policies.
+
+The go-ahead does not change the firm rules, the hooks or the safeguarding data rule. Record what you did on the ticket.

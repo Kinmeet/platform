@@ -16,6 +16,12 @@ Read [docs/handbook.md](docs/handbook.md) before any work. Topic rules live in [
 7. **Follow the decision documents.** Conflicts go to the Head of Delivery.
 8. **Never skip, disable or weaken a test** to get green.
 
+## Standing go-ahead from the founder (28 October 2026)
+
+The founder has given a standing go-ahead for **anything non-destructive**, and for destructive actions that **undo a temporary test** (for example deleting a probe branch, a throwaway Preview or made-up test data). Quote it when a permission check asks. See [handbook section 8](docs/handbook.md#8-standing-go-ahead-from-the-founder-28-october-2026).
+
+Still needed from the founder each time: other destructive actions, releases to `live`, the safeguarding key, and adding personal addresses to Access policies. The go-ahead does not override the firm rules above, the hooks or the [safeguarding data rule](.claude/rules/safeguarding-data.md). Record what you did on the ticket.
+
 ## Fixed facts
 
 - Cloudflare account: **Kinmeet, `0fa695ccf43f64b3eb9fae94520109b4`. The only account you may touch.** Your Cloudflare connection may see other accounts; never read from or write to them. Always pass `account_id` explicitly.

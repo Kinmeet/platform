@@ -23,15 +23,25 @@ jobs:
     strategy:
       matrix:
         include:
-          - worker: kinmeet-staging
-            branch: main
-          - worker: kinmeet-live
+          # The `platform` Worker's production, built from `live` (#115).
+          # Its Previews, staging included, sit behind Cloudflare Access, so
+          # a runner can't load them.
+          - worker: platform
             branch: live
+            url: https://platform.kinmeet.workers.dev
+          # The old Workers, until the founder retires them (docs/deploys.md).
+          - worker: platform-staging
+            branch: main
+            url: https://platform-staging.kinmeet.workers.dev
+          - worker: platform-live
+            branch: live
+            url: https://platform-live.kinmeet.workers.dev
     steps:
       - name: Skip builds for other Workers or branches
         id: match
         run: |
-          if [[ "$CHECK_NAME" == *"$WORKER"* && "$HEAD_BRANCH" == "$BRANCH" ]]; then
+          # Workers Builds names its check run "Workers Builds: <Worker>".
+          if [[ "$CHECK_NAME" == "Workers Builds: $WORKER" && "$HEAD_BRANCH" == "$BRANCH" ]]; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
             echo "Not a $WORKER build of $BRANCH: $CHECK_NAME on $HEAD_BRANCH"
@@ -46,6 +56,6 @@ jobs:
         with:
           persist-credentials: false
       - if: steps.match.outputs.run == 'true'
-        run: scripts/check-deployed.sh "https://${WORKER}.kinmeet.workers.dev"
+        run: scripts/check-deployed.sh "$URL"
         env:
-          WORKER: ${{ matrix.worker }}
+          URL: ${{ matrix.url }}

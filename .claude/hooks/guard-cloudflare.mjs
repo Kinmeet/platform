@@ -2,9 +2,11 @@
 // tool and the older Workers Bindings D1 tools). Blocks any call that touches
 // the encrypted safeguarding table or handles the safeguarding key outside the
 // staging Worker (#89, #109), any Time Travel restore of a live database,
+// any D1 call that would copy or change live personal data (#111),
 // and any D1 tool call or D1 API path on a
 // database id that is not a literal main `DB` id in wrangler.jsonc.
 // Exit code 2 blocks the tool call.
+import { LIVE_DATA_MESSAGE, liveD1ApiReason, liveD1ToolReason } from './lib/live-data.mjs'
 import { block, runGuard } from './lib/patterns.mjs'
 import {
   SAFEGUARDING_MESSAGE,
@@ -27,6 +29,12 @@ await runGuard(async (input) => {
         `records. ${SAFEGUARDING_MESSAGE}`,
     )
   }
+
+  // Live data stays on Cloudflare: only live metadata may be read (#111).
+  const liveReason =
+    liveD1ToolReason(toolName, toolInput, projectDir) ??
+    liveD1ApiReason(JSON.stringify(toolInput), projectDir)
+  if (liveReason) block(`this Cloudflare call is not allowed: ${liveReason}. ${LIVE_DATA_MESSAGE}`)
 
   // The D1 tools take a bare database id, so allow only ids we know are main databases.
   if (/d1_database/i.test(toolName) && toolInput.database_id) {
