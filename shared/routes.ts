@@ -35,9 +35,9 @@ export interface DraftablePage {
 
 /**
  * Every draftable page, in the order its route is listed. A new one needs its
- * file in `shared/pages/` and one line here, and nothing else in this file,
- * so two draft-page PRs no longer conflict (#149). A unit test checks that
- * every page in `shared/pages/` is listed:
+ * file in `shared/pages/`, plus its import and one line here, and nothing
+ * else in this file, so two draft-page PRs no longer conflict (#149). A unit
+ * test checks that every page in `shared/pages/` is listed:
  * - the all-ages promise (#77), once its copy is agreed;
  * - the privacy notice (#144) and the accessibility statement (#145), once
  *   the founder's M1 review has agreed them.
