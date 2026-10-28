@@ -112,6 +112,7 @@ Forms don't ask anyone's age unless a purpose needs it. A purpose designed for c
 
 - Publishing needs the `forms.publish` permission, which P4 gives to trustees (the founder until then).
 - Publishing is a sensitive action. It asks for the passkey again and writes an audit entry (Nadia).
+  - **Pending (28 October 2026).** We have no passkeys yet, because Cloudflare Access is our only sign-in (found by Ade in B2, #160). The Head of Delivery decided that B2 (the admin API) merges as it is, and that the B3 publish screen does not go live until a re-check exists. Nadia is choosing the interim re-check: either a recent Access sign-in, or a separate Access application with a short session and its own MFA on the publish path. This section will be updated once she has chosen.
 - **A second person with the privacy role must approve** any change to what is collected or who sees it (Ezra):
   - a new form;
   - a new or changed field;
