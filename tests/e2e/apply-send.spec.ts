@@ -3,10 +3,11 @@ import { expect, test, type Page, type Request } from '@playwright/test'
 import en from '../../i18n/locales/en-GB.json' with { type: 'json' }
 import { TURNSTILE_ORIGIN } from '../../shared/turnstile'
 import { APPLY, reachCheckAndSend } from './apply-helpers'
+import { FAKE_TOKEN, useTurnstileStandIn } from './turnstile'
 
 // Sending an application and every reply in docs/api/forms.md (#17). The API
-// is mocked here, so these tests never store anything; the spam check is
-// Cloudflare's always-passing test key, as on every local and CI run.
+// is mocked here, so these tests never store anything, and the spam check is
+// a stand-in for Turnstile's script (see turnstile.ts, #148).
 const trustee = en.roles.trustee
 const SENT_TITLE = en.apply.sent.title.replace('{name}', 'Test Applicant')
 
@@ -30,6 +31,11 @@ function failedBox(page: Page) {
 }
 
 test.describe('apply send', () => {
+  let turnstile: Awaited<ReturnType<typeof useTurnstileStandIn>>
+  test.beforeEach(async ({ page }) => {
+    turnstile = await useTurnstileStandIn(page)
+  })
+
   test('sends the answers and shows the sent page', async ({ page }) => {
     const bodies = await mockApply(page, { status: 201, body: { ok: true, receipt: 'queued' } })
     await reachCheckAndSend(page)
@@ -56,7 +62,17 @@ test.describe('apply send', () => {
       answers: { why_trustee: 'Made-up reason for testing.' },
     })
     expect(body.submissionId).toMatch(/^[0-9a-f-]{36}$/)
-    expect(String(body.turnstileToken)).not.toBe('')
+    expect(body.turnstileToken).toBe(FAKE_TOKEN)
+    // The page really used the stand-in, with the apply action.
+    expect(turnstile.hits()).toBeGreaterThanOrEqual(1)
+    expect(await turnstile.renders()).toEqual([
+      {
+        sitekey: '1x00000000000000000000AA',
+        action: 'apply',
+        execution: 'execute',
+        appearance: 'interaction-only',
+      },
+    ])
   })
 
   test('swaps Leave for Back to the roles, and empties the answers', async ({ page }) => {

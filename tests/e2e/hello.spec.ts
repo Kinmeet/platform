@@ -3,15 +3,18 @@ import { expect, test, type Page, type Request } from '@playwright/test'
 import en from '../../i18n/locales/en-GB.json' with { type: 'json' }
 import { hasPage } from '../../shared/site-nav'
 import { TURNSTILE_ORIGIN } from '../../shared/turnstile'
+import { waitForApp } from './helpers'
+import { FAKE_TOKEN, useTurnstileStandIn } from './turnstile'
 
-// Say hello (#14). The API is mocked, so these tests never store anything;
-// the spam check is Cloudflare's always-passing test key. Names and emails
-// are made up.
+// Say hello (#14). The API is mocked, so these tests never store anything,
+// and the spam check is a stand-in for Turnstile's script (see turnstile.ts,
+// #148). Names and emails are made up.
 const hello = en.hello
 const SENT_TITLE = hello.sent.title.replace('{name}', 'Test Organiser')
 
 async function open(page: Page) {
-  await page.goto('/say-hello', { waitUntil: 'networkidle' })
+  await page.goto('/say-hello')
+  await waitForApp(page)
   await expect(page.getByRole('heading', { level: 2, name: hello.form_title })).toBeVisible()
 }
 
@@ -41,6 +44,11 @@ function failedBox(page: Page) {
 }
 
 test.describe('say hello', () => {
+  let turnstile: Awaited<ReturnType<typeof useTurnstileStandIn>>
+  test.beforeEach(async ({ page }) => {
+    turnstile = await useTurnstileStandIn(page)
+  })
+
   test('has the form, with no extra fields', async ({ page }) => {
     await open(page)
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(hello.title)
@@ -113,7 +121,17 @@ test.describe('say hello', () => {
       message: 'A made-up message for testing.',
     })
     expect(bodies[0]!.submissionId).toMatch(/^[0-9a-f-]{36}$/)
-    expect(String(bodies[0]!.turnstileToken)).not.toBe('')
+    expect(bodies[0]!.turnstileToken).toBe(FAKE_TOKEN)
+    // The page really used the stand-in, with the say hello action.
+    expect(turnstile.hits()).toBeGreaterThanOrEqual(1)
+    expect(await turnstile.renders()).toEqual([
+      {
+        sitekey: '1x00000000000000000000AA',
+        action: 'hello',
+        execution: 'execute',
+        appearance: 'interaction-only',
+      },
+    ])
 
     // Another message starts empty, with a new id.
     await page.getByRole('button', { name: hello.sent.again }).click()

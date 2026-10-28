@@ -75,7 +75,9 @@ test('every internal link on the pre-launch pages goes somewhere that exists', a
   // Each link target, with the pages that link to it.
   const links = new Map<string, Set<string>>()
   for (const route of publicRoutes) {
-    await page.goto(route.path, { waitUntil: 'networkidle' })
+    // Not networkidle: Turnstile's challenge can hold that off (#148).
+    await page.goto(route.path)
+    await waitForApp(page)
     const hrefs = await page
       .locator('a[href]')
       .evaluateAll((anchors) => anchors.map((anchor) => (anchor as HTMLAnchorElement).href))

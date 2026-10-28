@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test'
 import { publicRoutes } from '../../shared/routes'
 import { TURNSTILE_ORIGIN } from '../../shared/turnstile'
 import { allowedOrigins, watchPage } from './helpers'
+import { watchOwnRequests, watchRealTurnstile } from './turnstile'
 
 // Firm rule 1: no tracking, analytics or third-party requests on any page.
 // The only exception is Cloudflare Turnstile on form pages (S5).
@@ -16,12 +17,20 @@ for (const route of publicRoutes) {
       new URL(baseURL!).origin,
     )
 
-    const response = await page.goto(route.path, { waitUntil: 'networkidle' })
+    // Always the real widget here, never the stand-in (#148). We wait for our
+    // own requests rather than `networkidle`, which Turnstile's challenge can
+    // hold off for good under load.
+    const spamCheck = route.form && route.spamCheckOnLoad !== false
+    const own = watchOwnRequests(page, new URL(baseURL!).origin)
+    const turnstile = spamCheck ? watchRealTurnstile(page) : undefined
+    const response = await page.goto(route.path)
     expect(response?.status(), 'page should load').toBe(200)
+    await turnstile?.loaded()
+    await own.settled()
 
     // Scroll to the end so anything loaded lazily is requested too.
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
-    await page.waitForLoadState('networkidle')
+    await own.settled()
 
     expect.soft(problems.thirdPartyRequests, 'requests to other origins').toEqual([])
     expect.soft(problems.cspViolations, 'content security policy violations').toEqual([])
@@ -32,7 +41,7 @@ for (const route of publicRoutes) {
     // checks the later step (apply.spec.ts, #81).
     expect
       .soft(problems.otherOrigins, 'origins other than our own')
-      .toEqual(route.form && route.spamCheckOnLoad !== false ? [TURNSTILE_ORIGIN] : [])
+      .toEqual(spamCheck ? [TURNSTILE_ORIGIN] : [])
   })
 }
 

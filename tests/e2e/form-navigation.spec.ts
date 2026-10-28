@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { publicRoutes } from '../../shared/routes'
 import { TURNSTILE_ORIGIN } from '../../shared/turnstile'
 import { waitForApp } from './helpers'
+import { watchOwnRequests, watchRealTurnstile } from './turnstile'
 
 // The security policy is set per document, so following a link onto or off a
 // form page must load a new document (#20, Nadia's review). These tests click
@@ -18,10 +19,16 @@ async function isSameDocument(page: Page) {
   return page.evaluate(() => (window as { kinmeetMark?: boolean }).kinmeetMark === true)
 }
 
-function turnstileRequests(page: Page) {
+function turnstileRequests(page: Page, { fromNextDocument = false } = {}) {
   const seen: string[] = []
+  // The page being left can still finish loading its own widget, so after
+  // leaving only the new document's requests count (#148).
+  let counting = !fromNextDocument
+  page.on('framenavigated', (frame) => {
+    if (frame === page.mainFrame()) counting = true
+  })
   page.on('request', (request) => {
-    if (new URL(request.url()).origin === TURNSTILE_ORIGIN) seen.push(request.url())
+    if (counting && new URL(request.url()).origin === TURNSTILE_ORIGIN) seen.push(request.url())
   })
   return seen
 }
@@ -77,13 +84,21 @@ for (const route of formRoutes) {
 
   test(`leaving ${route.path} by a link loads a fresh page without the spam check`, async ({
     page,
+    baseURL,
   }) => {
-    await page.goto(route.path, { waitUntil: 'networkidle' })
+    // Our own requests, not networkidle, which Turnstile can hold off (#148).
+    const own = watchOwnRequests(page, new URL(baseURL!).origin)
+    const turnstile = route.spamCheckOnLoad === false ? undefined : watchRealTurnstile(page)
+    await page.goto(route.path)
+    await waitForApp(page)
+    await turnstile?.loaded()
+    await own.settled()
     await markDocument(page)
-    const requests = turnstileRequests(page)
+    const requests = turnstileRequests(page, { fromNextDocument: true })
 
     await page.getByRole('banner').getByRole('link').first().click()
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('load')
+    await own.settled()
     expect(await isSameDocument(page), 'should be a new document').toBe(false)
     expect(requests, 'no spam check requests after leaving').toEqual([])
     const policy = await page.evaluate(async () => {

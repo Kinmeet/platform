@@ -1,12 +1,14 @@
 import { expect, type Page } from '@playwright/test'
 import en from '../../i18n/locales/en-GB.json' with { type: 'json' }
+import { waitForApp } from './helpers'
 
 // Steps through the trustee application with made-up answers.
 const questions = en.roles.trustee.questions
 export const APPLY = '/roles/trustee/apply'
 
 export async function openApply(page: Page, path = APPLY) {
-  await page.goto(path, { waitUntil: 'networkidle' })
+  await page.goto(path)
+  await waitForApp(page)
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
 }
 
