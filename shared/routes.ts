@@ -1,4 +1,5 @@
-import { publishedRoles } from './forms/roles'
+import { publishedRoles, type PublishedRole } from './forms/roles'
+import { promisePage } from './pages/promise'
 
 /**
  * Every public route in the app, in one place.
@@ -24,21 +25,43 @@ export interface PublicRoute {
   spamCheckOnLoad?: boolean
 }
 
-export const publicRoutes: readonly PublicRoute[] = [
-  { path: '/', form: false },
-  // One page per published role (#13), so publishing a role adds its page here.
-  ...publishedRoles().map((role) => ({ path: `/roles/${role.slug}`, form: false })),
-  // Say hello (#14): the spam check loads with the page (S5).
-  { path: '/say-hello', form: true },
-  // Its apply flow (#15): every step is one page, so the policy allows the
-  // spam check throughout, but it only loads on step 4.
-  ...publishedRoles().map((role) => ({
-    path: `/roles/${role.slug}/apply`,
-    form: true,
-    focused: true,
-    spamCheckOnLoad: false,
-  })),
-]
+/** What decides which pages are public. Tests pass their own to try a flag. */
+export interface PublishedContent {
+  roles: readonly PublishedRole[]
+  promise: boolean
+}
+
+export function buildPublicRoutes(content: PublishedContent): PublicRoute[] {
+  return [
+    { path: '/', form: false },
+    // One page per published role (#13), so publishing a role adds its page here.
+    ...content.roles.map((role) => ({ path: `/roles/${role.slug}`, form: false })),
+    // Say hello (#14): the spam check loads with the page (S5).
+    { path: '/say-hello', form: true },
+    // The all-ages promise (#77), once its copy is agreed and it's published.
+    ...(content.promise ? [{ path: promisePage.path, form: false }] : []),
+    // Its apply flow (#15): every step is one page, so the policy allows the
+    // spam check throughout, but it only loads on step 4.
+    ...content.roles.map((role) => ({
+      path: `/roles/${role.slug}/apply`,
+      form: true,
+      focused: true,
+      spamCheckOnLoad: false,
+    })),
+  ]
+}
+
+export const publicRoutes: readonly PublicRoute[] = buildPublicRoutes({
+  roles: publishedRoles(),
+  promise: promisePage.published,
+})
+
+/**
+ * Pages that are built but not published yet. Each answers 404 until its
+ * flag is turned on, which moves it into `publicRoutes`. The end-to-end tests
+ * check each one is a 404.
+ */
+export const draftRoutes: readonly string[] = promisePage.published ? [] : [promisePage.path]
 
 /**
  * Pages behind Cloudflare Access (P4), such as the founder's admin page. They
