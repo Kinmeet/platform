@@ -25,7 +25,7 @@ Until passkeys exist, publishing needs a fresh sign-in with MFA (Nadia's conditi
 - A separate Access application covers the publish page, `/admin/forms/<id>/publish`, with the requests under it (such as its payload), and `POST /api/admin/forms/<id>/publish`. Its session is 5 minutes or less, and it asks for a security key or biometric on every sign-in.
 - The Worker checks it as well as Access. On those two paths, the token must carry the publish application's audience (`ACCESS_PUBLISH_AUD`), have been issued in the last 5 minutes, and be valid for at most 10. On the publish API, a main admin token, or a stale publish one, gets `403 reauth_required`: the page then reloads itself, so Access asks for MFA again. The page and its own requests still load on any valid admin token, so the person sees the page's message rather than a bare 403; only the POST publishes. A publish token is refused on every other admin route.
 - The publish route also checks that the middleware ran the re-check, so a path the pattern missed can never publish on a main admin token.
-- Where `ACCESS_PUBLISH_AUD` isn't set, every publish POST gets `403 publishing_off`. It isn't set anywhere until the founder has set up the application (#133) and the staging test shows the MFA prompt firing.
+- Where `ACCESS_PUBLISH_AUD` isn't set, or is the same as `ACCESS_AUD` (which would let a main admin token through), every publish POST gets `403 publishing_off`. It isn't set anywhere until the founder has set up the application (#133) and the staging test shows the MFA prompt firing.
 - The page is a top-level navigation, never a background `fetch`, because Access answers an expired session with a redirect.
 
 ### Publish checks

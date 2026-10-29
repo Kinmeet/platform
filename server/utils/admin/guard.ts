@@ -88,7 +88,13 @@ export async function guardAdminRequest(event: H3Event, fetcher: typeof fetch = 
       // Only a fresh token from the publish application can publish. A valid
       // main admin token, or a stale publish one, means the person has to
       // sign in again with MFA; anything else is refused as usual.
-      const publish = env.ACCESS_PUBLISH_AUD ? await verify(env.ACCESS_PUBLISH_AUD) : null
+      // The same tag as the main application would let a main admin token
+      // through, so that counts as not set up (Nadia, #170).
+      const publishAud =
+        env.ACCESS_PUBLISH_AUD && env.ACCESS_PUBLISH_AUD !== env.ACCESS_AUD
+          ? env.ACCESS_PUBLISH_AUD
+          : ''
+      const publish = publishAud ? await verify(publishAud) : null
       const reading = !event.path.startsWith('/api/') && ['GET', 'HEAD'].includes(event.method)
       if (publish !== null && isFreshPublishToken(publish)) {
         identity = { sub: publish.sub }
@@ -100,7 +106,7 @@ export async function guardAdminRequest(event: H3Event, fetcher: typeof fetch = 
         const claims = publish ?? (await verify(env.ACCESS_AUD ?? ''))
         identity = claims === null ? null : { sub: claims.sub }
       } else {
-        if (!env.ACCESS_PUBLISH_AUD) return publishingOff(event)
+        if (!publishAud) return publishingOff(event)
         const main = publish === null ? await verify(env.ACCESS_AUD ?? '') : null
         return publish === null && main === null ? forbidden(event) : reauthRequired(event)
       }

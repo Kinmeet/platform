@@ -403,6 +403,15 @@ describe('the publish re-check', () => {
     expect(await version(id)).toBe(1)
   })
 
+  it('is off where the publish application shares the main tag, failing closed', async () => {
+    const id = await readyToPublish()
+    for (const jwt of [await token(), await publishToken({ aud: [AUD] })]) {
+      const refused = await call('POST', `/api/admin/forms/${id}/publish`, { jwt, publishAud: AUD })
+      expect(refused).toEqual({ status: 403, body: { ok: false, error: 'publishing_off' } })
+    }
+    expect(await version(id)).toBe(1)
+  })
+
   it('does not let a publish token into any other admin route', async () => {
     const refused = await call('GET', '/api/admin/forms', { jwt: await publishToken() })
     expect(refused).toEqual({ status: 403, body: { ok: false, error: 'forbidden' } })
