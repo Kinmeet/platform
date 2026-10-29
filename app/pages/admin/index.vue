@@ -119,6 +119,7 @@ async function passToSafeguarding(
 
 <template>
   <main class="admin">
+    <AdminNav />
     <h1>{{ t('admin.title') }}</h1>
     <p>{{ t('admin.lead') }}</p>
     <p class="admin__status" role="status">{{ announcement }}</p>
@@ -233,86 +234,3 @@ async function passToSafeguarding(
     </section>
   </main>
 </template>
-
-<style scoped>
-.admin {
-  max-width: 48rem;
-  margin: 0 auto;
-  padding: 2rem 1rem 4rem;
-}
-
-.admin__list {
-  list-style: none;
-  padding: 0;
-}
-
-.admin__item {
-  border-top: 1px solid var(--colour-ink-soft);
-  padding: 1rem 0;
-}
-
-.admin__item dl {
-  display: grid;
-  grid-template-columns: minmax(0, max-content) 1fr;
-  gap: 0.25rem 1rem;
-}
-
-.admin__item dt {
-  overflow-wrap: anywhere;
-}
-
-@media (max-width: 30rem) {
-  .admin__item dl {
-    grid-template-columns: 1fr;
-  }
-
-  .admin__item dt {
-    font-weight: 700;
-  }
-}
-
-.admin__item dd {
-  margin: 0;
-}
-
-.admin__message {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-.admin__note {
-  font-weight: 700;
-}
-
-.admin :deep(button) {
-  font: inherit;
-  padding: 0.5rem 1rem;
-  border: 2px solid var(--colour-moss);
-  border-radius: 0.5rem;
-  background: var(--colour-moss);
-  color: var(--colour-ground);
-  cursor: pointer;
-}
-
-.admin :deep(button[aria-disabled='true']) {
-  opacity: 0.6;
-  cursor: wait;
-}
-
-.admin :deep(button:focus-visible),
-.admin h2:focus-visible,
-.admin h3:focus-visible {
-  outline: 3px solid var(--colour-ink);
-  outline-offset: 2px;
-}
-
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-</style>
