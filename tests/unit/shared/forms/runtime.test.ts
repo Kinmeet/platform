@@ -1,9 +1,9 @@
 import { env } from 'cloudflare:test'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { APPLY_BODY_CAP, applySchema } from '../../../../shared/forms/apply'
 import { definitionSchema, type FormDefinition } from '../../../../shared/forms/definition'
 import { toFieldErrors } from '../../../../shared/forms/errors'
 import { HELLO_BODY_CAP, helloSchema } from '../../../../shared/forms/hello'
+import oldApply from '../../../fixtures/apply-schema-outcomes.json'
 import {
   applicationSchema,
   bodyCapFor,
@@ -137,8 +137,16 @@ describe('the seeded forms against the old schemas', () => {
     expect(outcome(built, input)).toEqual(outcome(helloSchema, input))
   })
 
-  it.each(applyCases)('apply: %s', (_name, input) => {
-    expect(outcome(applicationForms(), input)).toEqual(outcome(applySchema, input))
+  // What the hand-written apply schema made of each case, recorded before
+  // #160 removed it with the trustee role's config and copy.
+  it.each(applyCases)('apply: %s', (name, input) => {
+    expect(outcome(applicationForms(), input)).toEqual(
+      oldApply.outcomes[name as keyof typeof oldApply.outcomes],
+    )
+  })
+
+  it('has a recorded outcome for every apply case', () => {
+    expect(Object.keys(oldApply.outcomes)).toEqual(applyCases.map(([name]) => name))
   })
 
   it('stores the same answers as before', () => {
@@ -158,7 +166,7 @@ describe('the seeded forms against the old schemas', () => {
 
   it('works out the same body caps', () => {
     expect(bodyCapFor(hello, 'form')).toBe(HELLO_BODY_CAP)
-    expect(bodyCapFor(trustee, 'application')).toBe(APPLY_BODY_CAP)
+    expect(bodyCapFor(trustee, 'application')).toBe(oldApply.cap)
   })
 })
 

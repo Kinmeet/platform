@@ -4,7 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import applyHandler, { roundClosesAt } from '../../../../server/api/apply.post'
 import type { RateLimiter } from '../../../../server/utils/forms/rate-limit'
 import { applicationDeleteAfterReceipt, addMonths } from '../../../../server/utils/retention'
-import { APPLY_BODY_CAP } from '../../../../shared/forms/apply'
+import { definitionSchema } from '../../../../shared/forms/definition'
+import { bodyCapFor } from '../../../../shared/forms/runtime'
 import { bodyLimitFor } from '../../../../shared/routes'
 
 // Made-up test data and Cloudflare's documented dummy Turnstile values.
@@ -227,8 +228,14 @@ describe('the apply body caps', () => {
   // Nadia, #80: the Worker entry refuses a body over the route's entry limit
   // before Nitro reads it, so the schema's own cap must fit inside it, or a
   // valid application could be refused with 413 before the route sees it.
-  it('keeps the schema cap within the entry limit', () => {
-    expect(APPLY_BODY_CAP).toBeGreaterThan(0)
-    expect(APPLY_BODY_CAP).toBeLessThanOrEqual(bodyLimitFor('POST', '/api/apply'))
+  it('keeps the schema cap within the entry limit', async () => {
+    const row = await env.DB.prepare(
+      `SELECT v.definition FROM forms AS f
+       JOIN form_versions AS v ON v.form_id = f.id AND v.version = f.current_version
+       WHERE f.slug = 'trustee'`,
+    ).first<{ definition: string }>()
+    const cap = bodyCapFor(definitionSchema.parse(JSON.parse(row!.definition)), 'application')
+    expect(cap).toBeGreaterThan(0)
+    expect(cap).toBeLessThanOrEqual(bodyLimitFor('POST', '/api/apply'))
   })
 })

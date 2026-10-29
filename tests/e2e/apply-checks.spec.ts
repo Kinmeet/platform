@@ -1,12 +1,13 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
 import en from '../../i18n/locales/en-GB.json' with { type: 'json' }
-import { trustee as config } from '../../shared/forms/roles/trustee'
+import trusteeV1 from '../fixtures/trustee-role-v1.json' with { type: 'json' }
 
 // Step 1's role-specific parts (#16): notes after a choice, the GOV.UK
 // link, the DBS note, and the stop pages.
 const trustee = en.roles.trustee
-const questions = trustee.questions
+// The stored form's wording, recorded in the fixture (#160).
+const questions = trusteeV1.copy.questions
 const APPLY = '/roles/trustee/apply'
 
 async function open(page: Page) {
@@ -58,15 +59,15 @@ test.describe('apply step 1', () => {
   test('links to the trustee rules in a new tab, without sending a referrer', async ({ page }) => {
     await open(page)
     const link = page.getByRole('link', { name: questions.trustee_rules_confirmed.link })
-    await expect(link).toHaveAttribute('href', config.apply.checks[2].link)
+    await expect(link).toHaveAttribute('href', trusteeV1.apply.checks[2].link)
     await expect(link).toHaveAttribute('target', '_blank')
     await expect(link).toHaveAttribute('rel', 'noopener noreferrer')
   })
 
   test('explains the DBS check', async ({ page }) => {
     await open(page)
-    await expect(page.getByText(trustee.apply.note.heading)).toBeVisible()
-    await expect(page.getByText(trustee.apply.note.body)).toBeVisible()
+    await expect(page.getByText(trusteeV1.copy.apply.note.heading)).toBeVisible()
+    await expect(page.getByText(trusteeV1.copy.apply.note.body)).toBeVisible()
   })
 })
 
