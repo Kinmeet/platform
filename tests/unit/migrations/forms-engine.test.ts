@@ -4,7 +4,8 @@ import copyMigration from '../../../migrations/db/0006_copy_form_submissions.sql
 import enGB from '../../../i18n/locales/en-GB.json'
 import { definitionSchema } from '../../../shared/forms/definition'
 import { checkPublish, textProblems } from '../../../shared/forms/publish'
-import { roles, trustee } from '../../../shared/forms/roles'
+import { roles } from '../../../shared/forms/roles'
+import trusteeV1 from '../../fixtures/trustee-role-v1.json'
 import { HELLO_MESSAGE_MAX } from '../../../shared/forms/hello'
 
 // ADR-0010 phase A (#156): the forms tables, the seeded version 1 forms and
@@ -86,6 +87,10 @@ describe('the seeded version 1 forms', () => {
     })
   })
 
+  // The role config and copy the seed came from, recorded before #160
+  // removed them: the stored version is now the only source.
+  const trustee = trusteeV1
+
   it('seeds the trustee application from its role config and copy', async () => {
     const form = await seeded('trustee', 1)
     expect(form).toMatchObject({
@@ -116,7 +121,7 @@ describe('the seeded version 1 forms', () => {
     })
 
     // Every word, exactly as the role's copy has it.
-    const role = enGB.roles.trustee
+    const role = trustee.copy
     const expected: Record<string, string> = {
       title: role.title,
       'note.heading': role.apply.note.heading,
@@ -144,7 +149,7 @@ describe('the seeded version 1 forms', () => {
     )
     expect(after).toEqual({
       ...before,
-      'fields.why_trustee.summary': enGB.roles.trustee.questions.why_trustee.summary,
+      'fields.why_trustee.summary': trustee.copy.questions.why_trustee.summary,
     })
     expect(after['fields.why_trustee.summary']).toBe("Why you'd like to be a trustee")
   })

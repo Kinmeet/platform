@@ -1,9 +1,36 @@
-import { describe, expect, it } from 'vitest'
-import { APPLY_BODY_CAP, applySchema, storedAnswers } from '../../../../shared/forms/apply'
+import { env } from 'cloudflare:test'
+import { beforeAll, describe, expect, it } from 'vitest'
+import { definitionSchema, type FormDefinition } from '../../../../shared/forms/definition'
 import { toFieldErrors } from '../../../../shared/forms/errors'
-import { publishedRoles } from '../../../../shared/forms/roles'
+import { applicationSchema, bodyCapFor, storedAnswers } from '../../../../shared/forms/runtime'
 
+// The apply contract, run through the stored application forms (ADR-0010).
+// These cases were written against the hand-written apply schema, which
+// #160 removed; they now hold the stored forms to the same answers.
 // Made-up test data only.
+
+let forms: {
+  slug: string
+  status: 'draft' | 'open' | 'closed'
+  definition: FormDefinition | null
+}[]
+let trustee: FormDefinition
+let applySchema: ReturnType<typeof applicationSchema>
+
+beforeAll(async () => {
+  const { results } = await env.DB.prepare(
+    `SELECT f.slug, f.status, v.definition FROM forms AS f
+     LEFT JOIN form_versions AS v ON v.form_id = f.id AND v.version = f.current_version
+     WHERE f.kind = 'application'`,
+  ).all<{ slug: string; status: 'draft' | 'open' | 'closed'; definition: string | null }>()
+  forms = results.map((row) => ({
+    ...row,
+    definition: row.definition === null ? null : definitionSchema.parse(JSON.parse(row.definition)),
+  }))
+  trustee = forms.find((form) => form.slug === 'trustee')!.definition!
+  applySchema = applicationSchema(forms)
+})
+
 const valid = {
   submissionId: '3f1c2b9a-6d4e-4a7b-9c2d-1e5f6a7b8c9d',
   role: 'trustee',
@@ -27,7 +54,7 @@ describe('apply schema', () => {
       ...valid,
       callName: '  Sample Applicant ',
       answers: { why_trustee: '\nA made-up reason.\n' },
-    })
+    }) as Record<string, unknown>
     expect(parsed.callName).toBe('Sample Applicant')
     expect(parsed.answers).toEqual({ why_trustee: 'A made-up reason.' })
   })
@@ -111,8 +138,12 @@ describe('apply schema', () => {
     const parsed = applySchema.parse({
       ...valid,
       answers: { why_trustee: 'Reason.', experience: '  ' },
+    }) as Record<string, unknown>
+    // The checks that can only ever be "yes" aren't kept (ADR-0010).
+    expect(storedAnswers(trustee, parsed)).toEqual({
+      connection_to_founders: 'not_sure',
+      why_trustee: 'Reason.',
     })
-    expect(storedAnswers(parsed)).toEqual({ why_trustee: 'Reason.' })
   })
 
   it('treats a wrong type as a bad request', () => {
@@ -128,12 +159,63 @@ describe('apply schema', () => {
       answers: { why_trustee: '🦊'.repeat(2000), experience: '🦊'.repeat(2000) },
       turnstileToken: 'X'.repeat(2048),
     })
-    expect(new TextEncoder().encode(largest).length).toBeLessThanOrEqual(APPLY_BODY_CAP)
+    expect(new TextEncoder().encode(largest).length).toBeLessThanOrEqual(
+      bodyCapFor(trustee, 'application'),
+    )
   })
 
   it('stores the founder-connection answer for every open role (F3)', () => {
-    for (const role of publishedRoles()) {
-      expect(role.apply.checks.map((check) => check.id)).toContain('connection_to_founders')
+    const open = forms.filter((form) => form.status === 'open')
+    expect(open.length).toBeGreaterThan(0)
+    for (const form of open) {
+      const ids = form.definition!.steps.flatMap((step) => step.fields.map((field) => field.id))
+      expect(ids, form.slug).toContain('connection_to_founders')
     }
+  })
+})
+
+// docs/api/forms.md is the contract with Services. If one of these changes,
+// the contract and the server's validation must change in the same PR. They
+// were checked against the role config until #160 moved the trustee form
+// wholly into its stored version.
+describe('trustee contract ids', () => {
+  const fields = (stepId: string) => trustee.steps.find((step) => step.id === stepId)!.fields
+  const choiceIds = (id: string) => {
+    const found = trustee.steps.flatMap((step) => step.fields).find((field) => field.id === id)
+    return found && 'choices' in found ? found.choices : []
+  }
+
+  it('has the step 1 checks in the contract', () => {
+    expect(fields('checks').map((f) => f.id)).toEqual([
+      'over_18',
+      'connection_to_founders',
+      'trustee_rules_confirmed',
+    ])
+    expect(choiceIds('over_18')).toEqual(['yes', 'no'])
+    expect([...choiceIds('connection_to_founders')].sort()).toEqual([
+      'friend_or_acquaintance',
+      'no',
+      'not_sure',
+      'related_or_household',
+    ])
+  })
+
+  it('stops on the answers the server refuses, with the same codes', () => {
+    expect(errorsFor({ ...valid, checks: { ...valid.checks, over_18: 'no' } })).toEqual([
+      { field: 'checks.over_18', code: 'under_18' },
+    ])
+    expect(
+      errorsFor({
+        ...valid,
+        checks: { ...valid.checks, connection_to_founders: 'related_or_household' },
+      }),
+    ).toEqual([{ field: 'checks.connection_to_founders', code: 'not_independent' }])
+  })
+
+  it('has the step 3 questions in the contract, each at most 2000', () => {
+    expect(fields('answers')).toEqual([
+      { id: 'why_trustee', type: 'long_text', required: true, maxLength: 2000 },
+      { id: 'experience', type: 'long_text', required: false, maxLength: 2000 },
+    ])
   })
 })

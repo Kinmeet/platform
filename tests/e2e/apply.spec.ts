@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test'
 import en from '../../i18n/locales/en-GB.json' with { type: 'json' }
 import { publicRoutes } from '../../shared/routes'
 import { TURNSTILE_ORIGIN } from '../../shared/turnstile'
+import trusteeV1 from '../fixtures/trustee-role-v1.json' with { type: 'json' }
 import {
   APPLY,
   continueOn,
@@ -15,7 +16,8 @@ import { watchOwnRequests, watchRealTurnstile } from './turnstile'
 
 // The apply flow's step pages (#15). Test answers are made up.
 const trustee = en.roles.trustee
-const questions = trustee.questions
+// The stored form's wording, recorded in the fixture (#160).
+const questions = trusteeV1.copy.questions
 
 test.describe('apply flow steps', () => {
   test('starts at step 1 with the role and progress', async ({ page }) => {
