@@ -419,6 +419,379 @@
       "confirm": "Yes, pass it to safeguarding",
       "cancel": "Cancel",
       "done": "Passed to safeguarding. Now tell the safeguarding lead."
+    },
+    "nav": {
+      "label": "Admin pages",
+      "inbox": "Messages and applications",
+      "forms": "Forms"
+    },
+    "roles": {
+      "organiser": "Organiser",
+      "group_safeguarding_contact": "Group safeguarding contact",
+      "central_team": "Central team",
+      "secretary": "Secretary",
+      "treasurer": "Treasurer",
+      "safeguarding_lead": "Safeguarding lead and deputy",
+      "trustee": "Trustees",
+      "chair": "Chair",
+      "developer": "Developer"
+    },
+    "forms": {
+      "title": "Forms",
+      "lead": "Every form and application on the website is made here. Each one sets its questions, who can see what is sent, how long it is kept, and how a worry is passed to the safeguarding lead.",
+      "backToList": "Back to all forms",
+      "limit": "Up to {max} characters.",
+      "edit": "Edit",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "remove": "Remove",
+      "kind": {
+        "form": "Message form",
+        "application": "Application"
+      },
+      "status": {
+        "draft": "Not published yet",
+        "open": "Open",
+        "closed": "Closed"
+      },
+      "kept": {
+        "none": "Not set yet",
+        "replied": "{months} months after our last reply (P3: {row})",
+        "outcome_told": "{months} months after the outcome is told (P3: {row})"
+      },
+      "readers": {
+        "none": "Nobody yet"
+      },
+      "list": {
+        "heading": "All forms",
+        "empty": "There are no forms yet.",
+        "caption": "1 form | {count} forms",
+        "form": "Form",
+        "kind": "Kind",
+        "status": "Status",
+        "kept": "Kept for",
+        "readers": "Submissions seen by",
+        "version": "Version {version}",
+        "hasDraft": "Has a draft"
+      },
+      "create": {
+        "heading": "Make a new form",
+        "lead": "A new form starts as a draft. Nothing is public until it is published and opened.",
+        "slug": "Web address name",
+        "slugHint": "Lower-case letters, numbers and hyphens, such as start-a-group. It can't be changed later.",
+        "kind": "Kind of form",
+        "submit": "Make the form",
+        "errors": {
+          "slug_taken": "Another form already uses that web address name. Choose a different one.",
+          "slug_invalid": "Use only lower-case letters, numbers and hyphens, starting and ending with a letter or number.",
+          "slug_reserved": "The website already uses that web address name. Choose a different one."
+        }
+      },
+      "builder": {
+        "heading": "Form builder",
+        "pageTitle": "Form builder: {title}",
+        "lead": "Changes stay on this page until you save the draft. Nothing reaches the public until the draft is published.",
+        "notFound": "This form could not be found. It may have been removed, or the page may need reloading.",
+        "submissionsLink": "See what has been sent",
+        "publishLink": "Publish",
+        "status": {
+          "heading": "Open or closed",
+          "draft": "This form has a published version but is not open yet. People can't send it.",
+          "open": "This form is open. People can send it.",
+          "closed": "This form is closed. People can't send it.",
+          "open_button": "Open the form",
+          "close_button": "Close the form",
+          "openDone": "The form is open. People can send it now.",
+          "closedDone": "The form is closed. People can't send it now."
+        },
+        "questionsHeading": "Steps and questions",
+        "questionsLead": {
+          "form": "A message form is one page. \"About you\" (community name and email) is always there; you add the questions.",
+          "application": "\"About you\" and \"Check and send\" are always there; you add the steps in between. Reorder with the Move buttons: focus stays on the button and the new position is announced."
+        },
+        "formTitle": "Form title",
+        "formTitleHint": "Shown as the page heading.",
+        "intro": "Introduction (optional)",
+        "introHint": "A sentence or two under the heading. Say what happens next.",
+        "stepHeading": "Step {step} of {count}: {name}",
+        "fixedHeading": {
+          "checks": "This step checks the role fits, with a fixed heading.",
+          "answers": "This step asks about the role, with a fixed heading."
+        },
+        "stepTitle": "Step {step} heading",
+        "stepTitleHint": "Each step needs its own heading.",
+        "noQuestions": "This step has no questions yet. Each step needs at least one.",
+        "editingNow": "(editing now)",
+        "questionAboutRequired": "{type}. Required.",
+        "questionAboutOptional": "{type}. Optional.",
+        "shownWhen": "Shown only for some answers to \"{label}\".",
+        "addQuestion": "Add a question to step {step}",
+        "removeStep": "Remove step {step}",
+        "aboutYou": "Where \"About you\" goes",
+        "aboutYouHint": "\"About you\" asks for a community name and an email address, so we can reply.",
+        "aboutYouBefore": "Before step {step}",
+        "aboutYouLast": "After the last step",
+        "addStep": "Add a step",
+        "moved": "\"{name}\" is now question {position} of {count} in step {step}.",
+        "removed": "Removed \"{name}\".",
+        "stepAdded": "Added step {step}, with one question.",
+        "stepRemoved": "Removed step {step} and its questions.",
+        "save": "Save draft",
+        "unsaved": "You have changes that aren't saved.",
+        "allSaved": "Everything on this page is saved.",
+        "saved": "Draft saved. There is 1 thing to fix before publishing. | Draft saved. There are {count} things to fix before publishing.",
+        "savedReady": "Draft saved. Every check is done, so it is ready to publish.",
+        "draftInvalid": "The draft couldn't be saved because it is too big. Remove some questions or wording.",
+        "alreadyFirst": "\"{name}\" is already the first question in step {step}.",
+        "alreadyLast": "\"{name}\" is already the last question in step {step}.",
+        "stepFull": "Step {step} already has {max} questions, the most a step can have.",
+        "noMoreSteps": "This form already has every step it can have."
+      },
+      "editor": {
+        "heading": "Editing: {label}",
+        "headingUntitled": "Editing a question with no wording yet",
+        "label": "Question",
+        "labelHint": "A whole sentence, shown above the answer.",
+        "statement": "Statement to tick",
+        "statementHint": "A whole sentence that people confirm by ticking the box.",
+        "summary": "Short name",
+        "summaryHint": "Two or more words that name the question on their own. Used in the list of things to fix and on \"Check and send\".",
+        "hint": "Hint (optional)",
+        "hintHint": "Shown under the question and read out with it. Don't repeat the question.",
+        "type": "Answer type",
+        "typeHint": "Only these six types. Each sets the input type and autocomplete for you. A new type, such as a date, needs its own decision and a P3 row.",
+        "required": "People must answer this question",
+        "maxLength": "Most characters allowed",
+        "maxLengthHint": "Up to {max}.",
+        "choices": "Choices",
+        "choicesHint": "Between {min} and {max} choices.",
+        "choiceText": "Choice {number}",
+        "choiceUntitled": "Choice {number}, with no wording yet",
+        "outcome": "What happens when choice {number} is picked",
+        "choiceNote": "Note shown when choice {number} is picked",
+        "addChoice": "Add a choice",
+        "choiceMoved": "\"{name}\" is now choice {position} of {count}.",
+        "choiceRemoved": "Removed the choice \"{name}\".",
+        "ticked": "Answer shown on \"Check and send\"",
+        "tickedHint": "What the ticked box reads as when people check their answers, such as \"Yes, I confirm this\".",
+        "link": "Link to the rules (optional)",
+        "linkHint": "Only GOV.UK pages can be linked. The link sits above the box, so the rules can be read before ticking.",
+        "linkText": "Link wording",
+        "linkTextHint": "Say where the link goes, such as \"Charity Commission rules on who can be a trustee\".",
+        "showIf": "Show this question",
+        "showIfHint": "A hidden question isn't checked or sent, and any answer to it is dropped. On the same step, it must come straight after the question that shows it.",
+        "showAlways": "Always",
+        "showWhen": "Only for some answers to \"{label}\"",
+        "showIfChoices": "Show it for these answers to \"{label}\"",
+        "errorsHeading": "Error messages",
+        "errorsHint": "These are fixed wording for this answer type. You can't change them, and your question is never joined into them.",
+        "summaryExample": "In the list of things to fix, it reads: {example}",
+        "done": "Done",
+        "removeQuestion": "Remove this question",
+        "choicesFull": "This question already has {max} choices, the most it can have.",
+        "choiceFirst": "\"{name}\" is already the first choice.",
+        "choiceLast": "\"{name}\" is already the last choice.",
+        "choicesTooFew": "A one-choice question needs at least {min} choices, so this one can't be removed."
+      },
+      "types": {
+        "short_text": {
+          "name": "Short text",
+          "about": "A one-line box for a few words. No autocomplete, so the browser never fills in a legal name or an address."
+        },
+        "long_text": {
+          "name": "Long text",
+          "about": "A larger box for a few sentences. It shows its limit and counts what is left near the end. No autocomplete."
+        },
+        "email": {
+          "name": "Email address",
+          "about": "An email box: the keyboard shows the {'@'} key, the browser can fill it in, and the address is checked."
+        },
+        "call_name": {
+          "name": "Community name",
+          "about": "A box for what we should call them. The browser can offer a nickname, never a legal name."
+        },
+        "single_choice": {
+          "name": "One choice",
+          "about": "A list of choices where people pick one. Each choice can show a note, or end an application."
+        },
+        "confirm": {
+          "name": "Confirm (a box to tick)",
+          "about": "A statement with a box to tick. It always has to be ticked to carry on."
+        }
+      },
+      "outcomes": {
+        "continue": "Carry on",
+        "note": "Carry on, and show a note",
+        "under_18": "End the application: under 18",
+        "not_independent": "End the application: not independent of the founders"
+      },
+      "settings": {
+        "heading": "Form settings",
+        "purpose": "Data map row (P3)",
+        "purposeHint": "Pick from the reviewed list. A new row needs a pull request, a privacy review and the founder's agreement. It sets how long what is sent is kept and who may see it.",
+        "freeText": "Answers in people's own words",
+        "freeTextOn": "Allowed. \"Pass to safeguarding\" must stay on, and the page shows where a worry goes.",
+        "freeTextOff": "Not allowed by this row.",
+        "retention": "Keep for fewer months (optional)",
+        "retentionHint": "Leave empty to keep for the row's {months} months. You can shorten this, never lengthen it.",
+        "readers": "Who can see what is sent",
+        "readersHint": "Only the roles this data map row allows. You can untick some, never add others.",
+        "actions": "What can be done to each one",
+        "actionsHint": "\"Pass to safeguarding\" is needed on any form with answers in people's own words.",
+        "receipt": "Receipt email",
+        "note": "Show a note at the foot of the first step",
+        "noteHeading": "Note heading",
+        "noteBody": "Note",
+        "fixedHeading": "The same on every form",
+        "drafts": "Saving answers",
+        "draftsValue": "Never stored. Answers are held in memory only until they are sent, because devices are often shared.",
+        "fixedParts": "Fixed wording",
+        "fixedPartsValue": "The safeguarding note, the 999 notice, error messages and the reasons an application ends are our fixed wording, not edited here.",
+        "versions": "Versions",
+        "versionsValue": "Each submission keeps the version it was sent on, so editing a form never changes what an earlier answer means.",
+        "words": "Wording",
+        "wordsValue": "Shown as plain text, never as web code. English (UK) only for now."
+      },
+      "actions": {
+        "reply": "Mark replied",
+        "outcome_told": "Mark outcome told",
+        "pass_to_safeguarding": "Pass to safeguarding"
+      },
+      "receipts": {
+        "none": "No receipt email",
+        "application_receipt": "\"Application received\" email"
+      },
+      "checks": {
+        "heading": "Checks before publishing",
+        "notYet": "Save the draft to run the checks.",
+        "stale": "You have changed things since the last save. Save the draft to check again.",
+        "ready": "Every check is done.",
+        "toFix": "There is 1 thing to fix | There are {count} things to fix",
+        "item": "{where}: {message}",
+        "secondApproval": "This version changes what is asked or who sees it, so a second person must approve it before it can be published.",
+        "publishWhen": "Publish works once the draft is saved and every check is done. Pressing it before then moves you to the things to fix.",
+        "where": {
+          "question": "Question \"{label}\"",
+          "untitled": "The question with no wording yet ({id})",
+          "title": "Form title",
+          "intro": "Introduction",
+          "note": "Note",
+          "step": "Step {step}",
+          "settings": "Form settings"
+        }
+      },
+      "problems": {
+        "action_not_allowed": "An action in the form settings doesn't fit this data map row. Replies go with messages, and \"outcome told\" goes with applications.",
+        "body_cap_over_route_limit": "The website can't receive a message form at this web address yet, so it can't be published. For now, only the say hello form can be published.",
+        "body_cap_too_large": "The answers could add up to more than any form can take. Lower some answer limits or remove a question.",
+        "definition_too_large": "This form is too big to store. Remove some questions or choices.",
+        "duplicate_choice_text": "Two choices have the same wording. Make each one different.",
+        "duplicate_label": "Two questions on this step have the same wording. Make each one different.",
+        "duplicate_summary": "Two questions have the same short name. Make each one different.",
+        "field_type_not_allowed": "This data map row doesn't allow this answer type. Choose another type, or another row.",
+        "free_text_not_allowed": "This data map row doesn't allow answers in people's own words. Use choices instead, or another row.",
+        "hint_repeats_label": "The hint repeats the question. Say something the question doesn't, or leave the hint empty.",
+        "locale_missing": "The form has no English (UK) wording yet.",
+        "locale_not_allowed": "The form has wording in a language we can't publish yet. Only English (UK) can be published for now.",
+        "purpose_kind": "This data map row is for a different kind of form. Choose a row for this kind.",
+        "purpose_unknown": "Choose a data map row (P3) for this form.",
+        "reader_not_allowed": "Someone is set to see what is sent who this data map row doesn't allow. Untick them.",
+        "receipt_not_allowed": "Only applications can send a receipt email.",
+        "retention_too_long": "This keeps what is sent for longer than the data map row allows. Choose fewer months.",
+        "safeguarding_action_missing": "This form takes answers in people's own words, so \"Pass to safeguarding\" must be ticked.",
+        "second_approval_needed": "This version needs a second person to approve it, and nobody can do that yet, so it can't be published for now. That includes any change to what is asked or who sees it, and any wording that mentions something sensitive, such as health or DBS checks.",
+        "slug_invalid": "The form's web address isn't valid. Ask the developer to look at it.",
+        "slug_reserved": "The form's web address is one the website already uses. Ask the developer to look at it.",
+        "summary_too_short": "The short name needs at least two words, so it makes sense on its own.",
+        "text_empty": "This wording is empty. Write something, or remove it.",
+        "text_missing": "This needs wording. Write it before publishing.",
+        "text_shape": "The form's wording couldn't be read. Save the draft again.",
+        "text_too_large": "There is too much wording to store. Shorten some of it.",
+        "text_too_long": "This wording is too long. Shorten it.",
+        "text_unknown_key": "There is wording for something the form no longer has. Save the draft again to remove it.",
+        "vague_link_text": "The link's wording must say where it goes, not \"click here\" or a web address.",
+        "banned_term": "This wording uses a term we don't use. Check the copy rules.",
+        "us_spelling": "This wording uses an American spelling. Use the British English spelling.",
+        "asks_for_credentials": "This wording seems to ask for a password, a code or bank details. We never ask for these.",
+        "about_you_position": "\"About you\" is set to go after a step that doesn't exist. Choose where it goes again.",
+        "duplicate_action": "An action is ticked twice in the form settings. Save the draft again.",
+        "duplicate_reader": "Someone is listed twice in who can see what is sent. Save the draft again.",
+        "duplicate_step": "Two steps have the same id. Ask the developer to look at it.",
+        "duplicate_body": "Two steps are the same kind. Remove one of them.",
+        "duplicate_field": "Two questions have the same id. Ask the developer to look at it.",
+        "duplicate_choice": "Two choices have the same id. Ask the developer to look at it.",
+        "unknown_choice": "A choice's outcome is set for a choice that no longer exists. Save the draft again.",
+        "every_choice_stops": "Every choice ends the application. At least one choice must let people carry on.",
+        "show_if_target": "This question is set to show for an answer to a question that comes after it, or isn't a choice question. Choose again.",
+        "show_if_choice": "This question is set to show for a choice that no longer exists. Choose again.",
+        "show_if_not_next": "A question that appears on the same step must come straight after the question that shows it. Move it up.",
+        "reserved_id": "This question's id is one the website already uses. Ask the developer to look at it.",
+        "link_not_allowed": "Only GOV.UK pages can be linked. Change the link.",
+        "definition_too_small": "Something is missing here. A step needs at least one question, and a choice question needs at least two choices.",
+        "definition_too_big": "There are too many here. A form can have up to 4 steps, 10 questions a step and 10 choices a question.",
+        "unknown": "Something else needs fixing (code {code}). Ask the developer what it means."
+      },
+      "preview": {
+        "heading": "Preview",
+        "lead": "The saved draft, drawn the way the public page draws it. Nothing typed here is sent.",
+        "none": "Save the draft to see a preview. A draft with missing wording can't be shown yet.",
+        "page": "Page {page} of {count}",
+        "check": "This page lists every answer, with a Change link for each step, then Send.",
+        "narrow": "Show at phone width"
+      },
+      "publish": {
+        "heading": "Publish a form",
+        "pageTitle": "Publish: {title}",
+        "lead": "Publishing makes this draft version {version} of the form.",
+        "whatHappens": "If the form is open, people see the new version straight away. What was sent on earlier versions stays as it was.",
+        "button": "Publish version {version}",
+        "publishing": "Publishing…",
+        "hint": "Publish works once every check is done.",
+        "reload": "Reload this page",
+        "backToBuilder": "Back to the form builder",
+        "noDraft": "There is no draft to publish. Make changes in the form builder and save the draft first.",
+        "outcome": {
+          "published": {
+            "heading": "Published",
+            "body": "Version {version} is published."
+          },
+          "reauth": {
+            "heading": "Sign in again to publish",
+            "body": "For your safety, publishing needs a fresh sign-in. Reload this page, sign in when asked, then press Publish again. Nothing was published."
+          },
+          "forbidden": {
+            "heading": "You can't publish here",
+            "body": "Publishing isn't allowed for your sign-in, or isn't turned on here yet. Nothing was published."
+          },
+          "checks": {
+            "heading": "Some checks failed",
+            "body": "Nothing was published. Fix the things listed below in the form builder, then try again."
+          },
+          "changed": {
+            "heading": "Someone else published first",
+            "body": "Another version was published while this page was open, so nothing was published. Reload this page to check the draft again."
+          },
+          "no_draft": {
+            "heading": "No draft to publish",
+            "body": "The draft has already been published or removed. Nothing more was published."
+          },
+          "failed": {
+            "heading": "That did not work",
+            "body": "Nothing was published. Please reload the page and try again."
+          },
+          "off": {
+            "heading": "Publishing isn't switched on yet",
+            "body": "Publishing needs its own sign-in check, which isn't set up here yet. Nothing was published, and reloading won't change that."
+          }
+        }
+      },
+      "submissions": {
+        "pageTitle": "Submissions: {title}",
+        "lead": "What people have sent through this form. Each one is deleted automatically on its deletion date. Opening this list is written to the audit log.",
+        "heading": "Sent so far",
+        "empty": "Nothing has been sent through this form.",
+        "version": "Form version"
+      }
     }
   },
   "error_page": {

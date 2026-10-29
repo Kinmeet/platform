@@ -79,13 +79,13 @@ function confirm() {
 }
 
 .pass__panel {
-  border: 2px solid var(--colour-ink);
+  border: 2px solid var(--colour-text);
   border-radius: 0.5rem;
   padding: 0.75rem 1rem;
 }
 
 .pass__panel:focus-visible {
-  outline: 3px solid var(--colour-ink);
+  outline: 3px solid var(--colour-text);
   outline-offset: 2px;
 }
 
@@ -101,7 +101,7 @@ function confirm() {
 }
 
 .pass .pass__cancel {
-  background: var(--colour-ground);
-  color: var(--colour-ink);
+  background: var(--colour-elevated);
+  color: var(--colour-text);
 }
 </style>

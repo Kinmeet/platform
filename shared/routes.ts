@@ -98,7 +98,14 @@ export const draftRoutes: readonly string[] = draftablePages
  * Access token, with the P5 headers and no third-party requests. A page here
  * must not also be in `publicRoutes`.
  */
-export const accessRoutes: readonly string[] = ['/admin']
+export const accessRoutes: readonly string[] = [
+  '/admin',
+  '/admin/forms',
+  // The form builder's pages take a form id; a made-up one stands for them all.
+  '/admin/forms/sample-form-id',
+  '/admin/forms/sample-form-id/publish',
+  '/admin/forms/sample-form-id/submissions',
+]
 
 export function isFormRoute(path: string, routes: readonly PublicRoute[] = publicRoutes): boolean {
   const clean = path.split('?')[0]?.replace(/\/+$/, '') || '/'
