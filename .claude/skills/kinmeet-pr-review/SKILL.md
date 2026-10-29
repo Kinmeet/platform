@@ -36,6 +36,7 @@ Work through every section. Note "n/a" rather than skipping silently.
 - No new third-party request, script, font, image or CDN link. Turnstile only on routes marked as form pages.
 - No personal data or secrets in code, fixtures, comments, logs or PR text. Test data is obviously fake.
 - People in roles shown only by role title and community name.
+- Read the first lines of the PR description, where the attribution block sits. A "Requested by" line, or any other line there, that names a person is **Must fix**: ask for "Requested by the founder". The PR description check catches the usual form, but read it yourself too.
 - No test skipped, disabled, loosened or deleted.
 - Nothing deploys to live outside a tagged, approved release.
 
