@@ -128,7 +128,10 @@ const canPublish = computed(
           {{ t('admin.forms.publish.outcome.published.body', { version: outcome.version }) }}
         </p>
         <p v-else>{{ t(`admin.forms.publish.outcome.${outcome.kind}.body`) }}</p>
-        <!-- A plain link, so following it loads the page again through Access. -->
+        <!-- Keep this a plain <a>, never a NuxtLink: only a full document
+             navigation goes through Access, which asks for MFA again before
+             publishing (Nadia, #166). The admin follows it; it never reloads
+             on its own. -->
         <!-- After the publish sign-in's short session ends, Access answers the
              post with a sign-in redirect, which a fetch can't follow: that
              shows as "failed", and reloading signs in again (ADR-0010). -->
