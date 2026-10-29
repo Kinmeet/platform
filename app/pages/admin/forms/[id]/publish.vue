@@ -125,7 +125,10 @@ const canPublish = computed(
         </p>
         <p v-else>{{ t(`admin.forms.publish.outcome.${outcome.kind}.body`) }}</p>
         <!-- A plain link, so following it loads the page again through Access. -->
-        <p v-if="outcome.kind === 'reauth' || outcome.kind === 'changed'">
+        <!-- After the publish sign-in's short session ends, Access answers the
+             post with a sign-in redirect, which a fetch can't follow: that
+             shows as "failed", and reloading signs in again (ADR-0010). -->
+        <p v-if="['reauth', 'changed', 'failed'].includes(outcome.kind)">
           <a :href="route.fullPath">{{ t('admin.forms.publish.reload') }}</a>
         </p>
         <p v-if="outcome.kind === 'published'">

@@ -407,6 +407,9 @@ describe('publish page', () => {
     const wrapper = await mount(PublishPage, '/admin/forms/form-1/publish')
     await buttonNamed(wrapper, 'Publish version 3').trigger('click')
     await vi.waitFor(() => expect(wrapper.find('#outcome-heading').text()).toBe(heading))
+    // Anything that might be a lapsed sign-in offers a reload, which signs in again.
+    const reload = wrapper.findAll('.admin-outcome a').some((a) => a.text() === 'Reload this page')
+    expect(reload).toBe(code === 409 || code === 500)
   })
 
   it('shows the checks the server found when they fail on publish', async () => {
