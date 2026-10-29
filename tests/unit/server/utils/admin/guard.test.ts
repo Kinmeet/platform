@@ -104,6 +104,7 @@ describe('isPublishPath', () => {
       `/api/admin/forms/${id}/publish`,
       `/api/admin/forms/${id}/publish/`,
       `/api/admin/forms/${id}/publish?x=1`,
+      `/admin/forms/${id}/publish/_payload.json`,
     ]) {
       expect(isPublishPath(path), path).toBe(true)
     }
@@ -111,6 +112,7 @@ describe('isPublishPath', () => {
       `/api/admin/forms/${id}`,
       `/api/admin/forms/${id}/draft`,
       `/api/admin/forms/${id}/publish/more`,
+      `/admin/forms/${id}/publishing`,
       `/api/admin/forms/publish`,
       `/forms/${id}/publish`,
     ]) {

@@ -16,7 +16,12 @@ export function isAdminPath(path: string): boolean {
  */
 export function isPublishPath(path: string): boolean {
   const clean = path.split('?')[0] ?? ''
-  return /^\/(api\/)?admin\/forms\/[^/]+\/publish\/?$/.test(clean)
+  // The page's own requests (such as its payload) sit under its path, and
+  // Access sends them the publish application's token too (Nadia, #170).
+  return (
+    /^\/api\/admin\/forms\/[^/]+\/publish\/?$/.test(clean) ||
+    /^\/admin\/forms\/[^/]+\/publish(\/|$)/.test(clean)
+  )
 }
 
 /** How long ago the publish application's token may have been issued. */

@@ -22,7 +22,7 @@ Every reply is JSON with `ok`. A refusal carries `error`, one of the codes below
 
 Until passkeys exist, publishing needs a fresh sign-in with MFA (Nadia's conditions on #160, recorded in ADR-0010):
 
-- A separate Access application covers the publish page, `/admin/forms/<id>/publish`, and `POST /api/admin/forms/<id>/publish`. Its session is 5 minutes or less, and it asks for a security key or biometric on every sign-in.
+- A separate Access application covers the publish page, `/admin/forms/<id>/publish`, with the requests under it (such as its payload), and `POST /api/admin/forms/<id>/publish`. Its session is 5 minutes or less, and it asks for a security key or biometric on every sign-in.
 - The Worker checks it as well as Access. On those two paths, the token must carry the publish application's audience (`ACCESS_PUBLISH_AUD`), have been issued in the last 5 minutes, and be valid for at most 10. A main admin token, or a stale publish one, gets `403 reauth_required`: the page links to itself, and reloading it makes Access ask for MFA again. A publish token is refused on every other admin route.
 - The publish route also checks that the middleware ran the re-check, so a path the pattern missed can never publish on a main admin token.
 - Where `ACCESS_PUBLISH_AUD` isn't set, every publish request gets `403 publishing_off`. It isn't set anywhere until the founder has set up the application (#133) and the staging test shows the MFA prompt firing.
