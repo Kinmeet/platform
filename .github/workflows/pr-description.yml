@@ -1,0 +1,37 @@
+name: PR description
+
+# Firm rule 3: people appear publicly by role title only, and the founder as
+# "the founder" (#168). The PR tooling writes a "Requested by" line at the top
+# of each description, so this checks it, and checks again whenever the
+# description is edited, so fixing the text clears the check.
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+
+# A burst of edits needs only the last check (Nadia, #169).
+concurrency:
+  group: pr-description-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  requested-by:
+    name: PR description names no one
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+      # The description goes in through the environment, never into the
+      # script text, so nothing in it can run as a command. The script is
+      # the PR's own copy, so reviewers check any change to
+      # scripts/pr-body.ts as closely as the workflow itself (Nadia, #169).
+      - run: bun run check:pr-body
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}

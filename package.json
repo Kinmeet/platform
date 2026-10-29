@@ -25,6 +25,7 @@
     "check:cloudflare": "bun scripts/check-cloudflare-features.ts",
     "check:generated-config": "bun scripts/check-generated-config.ts",
     "check:build-output": "bun scripts/check-build-output.ts",
+    "check:pr-body": "bun scripts/check-pr-body.ts",
     "db:migrate:local": "wrangler d1 migrations apply DB --local --config wrangler.jsonc"
   },
   "dependencies": {

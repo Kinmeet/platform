@@ -1,4 +1,6 @@
-<!-- The first lines of the description are the attribution block, if one is required. -->
+<!-- The first lines of the description are the attribution block, if one is required.
+     Its "Requested by" line names a role, never a person: write "Requested by the founder" (firm rule 3).
+     The PR description check fails on a name, and passes again once the description is edited. -->
 
 Built by <!-- persona name and role -->
 
@@ -20,6 +22,7 @@ Closes #<!-- issue number -->
 
 - [ ] CI is green (type check, lint, unit, end-to-end, accessibility, no-third-party)
 - [ ] No personal data or secrets in code, tests, fixtures, logs or this description
+- [ ] The "Requested by" line says "the founder", never a name
 - [ ] No new third-party requests (Turnstile only on form pages)
 - [ ] User-facing text is in the translation files, in British English, and uses Kinmeet terms
 - [ ] Existing modules were checked before building (section above)
