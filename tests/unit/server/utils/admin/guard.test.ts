@@ -5,7 +5,11 @@ import adminAccess from '../../../../../server/middleware/10.admin-access'
 import repliedHandler from '../../../../../server/api/admin/hello/[id]/replied.post'
 import messagesHandler from '../../../../../server/api/admin/messages.get'
 import { clearAccessKeyCache } from '../../../../../server/utils/admin/access'
-import { isAdminPath } from '../../../../../server/utils/admin/guard'
+import {
+  isAdminPath,
+  isFreshPublishToken,
+  isPublishPath,
+} from '../../../../../server/utils/admin/guard'
 import { AUD, TEAM, makeKey, signToken } from './access-token'
 
 const ORIGIN = 'https://kinmeet-staging.kinmeet.workers.dev'
@@ -89,6 +93,46 @@ describe('isAdminPath', () => {
     for (const path of ['/', '/administrator', '/api/hello', '/api/administer', '/x/admin']) {
       expect(isAdminPath(path)).toBe(false)
     }
+  })
+})
+
+describe('isPublishPath', () => {
+  const id = '00000000-0000-4000-8000-0000000000f0'
+  it('covers the publish page and API only', () => {
+    for (const path of [
+      `/admin/forms/${id}/publish`,
+      `/api/admin/forms/${id}/publish`,
+      `/api/admin/forms/${id}/publish/`,
+      `/api/admin/forms/${id}/publish?x=1`,
+      `/admin/forms/${id}/publish/_payload.json`,
+    ]) {
+      expect(isPublishPath(path), path).toBe(true)
+    }
+    for (const path of [
+      `/api/admin/forms/${id}`,
+      `/api/admin/forms/${id}/draft`,
+      `/api/admin/forms/${id}/publish/more`,
+      `/admin/forms/${id}/publishing`,
+      `/api/admin/forms/publish`,
+      `/forms/${id}/publish`,
+    ]) {
+      expect(isPublishPath(path), path).toBe(false)
+    }
+  })
+})
+
+describe('isFreshPublishToken', () => {
+  const now = 1_800_000_000
+  const claims = (iat: number | null, exp: number) => ({ sub: 'x', iat, exp })
+  it('accepts a token issued in the last 5 minutes for at most 10', () => {
+    expect(isFreshPublishToken(claims(now, now + 600), now)).toBe(true)
+    expect(isFreshPublishToken(claims(now - 300, now + 300), now)).toBe(true)
+  })
+  it('refuses an old, long-lived, undated or future token', () => {
+    expect(isFreshPublishToken(claims(now - 301, now + 200), now)).toBe(false)
+    expect(isFreshPublishToken(claims(now, now + 601), now)).toBe(false)
+    expect(isFreshPublishToken(claims(null, now + 300), now)).toBe(false)
+    expect(isFreshPublishToken(claims(now + 120, now + 300), now)).toBe(false)
   })
 })
 

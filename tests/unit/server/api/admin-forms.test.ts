@@ -1,5 +1,5 @@
 import { env } from 'cloudflare:test'
-import { createApp, createRouter, toWebHandler, type EventHandler } from 'h3'
+import { createApp, createRouter, defineEventHandler, toWebHandler, type EventHandler } from 'h3'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import adminAccess from '../../../../server/middleware/10.admin-access'
 import listHandler from '../../../../server/api/admin/forms.get'
@@ -22,6 +22,9 @@ import type {
 import type { PublicForm } from '../../../../shared/forms/view'
 import { FORM_DRAFT_BODY_LIMIT } from '../../../../shared/routes'
 import { AUD, TEAM, makeKey, signToken } from '../utils/admin/access-token'
+
+/** The publish Access application's audience (made up), separate from the main one. */
+const PUBLISH_AUD = 'test-publish-audience-tag'
 
 // The form builder's API and the generic submissions list (ADR-0010 phase B,
 // #160), behind the real admin middleware. Made-up test data only.
@@ -65,6 +68,7 @@ function app() {
     ['put', '/api/admin/forms/:id/draft', draftHandler],
     ['get', '/api/admin/forms/:id/check', checkHandler],
     ['post', '/api/admin/forms/:id/publish', publishHandler],
+    ['get', '/admin/forms/:id/publish', defineEventHandler(() => ({ page: 'publish' }))],
     ['post', '/api/admin/forms/:id/status', statusHandler],
     ['get', '/api/admin/forms/:id/submissions', submissionsHandler],
     ['post', '/api/admin/submissions/:id/replied', repliedHandler],
@@ -78,10 +82,14 @@ function app() {
   return toWebHandler(instance)
 }
 
-async function token() {
+async function token(claims: Record<string, unknown> = {}) {
   const now = Math.floor(Date.now() / 1000)
-  return signToken(key, { iat: now, nbf: now, exp: now + 600 })
+  return signToken(key, { iat: now, nbf: now, exp: now + 600, ...claims })
 }
+
+/** A fresh token from the publish application, as Access issues after MFA. */
+const publishToken = (claims: Record<string, unknown> = {}) =>
+  token({ aud: [PUBLISH_AUD], exp: Math.floor(Date.now() / 1000) + 300, ...claims })
 
 async function call(
   method: string,
@@ -91,11 +99,21 @@ async function call(
     signed = true,
     origin = ORIGIN,
     contentType = 'application/json',
-  }: { body?: unknown; signed?: boolean; origin?: string | null; contentType?: string } = {},
+    jwt,
+    publishAud = PUBLISH_AUD,
+  }: {
+    body?: unknown
+    signed?: boolean
+    origin?: string | null
+    contentType?: string
+    /** The Access token to send; a fresh main admin token by default. */
+    jwt?: string
+    publishAud?: string
+  } = {},
 ) {
   const headers: Record<string, string> = {}
   if (origin) headers.Origin = origin
-  if (signed) headers['Cf-Access-Jwt-Assertion'] = await token()
+  if (signed) headers['Cf-Access-Jwt-Assertion'] = jwt ?? (await token())
   if (body !== undefined) headers['Content-Type'] = contentType
   const response = await app()(
     new Request(`${ORIGIN}${path}`, {
@@ -111,6 +129,7 @@ async function call(
           KINMEET_ENV: 'staging',
           ACCESS_TEAM_DOMAIN: TEAM,
           ACCESS_AUD: AUD,
+          ...(publishAud ? { ACCESS_PUBLISH_AUD: publishAud } : {}),
         },
       },
     },
@@ -145,6 +164,8 @@ async function freshApplication(): Promise<string> {
   ])
   return id
 }
+
+const now = () => Math.floor(Date.now() / 1000)
 
 async function auditCount() {
   return (await env.DB.prepare('SELECT count(*) AS n FROM audit_log').first<{ n: number }>())!.n
@@ -229,7 +250,9 @@ describe('building a form', () => {
     })
     expect(Object.keys(checked.preview!.definition).sort()).toEqual(['aboutYou', 'note', 'steps'])
 
-    const published = await call('POST', `/api/admin/forms/${id}/publish`)
+    const published = await call('POST', `/api/admin/forms/${id}/publish`, {
+      jwt: await publishToken(),
+    })
     expect(published).toEqual({ status: 200, body: { ok: true, version: 2 } })
     expect((await call('GET', `/api/admin/forms/${id}/check`)).status).toBe(404)
 
@@ -258,7 +281,9 @@ describe('building a form', () => {
     await call('PUT', `/api/admin/forms/${id}/draft`, {
       body: { purpose: detail.current!.purpose, definition: detail.current!.definition, text },
     })
-    const published = await call('POST', `/api/admin/forms/${id}/publish`)
+    const published = await call('POST', `/api/admin/forms/${id}/publish`, {
+      jwt: await publishToken(),
+    })
     expect(published.status).toBe(422)
     expect(published.body).toMatchObject({
       ok: false,
@@ -295,11 +320,143 @@ describe('building a form', () => {
     const missing = '00000000-0000-4000-8000-000000000000'
     expect((await call('GET', `/api/admin/forms/${missing}`)).status).toBe(404)
     expect((await call('GET', `/api/admin/forms/${missing}/check`)).status).toBe(404)
-    expect((await call('POST', `/api/admin/forms/${missing}/publish`)).status).toBe(404)
+    expect(
+      (await call('POST', `/api/admin/forms/${missing}/publish`, { jwt: await publishToken() }))
+        .status,
+    ).toBe(404)
     expect(
       (await call('POST', `/api/admin/forms/${missing}/status`, { body: { status: 'open' } }))
         .status,
     ).toBe(404)
+  })
+})
+
+// Nadia's conditions on #160 (ADR-0010): publishing needs a fresh token from
+// the publish Access application, which asks for MFA on every sign-in.
+describe('the publish re-check', () => {
+  async function readyToPublish() {
+    const id = await freshApplication()
+    const detail = (await call('GET', `/api/admin/forms/${id}`)).body!
+    const text = structuredClone(detail.current!.text) as Text
+    text['en-GB']!.title = 'A made-up title to publish'
+    await call('PUT', `/api/admin/forms/${id}/draft`, {
+      body: { purpose: detail.current!.purpose, definition: detail.current!.definition, text },
+    })
+    return id
+  }
+
+  async function version(id: string) {
+    return (await call('GET', `/api/admin/forms/${id}`)).body!.form!.version
+  }
+
+  it('publishes with a fresh token from the publish application', async () => {
+    const id = await readyToPublish()
+    const published = await call('POST', `/api/admin/forms/${id}/publish`, {
+      jwt: await publishToken(),
+    })
+    expect(published).toEqual({ status: 200, body: { ok: true, version: 2 } })
+  })
+
+  it.each([
+    ['a main admin token', () => token()],
+    ['a publish token issued over 5 minutes ago', () => publishToken({ iat: now() - 301 })],
+    ['a publish token valid for over 10 minutes', () => publishToken({ exp: now() + 601 })],
+    ['a publish token with no issue time', () => publishToken({ iat: undefined })],
+  ])('asks for a fresh sign-in on %s, and publishes nothing', async (_, makeJwt) => {
+    const id = await readyToPublish()
+    const before = await auditCount()
+    const refused = await call('POST', `/api/admin/forms/${id}/publish`, { jwt: await makeJwt() })
+    expect(refused).toEqual({ status: 403, body: { ok: false, error: 'reauth_required' } })
+    expect(await version(id)).toBe(1)
+    expect(await auditCount()).toBe(before)
+  })
+
+  it('shows the publish page on any valid admin token, leaving the check to the POST', async () => {
+    const id = await readyToPublish()
+    for (const jwt of [await token(), await publishToken({ iat: now() - 301 })]) {
+      const page = await call('GET', `/admin/forms/${id}/publish`, { jwt })
+      expect(page.status).toBe(200)
+    }
+    const forged = await signToken(await makeKey('key-other'), { iat: now(), exp: now() + 300 })
+    expect((await call('GET', `/admin/forms/${id}/publish`, { jwt: forged })).status).toBe(403)
+    expect(await version(id)).toBe(1)
+  })
+
+  it('refuses a token that is neither, as for any admin route', async () => {
+    const id = await readyToPublish()
+    const other = await makeKey('key-unknown')
+    const forged = await signToken(other, { aud: [PUBLISH_AUD], iat: now(), exp: now() + 300 })
+    for (const jwt of [forged, 'not-a-token']) {
+      const refused = await call('POST', `/api/admin/forms/${id}/publish`, { jwt })
+      expect(refused).toEqual({ status: 403, body: { ok: false, error: 'forbidden' } })
+    }
+    expect(await version(id)).toBe(1)
+  })
+
+  it('is off where the publish application is not set up, failing closed', async () => {
+    const id = await readyToPublish()
+    const refused = await call('POST', `/api/admin/forms/${id}/publish`, {
+      jwt: await publishToken(),
+      publishAud: '',
+    })
+    expect(refused).toEqual({ status: 403, body: { ok: false, error: 'publishing_off' } })
+    expect(await version(id)).toBe(1)
+  })
+
+  it('is off where the publish application shares the main tag, failing closed', async () => {
+    const id = await readyToPublish()
+    for (const jwt of [await token(), await publishToken({ aud: [AUD] })]) {
+      const refused = await call('POST', `/api/admin/forms/${id}/publish`, { jwt, publishAud: AUD })
+      expect(refused).toEqual({ status: 403, body: { ok: false, error: 'publishing_off' } })
+    }
+    expect(await version(id)).toBe(1)
+  })
+
+  it('does not let a publish token into any other admin route', async () => {
+    const refused = await call('GET', '/api/admin/forms', { jwt: await publishToken() })
+    expect(refused).toEqual({ status: 403, body: { ok: false, error: 'forbidden' } })
+  })
+
+  it('still needs the request to come from our own admin page', async () => {
+    const id = await readyToPublish()
+    const refused = await call('POST', `/api/admin/forms/${id}/publish`, {
+      jwt: await publishToken(),
+      origin: 'https://example.com',
+    })
+    expect(refused.status).toBe(403)
+    expect(await version(id)).toBe(1)
+  })
+
+  it('is checked by the route itself, not only the middleware', async () => {
+    // The route mounted at a path the publish pattern doesn't match, with a
+    // valid main admin token: the middleware lets it through, the route must not.
+    const router = createRouter()
+    router.post('/api/admin/other/:id/go', publishHandler)
+    const instance = createApp()
+    instance.use(adminAccess)
+    instance.use(router)
+    const id = await readyToPublish()
+    const response = await toWebHandler(instance)(
+      new Request(`${ORIGIN}/api/admin/other/${id}/go`, {
+        method: 'POST',
+        headers: { Origin: ORIGIN, 'Cf-Access-Jwt-Assertion': await token() },
+      }),
+      {
+        cloudflare: {
+          env: {
+            DB: env.DB,
+            SITE_ORIGIN: ORIGIN,
+            KINMEET_ENV: 'staging',
+            ACCESS_TEAM_DOMAIN: TEAM,
+            ACCESS_AUD: AUD,
+            ACCESS_PUBLISH_AUD: PUBLISH_AUD,
+          },
+        },
+      },
+    )
+    expect(response.status).toBe(403)
+    expect(await response.json()).toEqual({ ok: false, error: 'reauth_required' })
+    expect(await version(id)).toBe(1)
   })
 })
 

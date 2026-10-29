@@ -1,7 +1,7 @@
 import type { H3Event } from 'h3'
 import { getRequestHeader, setResponseHeader, setResponseStatus } from 'h3'
 import { originAllowed } from '../forms/site-origin'
-import { verifyAccessToken, type AccessIdentity } from './access'
+import { verifyAccessClaims, type AccessClaims, type AccessIdentity } from './access'
 
 /** Paths behind Cloudflare Access: the admin page and its API. */
 export function isAdminPath(path: string): boolean {
@@ -9,9 +9,31 @@ export function isAdminPath(path: string): boolean {
   return /^\/(api\/)?admin(\/|$)/.test(clean)
 }
 
+/**
+ * The publish page and the publish API, which sit behind their own Access
+ * application with a short session and MFA on every sign-in (Nadia, #160;
+ * ADR-0010). Their tokens are that application's, not the main admin one's.
+ */
+export function isPublishPath(path: string): boolean {
+  const clean = path.split('?')[0] ?? ''
+  // The page's own requests (such as its payload) sit under its path, and
+  // Access sends them the publish application's token too (Nadia, #170).
+  return (
+    /^\/api\/admin\/forms\/[^/]+\/publish\/?$/.test(clean) ||
+    /^\/admin\/forms\/[^/]+\/publish(\/|$)/.test(clean)
+  )
+}
+
+/** How long ago the publish application's token may have been issued. */
+export const PUBLISH_MAX_AGE_SECONDS = 5 * 60
+/** The longest a publish token may be valid for, so the session stays short. */
+export const PUBLISH_MAX_LIFETIME_SECONDS = 10 * 60
+
 interface AdminEnv {
   ACCESS_TEAM_DOMAIN?: string
   ACCESS_AUD?: string
+  /** The publish Access application's audience tag. Without it, publishing is off. */
+  ACCESS_PUBLISH_AUD?: string
   SITE_ORIGIN?: string
   KINMEET_ENV?: string
 }
@@ -25,6 +47,28 @@ export function forbidden(event: H3Event) {
   return { ok: false, error: 'forbidden' }
 }
 
+/** The person must sign in to the publish application again, with MFA. */
+export function reauthRequired(event: H3Event) {
+  setResponseStatus(event, 403)
+  return { ok: false, error: 'reauth_required' }
+}
+
+/** This environment has no publish application yet, so nothing can publish. */
+function publishingOff(event: H3Event) {
+  setResponseStatus(event, 403)
+  return { ok: false, error: 'publishing_off' }
+}
+
+/** Whether a publish token is fresh and short-lived (ADR-0010, Nadia's conditions). */
+export function isFreshPublishToken(claims: AccessClaims, now = Math.floor(Date.now() / 1000)) {
+  return (
+    claims.iat !== null &&
+    claims.iat <= now + 60 &&
+    now - claims.iat <= PUBLISH_MAX_AGE_SECONDS &&
+    claims.exp - claims.iat <= PUBLISH_MAX_LIFETIME_SECONDS
+  )
+}
+
 /**
  * Checks the Access token on an admin request and keeps the identity on the
  * event. Returns `null` when the request may go on, or the refusal to send.
@@ -34,13 +78,42 @@ export function forbidden(event: H3Event) {
 export async function guardAdminRequest(event: H3Event, fetcher: typeof fetch = fetch) {
   setResponseHeader(event, 'X-Robots-Tag', 'noindex, nofollow')
   const env = adminEnv(event)
+  const token = getRequestHeader(event, 'Cf-Access-Jwt-Assertion')
+  const teamDomain = env.ACCESS_TEAM_DOMAIN ?? ''
+  const verify = (audience: string) =>
+    verifyAccessClaims(token, { teamDomain, audience }, { fetcher })
   let identity: AccessIdentity | null = null
   try {
-    identity = await verifyAccessToken(
-      getRequestHeader(event, 'Cf-Access-Jwt-Assertion'),
-      { teamDomain: env.ACCESS_TEAM_DOMAIN ?? '', audience: env.ACCESS_AUD ?? '' },
-      { fetcher },
-    )
+    if (isPublishPath(event.path)) {
+      // Only a fresh token from the publish application can publish. A valid
+      // main admin token, or a stale publish one, means the person has to
+      // sign in again with MFA; anything else is refused as usual.
+      // The same tag as the main application would let a main admin token
+      // through, so that counts as not set up (Nadia, #170).
+      const publishAud =
+        env.ACCESS_PUBLISH_AUD && env.ACCESS_PUBLISH_AUD !== env.ACCESS_AUD
+          ? env.ACCESS_PUBLISH_AUD
+          : ''
+      const publish = publishAud ? await verify(publishAud) : null
+      const reading = !event.path.startsWith('/api/') && ['GET', 'HEAD'].includes(event.method)
+      if (publish !== null && isFreshPublishToken(publish)) {
+        identity = { sub: publish.sub }
+        event.context.publishRechecked = true
+      } else if (reading) {
+        // The page itself still loads on any valid admin token, so the
+        // person sees its own message rather than a bare 403; only its POST
+        // publishes, and that needs the re-check (Mei, #170).
+        const claims = publish ?? (await verify(env.ACCESS_AUD ?? ''))
+        identity = claims === null ? null : { sub: claims.sub }
+      } else {
+        if (!publishAud) return publishingOff(event)
+        const main = publish === null ? await verify(env.ACCESS_AUD ?? '') : null
+        return publish === null && main === null ? forbidden(event) : reauthRequired(event)
+      }
+    } else {
+      const claims = await verify(env.ACCESS_AUD ?? '')
+      identity = claims === null ? null : { sub: claims.sub }
+    }
   } catch {
     console.error(JSON.stringify({ code: 'admin_access_keys_unavailable' }))
   }
@@ -56,6 +129,15 @@ export async function guardAdminRequest(event: H3Event, fetcher: typeof fetch = 
 
   event.context.adminIdentity = identity
   return null
+}
+
+/**
+ * Whether the admin middleware ran the publish re-check on this request. The
+ * publish route asks too, so a path the pattern somehow missed can never
+ * publish on a main admin token (Theo, #163).
+ */
+export function publishRechecked(event: H3Event): boolean {
+  return event.context.publishRechecked === true
 }
 
 /** The verified identity set by the admin middleware. */

@@ -20,6 +20,13 @@ export interface AccessIdentity {
   sub: string
 }
 
+/** A valid token's identity and the times the publish re-check needs. */
+export interface AccessClaims extends AccessIdentity {
+  /** When Access issued the token, if it says. */
+  iat: number | null
+  exp: number
+}
+
 interface Jwk extends JsonWebKey {
   kid?: string
 }
@@ -77,11 +84,21 @@ export function clearAccessKeyCache() {
 export async function verifyAccessToken(
   token: string | null | undefined,
   config: AccessConfig,
+  options: { fetcher?: typeof fetch; now?: number } = {},
+): Promise<AccessIdentity | null> {
+  const claims = await verifyAccessClaims(token, config, options)
+  return claims === null ? null : { sub: claims.sub }
+}
+
+/** As `verifyAccessToken`, with the token's issue and expiry times as well. */
+export async function verifyAccessClaims(
+  token: string | null | undefined,
+  config: AccessConfig,
   {
     fetcher = fetch,
     now = Math.floor(Date.now() / 1000),
   }: { fetcher?: typeof fetch; now?: number } = {},
-): Promise<AccessIdentity | null> {
+): Promise<AccessClaims | null> {
   if (!token || !config.teamDomain || !config.audience) return null
   if (!/^[a-z0-9-]+\.cloudflareaccess\.com$/.test(config.teamDomain)) return null
 
@@ -128,5 +145,9 @@ export async function verifyAccessToken(
   if (typeof payload.nbf === 'number' && payload.nbf - CLOCK_SKEW_SECONDS > now) return null
   if (typeof payload.sub !== 'string' || payload.sub.length === 0 || payload.sub.length > 128)
     return null
-  return { sub: payload.sub }
+  return {
+    sub: payload.sub,
+    iat: typeof payload.iat === 'number' ? payload.iat : null,
+    exp: payload.exp,
+  }
 }
