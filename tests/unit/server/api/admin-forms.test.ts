@@ -1,5 +1,5 @@
 import { env } from 'cloudflare:test'
-import { createApp, createRouter, toWebHandler, type EventHandler } from 'h3'
+import { createApp, createRouter, defineEventHandler, toWebHandler, type EventHandler } from 'h3'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import adminAccess from '../../../../server/middleware/10.admin-access'
 import listHandler from '../../../../server/api/admin/forms.get'
@@ -68,6 +68,7 @@ function app() {
     ['put', '/api/admin/forms/:id/draft', draftHandler],
     ['get', '/api/admin/forms/:id/check', checkHandler],
     ['post', '/api/admin/forms/:id/publish', publishHandler],
+    ['get', '/admin/forms/:id/publish', defineEventHandler(() => ({ page: 'publish' }))],
     ['post', '/api/admin/forms/:id/status', statusHandler],
     ['get', '/api/admin/forms/:id/submissions', submissionsHandler],
     ['post', '/api/admin/submissions/:id/replied', repliedHandler],
@@ -370,12 +371,15 @@ describe('the publish re-check', () => {
     expect(await auditCount()).toBe(before)
   })
 
-  it('asks for a fresh sign-in on the publish page too', async () => {
+  it('shows the publish page on any valid admin token, leaving the check to the POST', async () => {
     const id = await readyToPublish()
-    expect(await call('GET', `/admin/forms/${id}/publish`)).toEqual({
-      status: 403,
-      body: { ok: false, error: 'reauth_required' },
-    })
+    for (const jwt of [await token(), await publishToken({ iat: now() - 301 })]) {
+      const page = await call('GET', `/admin/forms/${id}/publish`, { jwt })
+      expect(page.status).toBe(200)
+    }
+    const forged = await signToken(await makeKey('key-other'), { iat: now(), exp: now() + 300 })
+    expect((await call('GET', `/admin/forms/${id}/publish`, { jwt: forged })).status).toBe(403)
+    expect(await version(id)).toBe(1)
   })
 
   it('refuses a token that is neither, as for any admin route', async () => {

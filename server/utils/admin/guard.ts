@@ -85,17 +85,25 @@ export async function guardAdminRequest(event: H3Event, fetcher: typeof fetch = 
   let identity: AccessIdentity | null = null
   try {
     if (isPublishPath(event.path)) {
-      // Only a fresh token from the publish application will do. A valid
+      // Only a fresh token from the publish application can publish. A valid
       // main admin token, or a stale publish one, means the person has to
       // sign in again with MFA; anything else is refused as usual.
-      if (!env.ACCESS_PUBLISH_AUD) return publishingOff(event)
-      const publish = await verify(env.ACCESS_PUBLISH_AUD)
-      if (publish === null || !isFreshPublishToken(publish)) {
+      const publish = env.ACCESS_PUBLISH_AUD ? await verify(env.ACCESS_PUBLISH_AUD) : null
+      const reading = !event.path.startsWith('/api/') && ['GET', 'HEAD'].includes(event.method)
+      if (publish !== null && isFreshPublishToken(publish)) {
+        identity = { sub: publish.sub }
+        event.context.publishRechecked = true
+      } else if (reading) {
+        // The page itself still loads on any valid admin token, so the
+        // person sees its own message rather than a bare 403; only its POST
+        // publishes, and that needs the re-check (Mei, #170).
+        const claims = publish ?? (await verify(env.ACCESS_AUD ?? ''))
+        identity = claims === null ? null : { sub: claims.sub }
+      } else {
+        if (!env.ACCESS_PUBLISH_AUD) return publishingOff(event)
         const main = publish === null ? await verify(env.ACCESS_AUD ?? '') : null
         return publish === null && main === null ? forbidden(event) : reauthRequired(event)
       }
-      identity = { sub: publish.sub }
-      event.context.publishRechecked = true
     } else {
       const claims = await verify(env.ACCESS_AUD ?? '')
       identity = claims === null ? null : { sub: claims.sub }
