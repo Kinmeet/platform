@@ -35,6 +35,21 @@ describe('Access settings for the admin guard', () => {
     expect(level?.vars?.ACCESS_AUD).toMatch(/^[0-9a-f]{64}$/)
   })
 
+  // The publish Access application (Nadia, #160; ADR-0010). Until the founder
+  // sets it up (#133) the variable is absent and publishing is off; once set,
+  // it must be a real AUD tag of its own, never the main admin one.
+  it.each(levels)('keep the publish application separate in %s', (_name, level) => {
+    const publish = level?.vars?.ACCESS_PUBLISH_AUD
+    if (publish === undefined) return
+    expect(publish).toMatch(/^[0-9a-f]{64}$/)
+    expect(publish).not.toBe(level?.vars?.ACCESS_AUD)
+  })
+
+  it('give every environment its own publish application, once set', () => {
+    const auds = levels.flatMap(([, level]) => level?.vars?.ACCESS_PUBLISH_AUD ?? [])
+    expect(new Set(auds).size).toBe(auds.length)
+  })
+
   it('give every environment its own Access application', () => {
     const auds = levels.map(([, level]) => level?.vars?.ACCESS_AUD)
     expect(new Set(auds).size).toBe(auds.length)

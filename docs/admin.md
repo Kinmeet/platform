@@ -9,6 +9,8 @@
 - Actions (`POST`) must also come from this environment's own origin (`SITE_ORIGIN`).
 - Locally, without Access, the admin page always answers `403`.
 
+Publishing a form has its own Access application, with a short session and MFA on every sign-in, and the Worker checks its token on the publish paths ([the publish re-check](api/admin-forms.md#the-publish-re-check)). Its audience tag goes in a third variable, `ACCESS_PUBLISH_AUD`; until that is set, publishing is off in that environment.
+
 Each environment needs two variables, which are not secrets. They are set in `wrangler.jsonc` for every deployed environment, Previews included, because Previews do not inherit production vars (#125). `tests/unit/config/access.test.ts` fails if either is missing anywhere, or if two environments share an application:
 
 | Variable             | Value                                                                        |
