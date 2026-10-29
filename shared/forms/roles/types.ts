@@ -1,72 +1,14 @@
 /**
- * Shape of a role's config (issue #19, docs/api/forms.md).
+ * Shape of a role's config (issue #19).
  *
- * The config holds ids, choices and rules only. Every word a visitor reads
- * lives in `i18n/locales/` under `roles.<slug>.…`, keyed by these ids, so the
- * site can be translated and the admin page can label answers. Ids are part
- * of the forms contract: Services validates against them, so changing one is
- * a contract change reviewed by both squads.
+ * The config holds ids only. Every word a visitor reads lives in
+ * `i18n/locales/` under `roles.<slug>.…`, keyed by these ids, so the site can
+ * be translated. A role's application form, its questions and their wording,
+ * is a stored form with the role's slug (ADR-0010), not part of this config.
  *
- * No zod here on purpose: the config is plain data that the browser bundle,
- * the server's schema and the admin page all read.
- *
- * Wording keys for every question, under `roles.<slug>.questions.<id>`:
- * - `label`: the question (a fieldset legend, or a field or checkbox label)
- * - `hint`: optional help under the label
- * - `summary`: the short label on "Check and send"
- * - `choices.<choiceId>`: each choice; for a confirm question, `choices.yes`
- *   is what "Check and send" shows once it is ticked
- * - `notes.<choiceId>`: shown after a choice whose outcome is `{ note: true }`
- * - `link`: link text, for a confirm question with a `link`
+ * No zod here on purpose: the config is plain data that the browser bundle
+ * and the server both read.
  */
-
-/**
- * Why a step 1 answer ends the application. Matches the API error codes.
- * The stop page's wording is shared by every role, under `apply.stop.<reason>`
- * (#17).
- */
-export type StopReason = 'under_18' | 'not_independent'
-
-/** What happens after a step 1 choice. Choices not listed simply continue. */
-export type ChoiceOutcome =
-  /** The flow ends on the page for this reason. */
-  | { stop: StopReason }
-  /** The flow continues and shows `questions.<id>.notes.<choiceId>`. */
-  | { note: true }
-
-/** One answer from a fixed list, shown as large radio boxes. */
-export interface SingleChoiceQuestion {
-  id: string
-  type: 'single_choice'
-  required: true
-  choices: readonly string[]
-  outcomes?: Readonly<Record<string, ChoiceOutcome>>
-}
-
-/** A statement the visitor must tick. Its only choice is `yes`. */
-export interface ConfirmQuestion {
-  id: string
-  type: 'confirm'
-  required: true
-  choices: readonly ['yes']
-  /** An outside page to read before ticking; its link text is `questions.<id>.link`. */
-  link?: string
-}
-
-/** Free text in a text area. */
-export interface LongTextQuestion {
-  id: string
-  type: 'long_text'
-  required: boolean
-  /** Most Unicode code points the answer may have. */
-  maxLength: number
-}
-
-/** Step 1 checks are always answered from a list or a tick. */
-export type CheckQuestion = SingleChoiceQuestion | ConfirmQuestion
-
-/** Step 3 role questions. More types arrive with the artist roles. */
-export type RoleQuestion = LongTextQuestion
 
 export interface RoleTag {
   id: string
@@ -84,26 +26,16 @@ export interface RolePage {
   next: readonly string[]
 }
 
-export interface RoleApply {
-  /** Step 1, "Check it fits". */
-  checks: readonly CheckQuestion[]
-  /** Step 3, "About the role". */
-  questions: readonly RoleQuestion[]
-  /** A note at the foot of step 1, `apply.note.heading` and `.body`, such as the DBS check. */
-  note: boolean
-}
-
 interface RoleBase {
   /** URL slug, in kebab-case: `/roles/<slug>`. */
   slug: string
   tags: readonly RoleTag[]
 }
 
-/** A role that is open: it has a page and an application form. */
+/** A role that is open: it has a page, and its application form is stored. */
 export interface PublishedRole extends RoleBase {
   published: true
   page: RolePage
-  apply: RoleApply
 }
 
 /**

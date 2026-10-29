@@ -15,7 +15,7 @@ import {
   type ApplicationDraft,
 } from '../../../../app/utils/apply-flow'
 import en from '../../../../i18n/locales/en-GB.json'
-import { trustee as trusteeRole } from '../../../../shared/forms/roles/trustee'
+import trusteeV1 from '../../../fixtures/trustee-role-v1.json'
 import type { PublicForm } from '../../../../shared/forms/view'
 import { loadPublicForm } from '../../helpers/stored-forms'
 
@@ -311,6 +311,8 @@ describe('apply flow: reading the reply', () => {
 })
 
 describe('apply flow: error wording', () => {
+  // The stored trustee form's fields and wording, recorded in the fixture (#160).
+  const trusteeRole = trusteeV1
   const fields: [string, string[]][] = [
     ...trusteeRole.apply.checks.map((check): [string, string[]] => [
       `checks.${check.id}`,
@@ -345,7 +347,7 @@ describe('apply flow: error wording', () => {
     )
     expect(new Set(names).size).toBe(names.length)
     expect(errorMessage({ field: 'checks.over_18', code: 'required' }, trustee).question).toEqual({
-      text: en.roles.trustee.questions.over_18.summary,
+      text: trusteeV1.copy.questions.over_18.summary,
     })
   })
 
@@ -371,7 +373,7 @@ describe('apply flow: error wording', () => {
     expect(errorMessage({ field: 'answers.experience', code: 'too_long' }, trustee)).toEqual({
       key: 'apply.errors.answer_too_long',
       params: { max: experience?.maxLength },
-      question: { text: en.roles.trustee.questions.experience.summary },
+      question: { text: trusteeV1.copy.questions.experience.summary },
     })
     expect(errorMessage({ field: 'callName', code: 'too_long' }, trustee).params).toEqual({
       max: 60,
@@ -386,7 +388,7 @@ describe('answersText', () => {
 
   it('lists every answer under its step, like Check and send', () => {
     const text = answersText(draftUpTo(3), trustee, t)
-    const questions = en.roles.trustee.questions
+    const questions = trusteeV1.copy.questions
     expect(text.split('\n')).toEqual([
       `Applying for: ${en.roles.trustee.title}`,
       '',

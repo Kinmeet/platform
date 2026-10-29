@@ -1,9 +1,11 @@
 import { expect, type Page } from '@playwright/test'
 import en from '../../i18n/locales/en-GB.json' with { type: 'json' }
+import trusteeV1 from '../fixtures/trustee-role-v1.json' with { type: 'json' }
 import { waitForApp } from './helpers'
 
-// Steps through the trustee application with made-up answers.
-const questions = en.roles.trustee.questions
+// Steps through the trustee application with made-up answers. Its wording
+// is the stored form's, recorded in the fixture (#160).
+const questions = trusteeV1.copy.questions
 export const APPLY = '/roles/trustee/apply'
 
 export async function openApply(page: Page, path = APPLY) {

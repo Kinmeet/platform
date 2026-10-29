@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { StopReason } from '#shared/forms/roles'
+import type { StopReason } from '#shared/forms/definition'
 import { hasPage } from '#shared/site-nav'
 
 // Where a step 1 answer ends the application (#16): under 18, or related to
