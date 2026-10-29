@@ -80,7 +80,8 @@ defineExpose({ focus: () => root.value?.focus() })
 
 <template>
   <div ref="root" class="admin-checks" tabindex="-1" aria-labelledby="checks-result">
-    <p id="checks-result" class="admin-checks__result">
+    <!-- Announced when a re-check changes it (Robin, B7); the list itself is not live. -->
+    <p id="checks-result" class="admin-checks__result" role="status">
       {{
         check.ok
           ? t('admin.forms.checks.ready')

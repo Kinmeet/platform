@@ -590,7 +590,11 @@
         "allSaved": "Everything on this page is saved.",
         "saved": "Draft saved. There is 1 thing to fix before publishing. | Draft saved. There are {count} things to fix before publishing.",
         "savedReady": "Draft saved. Every check is done, so it is ready to publish.",
-        "draftInvalid": "The draft couldn't be saved because it is too big. Remove some questions or wording."
+        "draftInvalid": "The draft couldn't be saved because it is too big. Remove some questions or wording.",
+        "alreadyFirst": "\"{name}\" is already the first question in step {step}.",
+        "alreadyLast": "\"{name}\" is already the last question in step {step}.",
+        "stepFull": "Step {step} already has {max} questions, the most a step can have.",
+        "noMoreSteps": "This form already has every step it can have."
       },
       "editor": {
         "heading": "Editing: {label}",
@@ -632,7 +636,11 @@
         "errorsHint": "These are fixed wording for this answer type. You can't change them, and your question is never joined into them.",
         "summaryExample": "In the list of things to fix, it reads: {example}",
         "done": "Done",
-        "removeQuestion": "Remove this question"
+        "removeQuestion": "Remove this question",
+        "choicesFull": "This question already has {max} choices, the most it can have.",
+        "choiceFirst": "\"{name}\" is already the first choice.",
+        "choiceLast": "\"{name}\" is already the last choice.",
+        "choicesTooFew": "A one-choice question needs at least {min} choices, so this one can't be removed."
       },
       "types": {
         "short_text": {
@@ -723,7 +731,7 @@
       },
       "problems": {
         "action_not_allowed": "An action in the form settings doesn't fit this data map row. Replies go with messages, and \"outcome told\" goes with applications.",
-        "body_cap_over_route_limit": "The answers could add up to more than this form's address can take. Lower some answer limits or remove a question.",
+        "body_cap_over_route_limit": "The website can't receive a message form at this web address yet, so it can't be published. For now, only the say hello form can be published.",
         "body_cap_too_large": "The answers could add up to more than any form can take. Lower some answer limits or remove a question.",
         "definition_too_large": "This form is too big to store. Remove some questions or choices.",
         "duplicate_choice_text": "Two choices have the same wording. Make each one different.",
@@ -740,7 +748,7 @@
         "receipt_not_allowed": "Only applications can send a receipt email.",
         "retention_too_long": "This keeps what is sent for longer than the data map row allows. Choose fewer months.",
         "safeguarding_action_missing": "This form takes answers in people's own words, so \"Pass to safeguarding\" must be ticked.",
-        "second_approval_needed": "This change needs a second person to approve it, and nobody can do that yet. It can't be published for now.",
+        "second_approval_needed": "This version needs a second person to approve it, and nobody can do that yet, so it can't be published for now. That includes any change to what is asked or who sees it, and any wording that mentions something sensitive, such as health or DBS checks.",
         "slug_invalid": "The form's web address isn't valid. Ask the developer to look at it.",
         "slug_reserved": "The form's web address is one the website already uses. Ask the developer to look at it.",
         "summary_too_short": "The short name needs at least two words, so it makes sense on its own.",
@@ -777,7 +785,8 @@
         "lead": "The saved draft, drawn the way the public page draws it. Nothing typed here is sent.",
         "none": "Save the draft to see a preview. A draft with missing wording can't be shown yet.",
         "page": "Page {page} of {count}",
-        "check": "This page lists every answer, with a Change link for each step, then Send."
+        "check": "This page lists every answer, with a Change link for each step, then Send.",
+        "narrow": "Show at phone width"
       },
       "publish": {
         "heading": "Publish a form",

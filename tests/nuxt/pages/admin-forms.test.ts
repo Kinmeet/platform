@@ -265,7 +265,9 @@ describe('form builder', () => {
     // Every Edit and Move button names its question for screen readers.
     expect(buttonNamed(wrapper, 'Edit').text()).toBe('Edit Do you like the sample?')
     expect(wrapper.find('#settings-purpose').element).toHaveProperty('value', 'say_hello')
-    expect(wrapper.text()).toContain('There are 3 things to fix')
+    // A re-check is announced through the summary line only (Robin, B7).
+    expect(wrapper.find('#checks-result').attributes('role')).toBe('status')
+    expect(wrapper.find('#checks-result').text()).toBe('There are 3 things to fix')
   })
 
   it('words each problem from our own text, naming what it is about', async () => {
@@ -313,9 +315,17 @@ describe('form builder', () => {
     expect(wrapper.findAll('.admin-question__name').map((each) => each.text())[2]).toBe(
       'Tell us more about the sample',
     )
-    // The first question can't move up: the button says so and does nothing.
+    // The first question can't move up: the button says so, and says why when pressed.
     const up = buttonNamed(wrapper, 'Move up Do you like the sample?')
     expect(up.attributes('aria-disabled')).toBe('true')
+    await up.trigger('click')
+    await flushPromises()
+    expect(status(wrapper)).toBe(
+      '"Do you like the sample?" is already the first question in step 1.',
+    )
+    expect(wrapper.findAll('.admin-question__name').map((each) => each.text())[0]).toBe(
+      'Do you like the sample?',
+    )
   })
 
   it('saves the draft with only the words its questions use', async () => {
@@ -353,6 +363,12 @@ describe('form builder', () => {
     expect(preview.text()).toContain('Tell us more about the sample')
     // A free-text form shows where a worry goes (SG6).
     expect(preview.find('.form-safety-note').exists()).toBe(true)
+    // The phone-width toggle says whether it is on (B9).
+    const toggle = buttonNamed(wrapper, 'Show at phone width')
+    expect(toggle.attributes('aria-pressed')).toBe('false')
+    await toggle.trigger('click')
+    expect(toggle.attributes('aria-pressed')).toBe('true')
+    expect(wrapper.find('.admin-preview').classes()).toContain('admin-preview--narrow')
   })
 
   it('opens Publish only when every check is done and nothing is unsaved', async () => {
@@ -431,7 +447,7 @@ describe('publish page', () => {
     await vi.waitFor(() =>
       expect(wrapper.find('#outcome-heading').text()).toBe('Some checks failed'),
     )
-    expect(wrapper.text()).toContain('This change needs a second person to approve it')
+    expect(wrapper.text()).toContain('This version needs a second person to approve it')
     // Each problem links back to the builder, where it can be fixed.
     expect(wrapper.find('.admin-checks a').attributes('href')).toBe(
       '/admin/forms/form-1#settings-heading',

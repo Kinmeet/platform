@@ -11,6 +11,8 @@ import { fieldPath, flowSteps, shownFieldIds } from '#shared/forms/view'
 const props = defineProps<{ form: PublicForm }>()
 const { t } = useI18n()
 
+// Narrows the preview to a phone's width, so the stacked layout can be seen (canvas, B9).
+const narrow = ref(false)
 const values = ref<Record<string, string>>({})
 const callName = ref('')
 const email = ref('')
@@ -44,9 +46,17 @@ const previewPath = (path: string) => `preview.${path}`
 </script>
 
 <template>
-  <div class="admin-preview">
+  <button
+    type="button"
+    class="button button--small button--secondary admin-preview__width"
+    :aria-pressed="narrow ? 'true' : 'false'"
+    @click="narrow = !narrow"
+  >
+    {{ t('admin.forms.preview.narrow') }}
+  </button>
+  <div class="admin-preview" :class="{ 'admin-preview--narrow': narrow }">
     <template v-for="(page, index) in pages" :key="index">
-      <section class="admin-preview__page" :aria-labelledby="`preview-page-${index + 1}`">
+      <div class="admin-preview__page">
         <p v-if="count > 1" class="eyebrow">
           {{ t('admin.forms.preview.page', { page: index + 1, count }) }}
         </p>
@@ -122,7 +132,7 @@ const previewPath = (path: string) => `preview.${path}`
           <p v-else>{{ t('admin.forms.preview.check') }}</p>
         </template>
         <FormSafetyNote v-if="index === count - 1" :form="form" />
-      </section>
+      </div>
     </template>
   </div>
 </template>

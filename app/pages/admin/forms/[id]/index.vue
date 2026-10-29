@@ -29,6 +29,15 @@ const check = ref<AdminFormCheck | null>(null)
 const preview = ref<PublicForm | null>(null)
 const editing = ref<string | null>(null)
 const announcement = ref('')
+/**
+ * Says something through the status region. It is emptied first, so the
+ * same message pressed twice is read out again (Robin, #166).
+ */
+async function announce(message: string) {
+  announcement.value = ''
+  await nextTick()
+  announcement.value = message
+}
 const busy = ref(false)
 
 watch(
@@ -99,20 +108,36 @@ async function doneEditing() {
 function move(fieldId: string, by: -1 | 1) {
   if (!draft.value) return
   const moved = moveField(draft.value.definition, fieldId, by)
-  if (!moved) return
+  const located = findBuilderField(draft.value.definition, fieldId)
+  const name = questionName(fieldId)
+  // A Move button at the end says why nothing happened, rather than staying silent.
+  if (!moved) {
+    return announce(
+      t(by === -1 ? 'admin.forms.builder.alreadyFirst' : 'admin.forms.builder.alreadyLast', {
+        name,
+        step: (located?.stepIndex ?? 0) + 1,
+      }),
+    )
+  }
   // Focus stays on the button pressed; the new position is announced.
-  announcement.value = t('admin.forms.builder.moved', {
-    name: questionName(fieldId),
-    position: moved.position,
-    count: moved.count,
-    step: moved.step,
-  })
+  return announce(
+    t('admin.forms.builder.moved', {
+      name,
+      position: moved.position,
+      count: moved.count,
+      step: moved.step,
+    }),
+  )
 }
 
 async function addQuestion(stepIndex: number) {
   if (!draft.value) return
   const fieldId = addField(draft.value.definition, stepIndex)
   if (fieldId) await edit(fieldId)
+  else
+    await announce(
+      t('admin.forms.builder.stepFull', { step: stepIndex + 1, max: LIMITS.fieldsPerStep }),
+    )
 }
 
 async function removeQuestion() {
@@ -121,7 +146,7 @@ async function removeQuestion() {
   const name = questionName(editing.value)
   removeField(draft.value.definition, editing.value)
   editing.value = null
-  announcement.value = t('admin.forms.builder.removed', { name })
+  await announce(t('admin.forms.builder.removed', { name }))
   await nextTick()
   document.getElementById(`step-${(located?.stepIndex ?? 0) + 1}`)?.focus()
 }
@@ -129,8 +154,8 @@ async function removeQuestion() {
 async function onAddStep() {
   if (!draft.value) return
   const number = addStep(draft.value.definition)
-  if (number === undefined) return
-  announcement.value = t('admin.forms.builder.stepAdded', { step: number })
+  if (number === undefined) return announce(t('admin.forms.builder.noMoreSteps'))
+  await announce(t('admin.forms.builder.stepAdded', { step: number }))
   await nextTick()
   document.getElementById(`step-${number}`)?.focus()
 }
@@ -139,7 +164,7 @@ async function onRemoveStep(index: number) {
   if (!draft.value || draft.value.definition.steps.length === 1) return
   removeStep(draft.value.definition, index)
   editing.value = null
-  announcement.value = t('admin.forms.builder.stepRemoved', { step: index + 1 })
+  await announce(t('admin.forms.builder.stepRemoved', { step: index + 1 }))
   await nextTick()
   document.getElementById('questions-heading')?.focus()
 }
@@ -363,7 +388,6 @@ async function showChecks() {
               :key="step.id"
               class="admin-step"
               tabindex="-1"
-              :aria-labelledby="`step-${s + 1}-heading`"
             >
               <h3 :id="`step-${s + 1}-heading`">
                 {{
@@ -502,7 +526,7 @@ async function showChecks() {
             :slug="slug"
             @done="doneEditing"
             @remove="removeQuestion"
-            @announce="(message: string) => (announcement = message)"
+            @announce="announce"
           />
 
           <section aria-labelledby="settings-heading">

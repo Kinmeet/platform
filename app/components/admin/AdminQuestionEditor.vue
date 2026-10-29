@@ -95,25 +95,34 @@ async function onAddChoice() {
   const current = field.value
   if (!current) return
   const id = addChoice(current)
-  if (!id) return
+  // A button at its limit says why nothing happened (Robin, #166).
+  if (!id) return emit('announce', t('admin.forms.editor.choicesFull', { max: LIMITS.choicesMax }))
   await nextTick()
   document.getElementById(`choice-${props.fieldId}-${id}`)?.focus()
 }
 
-async function onMoveChoice(choice: string, index: number, by: -1 | 1) {
+function onMoveChoice(choice: string, index: number, by: -1 | 1) {
   const current = field.value
   if (!current) return
   const name = choiceName(choice, index)
   const position = moveChoice(current, choice, by)
-  if (position === undefined) return
+  if (position === undefined) {
+    return emit(
+      'announce',
+      t(by === -1 ? 'admin.forms.editor.choiceFirst' : 'admin.forms.editor.choiceLast', { name }),
+    )
+  }
   const count = current.type === 'single_choice' ? current.choices.length : 0
   emit('announce', t('admin.forms.editor.choiceMoved', { name, position, count }))
 }
 
 async function onRemoveChoice(choice: string, index: number) {
   const current = field.value
-  if (!current) return
+  if (current?.type !== 'single_choice') return
   const name = choiceName(choice, index)
+  if (current.choices.length <= LIMITS.choicesMin) {
+    return emit('announce', t('admin.forms.editor.choicesTooFew', { min: LIMITS.choicesMin }))
+  }
   removeChoice(draft.value.definition, current, choice)
   emit('announce', t('admin.forms.editor.choiceRemoved', { name }))
   await nextTick()

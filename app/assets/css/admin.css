@@ -238,3 +238,12 @@
   flex-direction: column;
   gap: var(--space-4);
 }
+
+.admin-preview__width {
+  margin-bottom: var(--space-4);
+}
+
+/* About a phone's width, borders included. */
+.admin-preview--narrow {
+  max-width: 20rem;
+}
