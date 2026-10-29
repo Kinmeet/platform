@@ -46,6 +46,7 @@ type Outcome =
   | { kind: 'published'; version: number }
   | { kind: 'reauth' }
   | { kind: 'forbidden' }
+  | { kind: 'off' }
   | { kind: 'checks' }
   | { kind: 'changed' }
   | { kind: 'no_draft' }
@@ -76,6 +77,9 @@ async function publish() {
   if (response.ok && reply?.ok && typeof reply.version === 'number')
     return show({ kind: 'published', version: reply.version })
   const error = reply?.error
+  // Until an environment has its publish Access app (#133), publishing is
+  // off there, and a reload won't change that (Ade, #170).
+  if (response.status === 403 && error === 'publishing_off') return show({ kind: 'off' })
   if (response.status === 403)
     return show({ kind: error === 'reauth_required' ? 'reauth' : 'forbidden' })
   if (response.status === 422 && error === 'checks_failed' && reply?.check) {

@@ -827,6 +827,10 @@
           "failed": {
             "heading": "That did not work",
             "body": "Nothing was published. Please reload the page and try again."
+          },
+          "off": {
+            "heading": "Publishing isn't switched on yet",
+            "body": "Publishing needs its own sign-in check, which isn't set up here yet. Nothing was published, and reloading won't change that."
           }
         }
       },

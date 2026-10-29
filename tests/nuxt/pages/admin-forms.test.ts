@@ -414,6 +414,7 @@ describe('publish page', () => {
 
   it.each([
     [403, { ok: false, error: 'forbidden' }, "You can't publish here"],
+    [403, { ok: false, error: 'publishing_off' }, "Publishing isn't switched on yet"],
     [409, { ok: false, error: 'changed' }, 'Someone else published first'],
     [404, { ok: false, error: 'no_draft' }, 'No draft to publish'],
     [500, { ok: false, error: 'unavailable' }, 'That did not work'],
