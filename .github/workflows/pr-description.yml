@@ -11,6 +11,11 @@ on:
 permissions:
   contents: read
 
+# A burst of edits needs only the last check (Nadia, #169).
+concurrency:
+  group: pr-description-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   requested-by:
     name: PR description names no one
@@ -24,7 +29,9 @@ jobs:
         with:
           bun-version-file: package.json
       # The description goes in through the environment, never into the
-      # script text, so nothing in it can run as a command.
+      # script text, so nothing in it can run as a command. The script is
+      # the PR's own copy, so reviewers check any change to
+      # scripts/pr-body.ts as closely as the workflow itself (Nadia, #169).
       - run: bun run check:pr-body
         env:
           PR_BODY: ${{ github.event.pull_request.body }}

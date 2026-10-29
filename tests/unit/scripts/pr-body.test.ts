@@ -13,6 +13,8 @@ describe('the "Requested by" line in a PR description', () => {
 
   it('accepts another role title', () => {
     expect(requestedByProblems('Requested by the Head of Delivery.')).toEqual([])
+    expect(requestedByProblems('Requested by: the founder')).toEqual([])
+    expect(requestedByProblems('Requested by — the founder')).toEqual([])
   })
 
   it('refuses a first name in the tooling line', () => {
@@ -28,6 +30,10 @@ describe('the "Requested by" line in a PR description', () => {
       '**Requested by** Testname Example',
       '> Requested by `Testname`',
       `requested by Testname ${thread}`,
+      'Requested by: Testname',
+      'Requested by — Testname',
+      'Requested by - Testname',
+      '_Requested by:_ **Testname**',
     ]) {
       expect(requestedByProblems(line)).toHaveLength(1)
     }

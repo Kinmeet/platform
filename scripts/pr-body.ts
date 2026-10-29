@@ -7,7 +7,8 @@
 // name doesn't. Prose further into a line ("as requested by …") is left to
 // the reviewer.
 
-const REQUESTED_BY = /^[\s>*_-]*requested by[\s*_]+(.*)$/i
+// After "by": spaces, emphasis, a colon or a dash (Ezra, #169).
+const REQUESTED_BY = /^[\s>*_-]*requested by[\s*_:\-–—]+(.*)$/i
 
 // The requester runs up to the tooling's " · " separator, a link or the end.
 function requester(rest: string): string {
